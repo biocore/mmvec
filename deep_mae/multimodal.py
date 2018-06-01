@@ -8,9 +8,8 @@ from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
 import matplotlib.pyplot as plt
 from scipy.stats import entropy, spearmanr
-from keras.layers import Input, Embedding, Dense
+from keras.layers import (Input, Embedding, Dense, Dropout)
 from keras.models import Model
-from keras.layers import concatenate
 from keras import regularizers
 import click
 
@@ -47,7 +46,6 @@ def split(otu_table_file, metabolite_table_file, num_test,
     microbes_df, metabolites_df = microbes_df.align(
         metabolites_df, axis=0, join='inner')
 
-
     # filter out microbes that don't appear in many samples
     microbes_df = microbes_df.loc[:, (microbes_df>0).sum(axis=0)>min_samples]
 
@@ -66,9 +64,9 @@ def split(otu_table_file, metabolite_table_file, num_test,
     test_microbes = Table(test_microbes.values.T,
                           test_microbes.columns, test_microbes.index)
     train_metabolites = Table(train_metabolites.values.T,
-                           train_metabolites.columns, train_metabolites.index)
+                              train_metabolites.columns, train_metabolites.index)
     test_metabolites = Table(test_metabolites.values.T,
-                          test_metabolites.columns, test_metabolites.index)
+                             test_metabolites.columns, test_metabolites.index)
 
     # output paths
     test_microbes_path = os.path.join(
@@ -92,6 +90,7 @@ def split(otu_table_file, metabolite_table_file, num_test,
 
 def build_model(microbes, metabolites,
                 microbe_latent_dim=5, metabolite_latent_dim=5,
+                dropout_rate=0.5,
                 lam=0.1):
 
     d1 = microbes.shape[1]
@@ -103,19 +102,19 @@ def build_model(microbes, metabolites,
     ms_in = Dense(metabolite_latent_dim, activation='linear',
                   bias_regularizer=regularizers.l1(lam),
                   activity_regularizer=regularizers.l1(lam))(ms_input)
-
+    ms_drop = Dropout(dropout_rate, name='ms_drop')(ms_in)
     shared = Dense(metabolite_latent_dim + microbe_latent_dim,
                    activation='linear',
-                   bias_regularizer=regularizers.l2(lam),
-                   activity_regularizer=regularizers.l2(lam))(ms_in)
-
+                   bias_regularizer=regularizers.l1(lam),
+                   activity_regularizer=regularizers.l1(lam))(ms_drop)
+    shared_drop = Dropout(dropout_rate, name='shared_drop')(shared)
     otu_out = Dense(microbe_latent_dim, activation='linear',
-                    activity_regularizer=regularizers.l1(lam))(shared)
-
+                    activity_regularizer=regularizers.l1(lam))(shared_drop)
+    otu_drop = Dropout(dropout_rate, name='otu_drop')(otu_out)
     otu_output = Dense(d1, activation='softmax',
                        bias_regularizer=regularizers.l1(lam),
                        activity_regularizer=regularizers.l1(lam),
-                       name='otu_output')(otu_out)
+                       name='otu_output')(otu_drop)
 
     model = Model(inputs=[ms_input], outputs=[otu_output])
 
@@ -157,6 +156,11 @@ def build_model(microbes, metabolites,
               help=('Parameter regularization.  Helps with preventing overfitting.'
                     'Higher regularization forces more parameters to zero.'),
               default=10.)
+@click.option('--dropout-rate',
+              help=('Dropout regularization.  Helps with preventing overfitting.'
+                    'This is the probability of dropping a parameter at a given iteration.'
+                    'Values must be between (0, 1)'),
+              default=0.5)
 @click.option('--top-k',
               help=('Number of top hits to compare for cross-validation.'),
               default=10)
@@ -170,7 +174,7 @@ def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, cv_iterations,
                 microbe_latent_dim, metabolite_latent_dim,
-                regularization, top_k,
+                regularization, dropout_rate, top_k,
                 summary_dir, results_file, ranks_file):
 
     lam = regularization
@@ -188,7 +192,7 @@ def autoencoder(otu_train_file, otu_test_file,
     metabolites_df = pd.DataFrame(
         np.array(train_metabolites.matrix_data.todense()).T,
         index=train_metabolites.ids(axis='sample'),
-        columns=train_metabolites.ids(axis='observation').astype(np.int))
+        columns=train_metabolites.ids(axis='observation'))
 
     # filter out low abundance microbes
     microbe_ids = microbes_df.columns
@@ -202,6 +206,7 @@ def autoencoder(otu_train_file, otu_test_file,
     model = build_model(microbes, metabolites,
                         microbe_latent_dim=microbe_latent_dim,
                         metabolite_latent_dim=metabolite_latent_dim,
+                        dropout_rate=dropout_rate,
                         lam=lam)
 
     sname = 'microbe_latent_dim_' + str(microbe_latent_dim) + \
@@ -221,7 +226,7 @@ def autoencoder(otu_train_file, otu_test_file,
         {
             'otu_output': microbes,
         },
-        #verbose=0,
+        verbose=0,
         #callbacks=[tbCallBack],
         epochs=epochs, batch_size=batch_size)
 
@@ -233,7 +238,7 @@ def autoencoder(otu_train_file, otu_test_file,
     metabolites_df = pd.DataFrame(
         np.array(test_metabolites.matrix_data.todense()).T,
         index=test_metabolites.ids(axis='sample'),
-        columns=test_metabolites.ids(axis='observation').astype(np.int))
+        columns=test_metabolites.ids(axis='observation'))
 
     microbes = closure(microbes_df)
     metabolites = closure(metabolites_df)
@@ -282,6 +287,7 @@ def autoencoder(otu_train_file, otu_test_file,
 
     params.append(p)
     params = pd.DataFrame(params)
+    print(params.T)
     params.to_csv(results_file)
     ranks.to_csv(ranks_file)
 
