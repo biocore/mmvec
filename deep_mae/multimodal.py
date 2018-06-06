@@ -8,10 +8,13 @@ from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
 import matplotlib.pyplot as plt
 from scipy.stats import entropy, spearmanr
-from keras.layers import (Input, Embedding, Dense, Dropout)
+from keras.optimizers import SGD, Adam
+from keras.layers import (Input, Embedding, Dense,
+                          Dropout, Flatten, Activation)
 from keras.models import Model
 from keras import regularizers
 import click
+from scipy.sparse import coo_matrix
 
 
 @click.group()
@@ -88,44 +91,43 @@ def split(otu_table_file, metabolite_table_file, num_test,
         test_metabolites.to_hdf5(f, "test")
 
 
+def onehot(microbes, metabolites):
+    coo = coo_matrix(microbes)
+    data = coo.data.astype(np.int64)
+    otu_ids = coo.col
+    sample_ids = coo.row
+    otu_hits = np.repeat(otu_ids, data)
+    sample_ids = np.repeat(sample_ids, data)
+
+    ms_hits = metabolites[sample_ids, :]
+    return otu_hits.astype(np.int32), ms_hits
+
+
 def build_model(microbes, metabolites,
-                microbe_latent_dim=5, metabolite_latent_dim=5,
-                dropout_rate=0.5,
-                lam=0.1):
+                       latent_dim=5, dropout_rate=0.5, lam=0,
+                       beta_1=0.999, beta_2=0.9999, clipnorm=10.):
 
     d1 = microbes.shape[1]
     d2 = metabolites.shape[1]
 
-    ms_input = Input(shape=(d2,), dtype='float32', name='ms_input')
+    otu_input = Input(shape=(1,), dtype='float32', name='otu_input')
+    embedding = Embedding(input_dim=d1, output_dim=latent_dim,
+                          input_length=1, name='otu_embedding')(otu_input)
+    otu_embed = Flatten()(embedding)
 
-    # reduce the dimensionality
-    ms_in = Dense(metabolite_latent_dim, activation='linear',
-                  bias_regularizer=regularizers.l1(lam),
-                  activity_regularizer=regularizers.l1(lam))(ms_input)
+    ms_in = Dense(d2, activation='linear', use_bias=False,
+                  activity_regularizer=regularizers.l1(lam),
+                  name='ms_in')(otu_embed)
     ms_drop = Dropout(dropout_rate, name='ms_drop')(ms_in)
-    shared = Dense(metabolite_latent_dim + microbe_latent_dim,
-                   activation='linear',
-                   bias_regularizer=regularizers.l1(lam),
-                   activity_regularizer=regularizers.l1(lam))(ms_drop)
-    shared_drop = Dropout(dropout_rate, name='shared_drop')(shared)
-    otu_out = Dense(microbe_latent_dim, activation='linear',
-                    activity_regularizer=regularizers.l1(lam))(shared_drop)
-    otu_drop = Dropout(dropout_rate, name='otu_drop')(otu_out)
-    otu_output = Dense(d1, activation='softmax',
-                       bias_regularizer=regularizers.l1(lam),
-                       activity_regularizer=regularizers.l1(lam),
-                       name='otu_output')(otu_drop)
+    ms_output = Activation('softmax', name='ms_output')(ms_drop)
 
-    model = Model(inputs=[ms_input], outputs=[otu_output])
-
-    model.compile(optimizer='adam',
+    model = Model(inputs=[otu_input], outputs=[ms_output])
+    sgd = Adam(beta_1=beta_1, beta_2=beta_2, clipnorm=clipnorm)
+    model.compile(optimizer=sgd,
                   loss={
-                      'otu_output': 'kullback_leibler_divergence'
-                  },
-                  loss_weights={
-                      'otu_output': 1.0,
+                      'ms_output': 'kullback_leibler_divergence'
                   }
-    )
+                 )
     return model
 
 
@@ -203,15 +205,24 @@ def autoencoder(otu_train_file, otu_test_file,
     metabolites = closure(metabolites_df)
     params = []
 
-    model = build_model(microbes, metabolites,
-                        microbe_latent_dim=microbe_latent_dim,
-                        metabolite_latent_dim=metabolite_latent_dim,
-                        dropout_rate=dropout_rate,
-                        lam=lam)
+    # model = build_model(microbes, metabolites,
+    #                     microbe_latent_dim=microbe_latent_dim,
+    #                     metabolite_latent_dim=metabolite_latent_dim,
+    #                     dropout_rate=dropout_rate,
+    #                     lam=lam)
+    #
+    # sname = 'microbe_latent_dim_' + str(microbe_latent_dim) + \
+    #        '_metabolite_latent_dim_' + str(metabolite_latent_dim) + \
+    #        '_lam' + str(lam)
 
-    sname = 'microbe_latent_dim_' + str(microbe_latent_dim) + \
-           '_metabolite_latent_dim_' + str(metabolite_latent_dim) + \
-           '_lam' + str(lam)
+    otu_hits, ms_hits = onehot(
+        microbes_df.values, closure(metabolites_df.values))
+    model = build_model(
+        microbes.values, metabolites.values,
+        latent_dim=microbe_latent_dim, lam=lam,
+        otu_dropout_rate=0.1,
+        ms_dropout_rate=dropout_rate
+    )
 
     # tbCallBack = keras.callbacks.TensorBoard(
     #     log_dir=os.path.join(summary_dir + '/run_' + sname),
@@ -221,12 +232,12 @@ def autoencoder(otu_train_file, otu_test_file,
 
     model.fit(
         {
-            'ms_input': metabolites
+            'otu_input': otu_hits,
         },
         {
-            'otu_output': microbes,
+            'ms_output': ms_hits
         },
-        verbose=0,
+        verbose=1,
         #callbacks=[tbCallBack],
         epochs=epochs, batch_size=batch_size)
 
@@ -240,55 +251,40 @@ def autoencoder(otu_train_file, otu_test_file,
         index=test_metabolites.ids(axis='sample'),
         columns=test_metabolites.ids(axis='observation'))
 
-    microbes = closure(microbes_df)
-    metabolites = closure(metabolites_df)
+    otu_hits, ms_hits = onehot(
+        microbes_df.values, closure(metabolites_df.values))
 
     # otu_output, ms_output = model.predict(
     #     [microbes, metabolites], batch_size=microbes.shape[0])
     weights = model.get_weights()
-    V1 = weights[0]   # ms input weights
-    V1b = weights[1]  # ms input bias
-    V2 = weights[2]   # ms shared weights
-    V2b = weights[3]  # ms shared bias
-    U2 = weights[4]   # otu shared weights
-    U2b = weights[5]  # otu shared bias
-    U3 = weights[6]  # otu output weights
-    U3b = weights[7] # otu output bias
+    U, V = weights[0], weights[1]
 
-    # all of the weights to predict metabolites from microbes
-    def predict(x):
-        return softmax(
-            # x @ U3.T @ U2.T @ V2.T @ V1.T
-            (((x @ U3.T + U2b) @ U2.T + V2b) @ V2.T + V1b) @ V1.T
-        )
-
-    ranks = ((((U3.T + U2b) @ U2.T + V2b) @ V2.T + V1b) @ V1.T)
+    ranks = U @ V
     ranks = pd.DataFrame(ranks, index=microbes_df.columns,
                          columns=metabolites_df.columns)
+    # batch_size = ms_hits.shape[0]
+    # pred_ms_hits = model.predict(otu_hits, batch_size)
+    #
+    # k = top_k
+    # ms_r = []
+    # for i in range(metabolites.shape[0]):
+    #     idx = np.argsort(pred_ms[i, :])[-k:]
+    #     r = spearmanr(pred_ms[i, idx], metabolites[i, idx])
+    #     ms_r.append(r)
+    # ms_r = np.mean(ms_r)
+    # ms_kl = np.mean(entropy(metabolites, pred_ms))
+    # p = {'ms_err' : mean_ms_diff,
+    #      'ms_kl' : ms_kl,
+    #      'ms_spearman': ms_r,
+    #      'microbe_latent_dim': microbe_latent_dim,
+    #      'metabolite_latent_dim': metabolite_latent_dim,
+    #      'regularization': lam}
+    #
+    # params.append(p)
+    # params = pd.DataFrame(params)
+    # print(params.T)
+    # params.to_csv(results_file)
 
-    pred_ms = predict(microbes)
-
-    mean_ms_diff = np.mean(
-        np.sum(np.abs(pred_ms - metabolites), axis=1) * 0.5)
-    k = top_k
-    ms_r = []
-    for i in range(metabolites.shape[0]):
-        idx = np.argsort(pred_ms[i, :])[-k:]
-        r = spearmanr(pred_ms[i, idx], metabolites[i, idx])
-        ms_r.append(r)
-    ms_r = np.mean(ms_r)
-    ms_kl = np.mean(entropy(metabolites, pred_ms))
-    p = {'ms_err' : mean_ms_diff,
-         'ms_kl' : ms_kl,
-         'ms_spearman': ms_r,
-         'microbe_latent_dim': microbe_latent_dim,
-         'metabolite_latent_dim': metabolite_latent_dim,
-         'regularization': lam}
-
-    params.append(p)
-    params = pd.DataFrame(params)
-    print(params.T)
-    params.to_csv(results_file)
     ranks.to_csv(ranks_file)
 
 
