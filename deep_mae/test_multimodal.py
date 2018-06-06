@@ -4,9 +4,12 @@ import pandas as pd
 from skbio.stats.composition import clr_inv as softmax
 from skbio.stats.composition import closure
 from sklearn.utils import check_random_state
-from deep_mae.multimodal import onehot
+from scipy.stats import spearmanr
+from deep_mae.multimodal import (onehot, build_model, cross_validation)
 from skbio.util import get_data_path
 import numpy.testing as npt
+import pandas.util.testing as pdt
+from tensorflow import set_random_seed
 
 
 def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
@@ -125,14 +128,107 @@ class TestMultimodal(unittest.TestCase):
         npt.assert_allclose(exp_ms_hits, ms_hits)
         npt.assert_allclose(exp_otu_hits, otu_hits)
 
+    def test_onehot_simple(self):
+        seed = 0
+        # build small simulation
+        res = random_multimodal(
+            uB=-5,
+            num_microbes=2, num_metabolites=2, num_samples=3,
+            num_latent=1, low=-1, high=1,
+            microbe_total=3, metabolite_total=3,
+            seed=seed
+        )
+        microbes, metabolites, X, B, U, V = res
+        otu_hits, ms_hits = onehot(microbes.values,
+                                   closure(metabolites.values))
+        exp_otu_hits = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
+        exp_ms_hits = np.array(
+            [[1., 0.],
+             [1., 0.],
+             [1., 0.],
+             [0.33333333, 0.66666667],
+             [0.33333333, 0.66666667],
+             [0.33333333, 0.66666667],
+             [0.66666667, 0.33333333],
+             [0.66666667, 0.33333333],
+             [0.66666667, 0.33333333]]
+        )
+        npt.assert_allclose(exp_otu_hits, otu_hits)
+        npt.assert_allclose(exp_ms_hits, ms_hits)
+
+class TestMultimodalModel(unittest.TestCase):
+    def setUp(self):
+        np.random.seed(1)
+        set_random_seed(0)
+        seed = 0
+        # build small simulation
+        self.res = random_multimodal(
+            uB=-5,
+            num_microbes=2, num_metabolites=4, num_samples=500,
+            num_latent=2, low=-1, high=1,
+            microbe_total=10, metabolite_total=10,
+            seed=seed
+        )
 
     def test_build_model(self):
-        epochs = 3
-        batch_size = 100
-        pass
+        microbes, metabolites, X, B, U, V = self.res
 
-    def test_cross_validate(self):
-        pass
+        epochs = 10
+        batch_size = 100
+        model = build_model(microbes, metabolites,
+                            latent_dim=2, dropout_rate=0., lam=0,
+                            beta_1=0.999, beta_2=0.9999, clipnorm=10.)
+        otu_hits, ms_hits = onehot(microbes.values,
+                                   closure(metabolites.values))
+        model.fit(
+            {
+                'otu_input': otu_hits,
+            },
+            {
+                'ms_output': ms_hits
+            },
+            verbose=0,
+            #callbacks=[tbCallBack],
+            epochs=epochs, batch_size=batch_size)
+        weights = model.get_weights()
+        rU, rV = weights[0], weights[1]
+
+        r, p = spearmanr(np.ravel(rU @ rV), np.ravel(U @ V))
+        self.assertGreater(r, 0.15)
+
+    def test_cross_validation(self):
+        microbes, metabolites, X, B, U, V = self.res
+
+        epochs = 10
+        batch_size = 100
+        model = build_model(microbes, metabolites,
+                            latent_dim=2, dropout_rate=0., lam=0,
+                            beta_1=0.999, beta_2=0.9999, clipnorm=10.)
+        otu_hits, ms_hits = onehot(microbes.values,
+                                   closure(metabolites.values))
+        model.fit(
+            {
+                'otu_input': otu_hits,
+            },
+            {
+                'ms_output': ms_hits
+            },
+            verbose=0,
+            #callbacks=[tbCallBack],
+            epochs=epochs, batch_size=batch_size)
+        params = cross_validation(
+            model, microbes, metabolites, top_N=2)
+        exp_params = pd.Series({
+            'FN': 3060.000000,
+            'FP': 3060.000000,
+            'TN': 6940.000000,
+            'TP': 6940.000000,
+            'f1_score': 0.462667,
+            'meanRK': 0.347000,
+            'precision': 0.694000,
+            'recall': 0.347000
+        })
+        pdt.assert_series_equal(params, exp_params)
 
 
 if __name__ == "__main__":

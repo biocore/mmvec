@@ -92,6 +92,22 @@ def split(otu_table_file, metabolite_table_file, num_test,
 
 
 def onehot(microbes, metabolites):
+    """ One hot encoding for microbes.
+
+    Parameters
+    ----------
+    microbes : np.array
+       Table of microbe abundances (counts)
+    metabolites : np.array
+       Table of metabolite abundances (proportions)
+
+    Returns
+    -------
+    otu_hits : np.array
+       One hot encodings of microbes
+    ms_hits : np.array
+       Repeated copies of the metabolite abundances
+    """
     coo = coo_matrix(microbes)
     data = coo.data.astype(np.int64)
     otu_ids = coo.col
@@ -104,9 +120,17 @@ def onehot(microbes, metabolites):
 
 
 def build_model(microbes, metabolites,
-                       latent_dim=5, dropout_rate=0.5, lam=0,
-                       beta_1=0.999, beta_2=0.9999, clipnorm=10.):
+                latent_dim=5, dropout_rate=0.5, lam=0,
+                beta_1=0.999, beta_2=0.9999, clipnorm=10.):
+    """ Building a model.
 
+    Parameters
+    ----------
+    microbes : np.array
+       Table of microbe abundances (counts)
+    metabolites : np.array
+       Table of metabolite abundances (proportions)
+    """
     d1 = microbes.shape[1]
     d2 = metabolites.shape[1]
 
@@ -129,6 +153,82 @@ def build_model(microbes, metabolites,
                   }
                  )
     return model
+
+
+def cross_validation(model, microbes, metabolites, top_N=50):
+    """ Running cross validation on test data.
+
+    Parameters
+    ----------
+    model : keras.model
+       Pre-trained model
+    microbes : pd.DataFrame
+       Microbe abundances (counts) on test dataset
+    metabolites : pd.DataFrame
+       Metabolite abundances (proportions) on test dataset
+    top_N : int
+       Number of top hits to evaluate
+
+    Returns
+    -------
+    params : pd.Series
+       List of cross-validation statistics
+    """
+    otu_hits, ms_hits = onehot(
+        microbes.values, closure(metabolites.values))
+
+    batch_size = ms_hits.shape[0]
+    res = model.predict(otu_hits, batch_size)
+    exp = ms_hits
+
+    ms_r = []
+    prec = []
+    recall = []
+    tps = fps = fns = tns = 0
+    ids = set(range(len(metabolites.columns)))
+    n, d = res.shape
+    rank_stats = []
+    for i in range(n):
+        exp_names = np.argsort(exp[i, :])[-top_N:]
+        res_names = np.argsort(res[i, :])[-top_N:]
+
+        r = spearmanr(exp[i, exp_names],
+                      res[i, exp_names])
+        ms_r.append(r)
+
+        hits  = set(res_names)
+        truth = set(exp_names)
+
+        tps += len(hits & truth)
+        fns += len(truth - hits)
+        fps += len(hits - truth)
+        tns += len((ids - hits) & (ids - truth))
+
+        p = len(hits & truth) / top_N
+        r = len(hits & truth) / d
+        prec.append(p)
+        recall.append(r)
+        rank_stats.append(r)
+
+    ms_r = np.mean(ms_r)
+
+    r = np.mean(recall)
+    p = np.mean(prec)
+
+    params = pd.Series({
+        'TP': tps,
+        'FP': fps,
+        'FN': fns,
+        'TN': tns,
+        'precision': np.mean(prec),
+        'recall': np.mean(recall),
+        'f1_score': 2 * (p * r) / (p + r),
+        'meanRK': np.mean(rank_stats)
+    })
+
+    return params
+
+
 
 
 @multimodal.command()
@@ -205,12 +305,6 @@ def autoencoder(otu_train_file, otu_test_file,
     metabolites = closure(metabolites_df)
     params = []
 
-    # model = build_model(microbes, metabolites,
-    #                     microbe_latent_dim=microbe_latent_dim,
-    #                     metabolite_latent_dim=metabolite_latent_dim,
-    #                     dropout_rate=dropout_rate,
-    #                     lam=lam)
-    #
     # sname = 'microbe_latent_dim_' + str(microbe_latent_dim) + \
     #        '_metabolite_latent_dim_' + str(metabolite_latent_dim) + \
     #        '_lam' + str(lam)
@@ -262,29 +356,10 @@ def autoencoder(otu_train_file, otu_test_file,
     ranks = U @ V
     ranks = pd.DataFrame(ranks, index=microbes_df.columns,
                          columns=metabolites_df.columns)
-    # batch_size = ms_hits.shape[0]
-    # pred_ms_hits = model.predict(otu_hits, batch_size)
-    #
-    # k = top_k
-    # ms_r = []
-    # for i in range(metabolites.shape[0]):
-    #     idx = np.argsort(pred_ms[i, :])[-k:]
-    #     r = spearmanr(pred_ms[i, idx], metabolites[i, idx])
-    #     ms_r.append(r)
-    # ms_r = np.mean(ms_r)
-    # ms_kl = np.mean(entropy(metabolites, pred_ms))
-    # p = {'ms_err' : mean_ms_diff,
-    #      'ms_kl' : ms_kl,
-    #      'ms_spearman': ms_r,
-    #      'microbe_latent_dim': microbe_latent_dim,
-    #      'metabolite_latent_dim': metabolite_latent_dim,
-    #      'regularization': lam}
-    #
-    # params.append(p)
-    # params = pd.DataFrame(params)
-    # print(params.T)
-    # params.to_csv(results_file)
+    params = cross_validation(model, microbes, metabolites, top_N=50)
+    print(params)
 
+    params.to_csv(results_file)
     ranks.to_csv(ranks_file)
 
 
