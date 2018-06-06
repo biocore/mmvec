@@ -229,8 +229,6 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     return params
 
 
-
-
 @multimodal.command()
 @click.option('--otu-train-file',
               help='Input microbial abundances for training')
@@ -241,17 +239,11 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 @click.option('--metabolite-test-file',
               help='Input metabolite abundances for testing')
 @click.option('--epochs',
-              help='Number of epochs to train', default=100)
+              help='Number of epochs to train', default=10)
 @click.option('--batch_size',
               help='Size of mini-batch', default=32)
-@click.option('--cv_iterations',
-              help='Number of cross validation iterations', default=32)
-@click.option('--microbe_latent_dim',
-              help=('Dimensionality of microbial latent space. '
-                    'This is analogous to the number of latent dimensions.'),
-              default=3)
-@click.option('--metabolite_latent_dim',
-              help=('Dimensionality of metabolite latent space. '
+@click.option('--latent_dim',
+              help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
               default=3)
 @click.option('--regularization',
@@ -274,8 +266,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
               help='Ranks file containing microbe-metabolite rankings')
 def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
-                epochs, batch_size, cv_iterations,
-                microbe_latent_dim, metabolite_latent_dim,
+                epochs, batch_size, latent_dim,
                 regularization, dropout_rate, top_k,
                 summary_dir, results_file, ranks_file):
 
@@ -312,10 +303,9 @@ def autoencoder(otu_train_file, otu_test_file,
     otu_hits, ms_hits = onehot(
         microbes_df.values, closure(metabolites_df.values))
     model = build_model(
-        microbes.values, metabolites.values,
-        latent_dim=microbe_latent_dim, lam=lam,
-        otu_dropout_rate=0.1,
-        ms_dropout_rate=dropout_rate
+        microbes, metabolites,
+        latent_dim=latent_dim, lam=lam,
+        dropout_rate=dropout_rate
     )
 
     # tbCallBack = keras.callbacks.TensorBoard(
@@ -356,7 +346,8 @@ def autoencoder(otu_train_file, otu_test_file,
     ranks = U @ V
     ranks = pd.DataFrame(ranks, index=microbes_df.columns,
                          columns=metabolites_df.columns)
-    params = cross_validation(model, microbes, metabolites, top_N=50)
+    params = cross_validation(
+        model, microbes_df, metabolites_df, top_N=50)
     print(params)
 
     params.to_csv(results_file)
