@@ -352,6 +352,47 @@ def autoencoder(otu_train_file, otu_test_file,
     ranks.to_csv(ranks_file)
 
 
+def rank_hits(ranks, k):
+    """
+    Parameters
+    ----------
+    ranks : pd.DataFrame
+       Matrix of ranks
+    k : int
+       Number of nearest neighbors
+
+    Returns
+    -------
+    edges : pd.DataFrame
+       List of edges along with corresponding ranks.
+    """
+    axis = 1
+    lookup = {x : i for i, x in enumerate(ranks.columns)}
+    def sort_f(x):
+        return [
+            ranks.columns[i] for i in np.argsort(x)[-k:]
+        ]
+    idx = ranks.index
+    topk = ranks.apply(sort_f, axis=axis).values
+    topk = pd.DataFrame([x for x in topk], index=idx)
+    top_hits = topk.reset_index()
+    top_hits = top_hits.rename(columns={'index': 'src'})
+    edges = pd.melt(
+        top_hits, id_vars=['src'],
+        var_name='rank',
+        value_vars=list(range(k)),
+        value_name='dest')
+
+    # fill in actual ranks
+    for i in edges.index:
+        src = edges.loc[i, 'src']
+        dest = edges.loc[i, 'dest']
+        edges.loc[i, 'rank'] = ranks.loc[src, dest]
+
+    edges['rank'] = edges['rank'].astype(np.float64)
+    return edges
+
+
 @multimodal.command()
 @click.option('--ranks-file',
               help='Ranks file containing microbe-metabolite rankings')
@@ -362,42 +403,25 @@ def autoencoder(otu_train_file, otu_test_file,
               help='Node metadata for cytoscape.')
 @click.option('--edge-metadata',
               help='Edge metadata for cytoscape.')
-def network(ranks_file, k_nearest_neighbors, node_metadata, edge_metadata):
+@click.option('--axis', default=0,
+              help='Direction to draw edges. '
+              'axis=0 guarantees that each row will have at least k edges'
+              'axis=1 guarantees that each columns will have at least k edges')
+def network(ranks_file, k_nearest_neighbors, node_metadata, edge_metadata, axis=1):
     ranks = pd.read_csv(ranks_file, index_col=0).T
-    probs = ranks.apply(softmax, axis=1)
-    top_hits = pd.DataFrame(
-        {'ms_id': ranks.apply(np.argmin, axis=1),
-         'rank': ranks.apply(np.min, axis=1)},
-        index=ranks.index)
-    k = k_nearest_neighbors
-    otus = {x : i for i, x in enumerate(ranks.columns)}
-
-    topk = ranks.apply(lambda x: [
-        otus[ranks.columns[k]] for k in np.argsort(x)[-k:]],
-                       axis=1).values
-    topk = pd.DataFrame([x for x in topk], index=ranks.index)
-    top_hits = pd.merge(
-        top_hits, topk, left_index=True, right_index=True)
-    top_hits = top_hits.reset_index()
-    edges = pd.melt(
-        top_hits, id_vars=['index'],
-        value_vars=list(range(k)),
-        value_name='otu_id')
-    edges = edges.rename(columns={'index': 'ms_id'})
-    edges = edges.rename(columns={'index': 'ms_id'})
+    if axis == 0:
+        edges = rank_hits(ranks, k_nearest_neighbors)
+    else:
+        edges = rank_hits(ranks.T, k_nearest_neighbors)
     edges['edge_type'] = 'co_occur'
-    # edges['ms_id'] = ['metabolite_%s' % x for x in edges.ms_id]
-    # edges['otu_id'] = ['otu_%s' % x for x in edges.otu_id]
-    edges = edges.set_index(['ms_id'])
-    edges[['edge_type', 'otu_id']].to_csv(
-        edge_metadata, sep='\t', header=False)
-
-    otu_ids = set(edges.otu_id.values)
-    ms_ids = set(edges.index)
+    src = list(edges['src'].value_counts().index)
+    dest = list(edges['dest'].value_counts().index)
+    edges = edges.set_index(['src'])
+    edges.to_csv(edge_metadata, sep='\t')
 
     nodes = pd.DataFrame(columns=['id', 'node_type'])
-    nodes['id'] = list(ms_ids) + list(otu_ids)
-    nodes['node_type'] = ['metabolite'] * len(ms_ids) + ['OTU'] * len(otu_ids)
+    nodes['id'] = list(src) + list(dest)
+    nodes['node_type'] = ['src'] * len(src) + ['dest'] * len(dest)
     nodes = nodes.set_index('id')
     nodes.to_csv(node_metadata, sep='\t')
 
