@@ -409,7 +409,7 @@ def rank_hits(ranks, k):
               help='Direction to draw edges. '
               'axis=0 guarantees that each row will have at least k edges'
               'axis=1 guarantees that each columns will have at least k edges')
-def network(ranks_file, k_nearest_neighbors, node_metadata, edge_metadata, axis=1):
+def network(ranks_file, k_nearest_neighbors, node_metadata, edge_metadata, axis):
     ranks = pd.read_csv(ranks_file, index_col=0).T
     if axis == 0:
         edges = rank_hits(ranks, k_nearest_neighbors)
