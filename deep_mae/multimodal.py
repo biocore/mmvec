@@ -193,7 +193,11 @@ def cross_validation(model, microbes, metabolites, top_N=50):
         res_names = np.argsort(res[i, :])[-top_N:]
 
         r = spearmanr(exp[i, exp_names],
-                      res[i, exp_names])
+                      res[i, exp_names]).correlation
+        if np.isnan(r):
+            print(exp[i, exp_names])
+            print(res[i, exp_names])
+
         rank_stats.append(r)
 
         hits  = set(res_names)
@@ -209,10 +213,8 @@ def cross_validation(model, microbes, metabolites, top_N=50):
         prec.append(p)
         recall.append(r)
 
-
     r = np.mean(recall)
     p = np.mean(prec)
-
     params = pd.Series({
         'TP': tps,
         'FP': fps,

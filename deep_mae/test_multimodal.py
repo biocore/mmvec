@@ -218,17 +218,11 @@ class TestMultimodalModel(unittest.TestCase):
             #callbacks=[tbCallBack],
             epochs=epochs, batch_size=batch_size)
         params = cross_validation(
-            model, microbes, metabolites, top_N=2)
-        exp_params = pd.Series({
-            'FN': 3060.000000,
-            'FP': 3060.000000,
-            'TN': 6940.000000,
-            'TP': 6940.000000,
-            'f1_score': 0.462667,
-            'meanRK': 0.347000,
-            'precision': 0.694000,
-            'recall': 0.347000
-        })
+            model, microbes, metabolites, top_N=4)
+        exp_params = pd.Series(
+            [0.0, 0.0, 0.0, 20000.0, 1.0, 0.41239406858382643, 1.0, 1.0],
+            index=['FN', 'FP', 'TN', 'TP', 'f1_score',
+                   'meanRK', 'precision', 'recall'])
         pdt.assert_series_equal(params, exp_params)
 
     def test_rank_hits(self):
