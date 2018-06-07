@@ -419,7 +419,7 @@ def network(ranks_file, k_nearest_neighbors, node_metadata, edge_metadata, axis=
     src = list(edges['src'].value_counts().index)
     dest = list(edges['dest'].value_counts().index)
     edges = edges.set_index(['src'])
-    edges.to_csv(edge_metadata, sep='\t')
+    edges[['edge_type', 'dest']].to_csv(edge_metadata, sep='\t', header=False)
 
     nodes = pd.DataFrame(columns=['id', 'node_type'])
     nodes['id'] = list(src) + list(dest)
