@@ -194,7 +194,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 
         r = spearmanr(exp[i, exp_names],
                       res[i, exp_names])
-        ms_r.append(r)
+        rank_stats.append(r)
 
         hits  = set(res_names)
         truth = set(exp_names)
@@ -208,9 +208,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
         r = len(hits & truth) / d
         prec.append(p)
         recall.append(r)
-        rank_stats.append(r)
 
-    ms_r = np.mean(ms_r)
 
     r = np.mean(recall)
     p = np.mean(prec)
@@ -249,15 +247,15 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 @click.option('--regularization',
               help=('Parameter regularization.  Helps with preventing overfitting.'
                     'Higher regularization forces more parameters to zero.'),
-              default=10.)
+              default=0.)
 @click.option('--dropout-rate',
               help=('Dropout regularization.  Helps with preventing overfitting.'
                     'This is the probability of dropping a parameter at a given iteration.'
                     'Values must be between (0, 1)'),
-              default=0.5)
+              default=0.9)
 @click.option('--top-k',
               help=('Number of top hits to compare for cross-validation.'),
-              default=10)
+              default=50)
 @click.option('--summary-dir',
               help='Summary directory')
 @click.option('--results-file',
