@@ -2,9 +2,11 @@
 Deep multi-modal autoencoder
 
 # Installation
+```
 conda create -n mae tensorflow keras numpy scipy pandas scikit-bio biom-format
 source activate mae
 pip install git+https://github.com/mortonjt/deep-mae.git
+```
 
 # Getting started
 
