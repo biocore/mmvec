@@ -15,6 +15,8 @@ from keras.models import Model
 from keras import regularizers
 import click
 from scipy.sparse import coo_matrix
+import tensorflow as tf
+from tensorflow.contrib.distributions import Multinomial, Normal
 
 
 @click.group()
@@ -116,7 +118,7 @@ def onehot(microbes, metabolites):
     sample_ids = np.repeat(sample_ids, data)
 
     ms_hits = metabolites[sample_ids, :]
-    return otu_hits.astype(np.int32), ms_hits
+    return otu_hits.astype(np.int32), ms_hits, sample_ids
 
 
 def build_model(microbes, metabolites,
@@ -173,10 +175,12 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     -------
     params : pd.Series
        List of cross-validation statistics
+    rank_stats : pd.DataFrame
+       List of OTUs along with their spearman predictive accuracy
     """
-    otu_hits, ms_hits = onehot(
-        microbes.values, closure(metabolites.values))
 
+    otu_hits, ms_hits, sample_ids = onehot(
+        microbes.values, closure(metabolites.values))
     batch_size = ms_hits.shape[0]
     res = model.predict(otu_hits, batch_size)
     exp = ms_hits
@@ -187,18 +191,23 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     tps = fps = fns = tns = 0
     ids = set(range(len(metabolites.columns)))
     n, d = res.shape
-    rank_stats = []
+    rank_stats, rank_pvals = [], []
     for i in range(n):
+
         exp_names = np.argsort(exp[i, :])[-top_N:]
         res_names = np.argsort(res[i, :])[-top_N:]
 
-        r = spearmanr(exp[i, exp_names],
-                      res[i, exp_names]).correlation
+        result = spearmanr(exp[i, exp_names],
+                           res[i, exp_names])
+        r = result.correlation
+        pval = result.pvalue
+
         if np.isnan(r):
             print(exp[i, exp_names])
             print(res[i, exp_names])
 
         rank_stats.append(r)
+        rank_pvals.append(pval)
 
         hits  = set(res_names)
         truth = set(exp_names)
@@ -225,8 +234,21 @@ def cross_validation(model, microbes, metabolites, top_N=50):
         'f1_score': 2 * (p * r) / (p + r),
         'meanRK': np.mean(rank_stats)
     })
+    otu_names = [microbes.columns[o] for o in otu_hits]
 
-    return params
+    rank_stats = pd.DataFrame(
+        {
+            'spearman_r' : rank_stats,
+            'pvalue': rank_pvals,
+            'OTU': otu_names,
+            'sample_ids': microbes.index[sample_ids]
+        }
+    )
+
+    rank_stats = rank_stats.groupby(by=['OTU', 'sample_ids']).mean()
+    #rank_stats = rank_stats.drop_duplicates()
+
+    return params, rank_stats
 
 
 @multimodal.command()
@@ -259,11 +281,9 @@ def cross_validation(model, microbes, metabolites, top_N=50):
               help=('Number of top hits to compare for cross-validation.'),
               default=50)
 @click.option('--summary-dir',
-              help='Summary directory')
-@click.option('--results-file',
-              help='Results file containing cross validation results.')
+              help='Summary directory to save cross validation results.')
 @click.option('--ranks-file',
-              help='Ranks file containing microbe-metabolite rankings')
+              help='Ranks file containing microbe-metabolite rankings.')
 def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, latent_dim,
@@ -271,7 +291,6 @@ def autoencoder(otu_train_file, otu_test_file,
                 summary_dir, results_file, ranks_file):
 
     lam = regularization
-
     train_microbes = load_table(otu_train_file)
     test_microbes = load_table(otu_test_file)
     train_metabolites = load_table(metabolite_train_file)
@@ -300,7 +319,7 @@ def autoencoder(otu_train_file, otu_test_file,
     #        '_metabolite_latent_dim_' + str(metabolite_latent_dim) + \
     #        '_lam' + str(lam)
 
-    otu_hits, ms_hits = onehot(
+    otu_hits, ms_hits, _ = onehot(
         microbes_df.values, closure(metabolites_df.values))
     model = build_model(
         microbes, metabolites,
@@ -335,7 +354,7 @@ def autoencoder(otu_train_file, otu_test_file,
         index=test_metabolites.ids(axis='sample'),
         columns=test_metabolites.ids(axis='observation'))
 
-    otu_hits, ms_hits = onehot(
+    otu_hits, ms_hits, _ = onehot(
         microbes_df.values, closure(metabolites_df.values))
 
     # otu_output, ms_output = model.predict(
@@ -346,11 +365,13 @@ def autoencoder(otu_train_file, otu_test_file,
     ranks = U @ V
     ranks = pd.DataFrame(ranks, index=microbes_df.columns,
                          columns=metabolites_df.columns)
-    params = cross_validation(
-        model, microbes_df, metabolites_df, top_N=50)
+    params, rank_stats = cross_validation(
+        model, microbes_df, metabolites_df, top_N=top_k)
+
     print(params)
 
-    params.to_csv(results_file)
+    params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
+    rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
     ranks.to_csv(ranks_file)
 
 

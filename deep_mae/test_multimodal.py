@@ -120,8 +120,8 @@ class TestMultimodal(unittest.TestCase):
         self.microbes, self.metabolites, self.X, self.B, self.U, self.V = res
 
     def test_onehot(self):
-        otu_hits, ms_hits = onehot(self.microbes.values,
-                                   closure(self.metabolites.values))
+        otu_hits, ms_hits, _ = onehot(self.microbes.values,
+                                      closure(self.metabolites.values))
         npt.assert_allclose(ms_hits, closure(ms_hits))
 
         exp_ms_hits = np.loadtxt(get_data_path('ms_hits.txt'))
@@ -140,8 +140,8 @@ class TestMultimodal(unittest.TestCase):
             seed=seed
         )
         microbes, metabolites, X, B, U, V = res
-        otu_hits, ms_hits = onehot(microbes.values,
-                                   closure(metabolites.values))
+        otu_hits, ms_hits, _ = onehot(microbes.values,
+                                      closure(metabolites.values))
         exp_otu_hits = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
         exp_ms_hits = np.array(
             [[1., 0.],
@@ -179,8 +179,8 @@ class TestMultimodalModel(unittest.TestCase):
         model = build_model(microbes, metabolites,
                             latent_dim=2, dropout_rate=0., lam=0,
                             beta_1=0.999, beta_2=0.9999, clipnorm=10.)
-        otu_hits, ms_hits = onehot(microbes.values,
-                                   closure(metabolites.values))
+        otu_hits, ms_hits, _ = onehot(microbes.values,
+                                      closure(metabolites.values))
         model.fit(
             {
                 'otu_input': otu_hits,
@@ -205,8 +205,8 @@ class TestMultimodalModel(unittest.TestCase):
         model = build_model(microbes, metabolites,
                             latent_dim=2, dropout_rate=0., lam=0,
                             beta_1=0.999, beta_2=0.9999, clipnorm=10.)
-        otu_hits, ms_hits = onehot(microbes.values,
-                                   closure(metabolites.values))
+        otu_hits, ms_hits, sample_ids = onehot(microbes.values,
+                                      closure(metabolites.values))
         model.fit(
             {
                 'otu_input': otu_hits,
@@ -217,13 +217,54 @@ class TestMultimodalModel(unittest.TestCase):
             verbose=0,
             #callbacks=[tbCallBack],
             epochs=epochs, batch_size=batch_size)
-        params = cross_validation(
-            model, microbes, metabolites, top_N=4)
+        sids = list(sample_ids[:50]) + list(sample_ids[-50:])
+        params, stats = cross_validation(
+            model, microbes.iloc[sids], metabolites.iloc[sids], top_N=4)
         exp_params = pd.Series(
-            [0.0, 0.0, 0.0, 20000.0, 1.0, 0.41239406858382643, 1.0, 1.0],
+            [0.0, 0.0, 0.0, 4000.0, 1.0, 0.4413934389072834, 1.0, 1.0],
             index=['FN', 'FP', 'TN', 'TP', 'f1_score',
                    'meanRK', 'precision', 'recall'])
+
+        tuples = [('OTU_0', 'sample_0'),
+                  ('OTU_0', 'sample_1'),
+                  ('OTU_0', 'sample_2'),
+                  ('OTU_0', 'sample_3'),
+                  ('OTU_0', 'sample_4'),
+                  ('OTU_0', 'sample_495'),
+                  ('OTU_0', 'sample_496'),
+                  ('OTU_0', 'sample_497'),
+                  ('OTU_0', 'sample_498'),
+                  ('OTU_0', 'sample_499'),
+                  ('OTU_1', 'sample_495'),
+                  ('OTU_1', 'sample_496'),
+                  ('OTU_1', 'sample_497'),
+                  ('OTU_1', 'sample_498'),
+                  ('OTU_1', 'sample_499')]
+        index = pd.MultiIndex.from_tuples(tuples, names=['OTU', 'sample_ids'])
+
+        exp_stats = pd.DataFrame(
+            [[0.600000, -0.400000],
+             [0.200000, 0.800000],
+             [0.552786, -0.447214],
+             [0.741801, 0.258199],
+             [0.552786, 0.447214],
+             [0.367544, 0.632456],
+             [0.000000, 1.000000],
+             [0.225403, 0.774597],
+             [0.051317, 0.948683],
+             [0.600000, 0.400000],
+             [0.367544, 0.632456],
+             [0.000000, 1.000000],
+             [0.225403, 0.774597],
+             [0.051317, 0.948683],
+             [0.600000, 0.400000]],
+            index=index,
+            columns=['pvalue', 'spearman_r']
+        )
+
         pdt.assert_series_equal(params, exp_params)
+        npt.assert_allclose(stats.values, exp_stats.values,
+                            atol=1e-4, rtol=1e-4)
 
     def test_rank_hits(self):
         ranks = pd.DataFrame(
