@@ -198,7 +198,15 @@ class TestMultimodalModel(unittest.TestCase):
         self.assertGreater(r, 0.15)
 
     def test_cross_validation(self):
-        microbes, metabolites, X, B, U, V = self.res
+
+        res = random_multimodal(
+            uB=-5,
+            num_microbes=2, num_metabolites=5, num_samples=500,
+            num_latent=2, low=-1, high=1,
+            microbe_total=10, metabolite_total=10,
+            seed=0
+        )
+        microbes, metabolites, X, B, U, V = res
 
         epochs = 10
         batch_size = 100
@@ -220,8 +228,11 @@ class TestMultimodalModel(unittest.TestCase):
         sids = list(sample_ids[:50]) + list(sample_ids[-50:])
         params, stats = cross_validation(
             model, microbes.iloc[sids], metabolites.iloc[sids], top_N=4)
+
+
         exp_params = pd.Series(
-            [0.0, 0.0, 0.0, 4000.0, 1.0, 0.4413934389072834, 1.0, 1.0],
+            [900.000000, 900.000000, 100.000000, 3100.000000,
+             0.688889, 0.305033, 0.775000, 0.620000],
             index=['FN', 'FP', 'TN', 'TP', 'f1_score',
                    'meanRK', 'precision', 'recall'])
 
@@ -235,6 +246,7 @@ class TestMultimodalModel(unittest.TestCase):
                   ('OTU_0', 'sample_497'),
                   ('OTU_0', 'sample_498'),
                   ('OTU_0', 'sample_499'),
+                  ('OTU_1', 'sample_4'),
                   ('OTU_1', 'sample_495'),
                   ('OTU_1', 'sample_496'),
                   ('OTU_1', 'sample_497'),
@@ -243,26 +255,28 @@ class TestMultimodalModel(unittest.TestCase):
         index = pd.MultiIndex.from_tuples(tuples, names=['OTU', 'sample_ids'])
 
         exp_stats = pd.DataFrame(
-            [[0.600000, -0.400000],
-             [0.200000, 0.800000],
-             [0.552786, -0.447214],
-             [0.741801, 0.258199],
-             [0.552786, 0.447214],
-             [0.367544, 0.632456],
-             [0.000000, 1.000000],
-             [0.225403, 0.774597],
-             [0.051317, 0.948683],
-             [0.600000, 0.400000],
-             [0.367544, 0.632456],
-             [0.000000, 1.000000],
-             [0.225403, 0.774597],
-             [0.051317, 0.948683],
-             [0.600000, 0.400000]],
+            [[1, 1, 0, 3, 0.367544, 0.632456],
+             [1, 1, 0, 3, 0.367544, 0.632456],
+             [1, 1, 0, 3, 0.200000, 0.800000],
+             [1, 1, 0, 3, 0.789181, 0.210819],
+             [0, 0, 1, 4, 0.367544, -0.632456],
+             [1, 1, 0, 3, 0.789181, -0.210819],
+             [1, 1, 0, 3, 0.789181, -0.210819],
+             [1, 1, 0, 3, 0.683772, 0.316228],
+             [1, 1, 0, 3, 0.262135, 0.737865],
+             [1, 1, 0, 3, 0.225403, 0.774597],
+             [0, 0, 1, 4, 0.367544, -0.632456],
+             [1, 1, 0, 3, 0.789181, -0.210819],
+             [1, 1, 0, 3, 0.789181, -0.210819],
+             [1, 1, 0, 3, 0.683772, 0.316228],
+             [1, 1, 0, 3, 0.262135, 0.737865],
+             [1, 1, 0, 3, 0.225403, 0.774597]],
             index=index,
-            columns=['pvalue', 'spearman_r']
+            columns=['FN', 'FP', 'TN', 'TP', 'pvalue', 'spearman_r']
         )
 
         pdt.assert_series_equal(params, exp_params)
+
         npt.assert_allclose(stats.values, exp_stats.values,
                             atol=1e-4, rtol=1e-4)
 

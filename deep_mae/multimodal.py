@@ -190,8 +190,11 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     recall = []
     tps = fps = fns = tns = 0
     ids = set(range(len(metabolites.columns)))
+
     n, d = res.shape
     rank_stats, rank_pvals = [], []
+    tp_stats, fn_stats, fp_stats, tn_stats = [], [], [], []
+
     for i in range(n):
 
         exp_names = np.argsort(exp[i, :])[-top_N:]
@@ -211,6 +214,11 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 
         hits  = set(res_names)
         truth = set(exp_names)
+
+        tp_stats.append(len(hits & truth))
+        fn_stats.append(len(truth - hits))
+        fp_stats.append(len(hits - truth))
+        tn_stats.append(len((ids - hits) & (ids - truth)))
 
         tps += len(hits & truth)
         fns += len(truth - hits)
@@ -241,7 +249,11 @@ def cross_validation(model, microbes, metabolites, top_N=50):
             'spearman_r' : rank_stats,
             'pvalue': rank_pvals,
             'OTU': otu_names,
-            'sample_ids': microbes.index[sample_ids]
+            'sample_ids': microbes.index[sample_ids],
+            'TP': tp_stats,
+            'FN': fn_stats,
+            'FP': fp_stats,
+            'TN': tn_stats
         }
     )
 
