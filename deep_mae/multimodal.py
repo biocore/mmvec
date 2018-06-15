@@ -300,7 +300,7 @@ def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, latent_dim,
                 regularization, dropout_rate, top_k,
-                summary_dir, results_file, ranks_file):
+                summary_dir, ranks_file):
 
     lam = regularization
     train_microbes = load_table(otu_train_file)
