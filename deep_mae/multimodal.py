@@ -26,6 +26,8 @@ def multimodal():
 @multimodal.command()
 @click.option('--otu-table-file', help='Input otu biom table')
 @click.option('--metabolite-table-file', help='Input metabolite biom table')
+@click.option('--metadata-file', default=None, help='Sample metadata file')
+@click.option('--metadata-column', default=None, help='Sample metadata category column')
 @click.option('--num_test', default=10,
               help='Number of testing samples')
 @click.option('--min_samples',
@@ -33,7 +35,8 @@ def multimodal():
                     'observed in before getting filtered out'),
               default=10)
 @click.option('--output_dir', help='output directory')
-def split(otu_table_file, metabolite_table_file, num_test,
+def split(otu_table_file, metabolite_table_file,
+          metadata_file, metadata_column, num_test,
           min_samples, output_dir):
     microbes = load_table(otu_table_file)
     metabolites = load_table(metabolite_table_file)
@@ -53,9 +56,15 @@ def split(otu_table_file, metabolite_table_file, num_test,
 
     # filter out microbes that don't appear in many samples
     microbes_df = microbes_df.loc[:, (microbes_df>0).sum(axis=0)>min_samples]
+    if metadata_file is None or metadata_column is None:
+        sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
+        sample_ids = np.array([x in sample_ids for x in microbes_df.index])
+    else:
+        metadata = pd.read_table(metadata_file, index_col=0)
+        sample_ids = set(metadata.loc[metadata[metadata_column]].index)
+        sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
 
-    sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
-    sample_ids = np.array([x in sample_ids for x in microbes_df.index])
+
     train_microbes = microbes_df.loc[~sample_ids]
     test_microbes = microbes_df.loc[sample_ids]
     train_metabolites = metabolites_df.loc[~sample_ids]
