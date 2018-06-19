@@ -209,8 +209,8 @@ def cross_validation(model, microbes, metabolites, top_N=50):
         exp_names = np.argsort(exp[i, :])[-top_N:]
         res_names = np.argsort(res[i, :])[-top_N:]
 
-        result = spearmanr(exp[i, exp_names],
-                           res[i, exp_names])
+        result = spearmanr(exp[i, res_names],
+                           res[i, res_names])
         r = result.correlation
         pval = result.pvalue
 
