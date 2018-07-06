@@ -129,7 +129,6 @@ def onehot(microbes, metabolites):
     return otu_hits.astype(np.int32), sample_ids
 
 
-
 class Autoencoder(object):
 
     def __init__(self, session, num_samples,
@@ -157,18 +156,22 @@ class Autoencoder(object):
         self.X_ph = tf.placeholder(tf.int32, [batch_size], name='X_ph')
 
         self.qU = tf.Variable(tf.random_normal([d1, p]), name='qU')
-        self.qV = tf.Variable(tf.random_normal([p, d2]), name='qV')
+        self.qV = tf.Variable(tf.random_normal([p, d2-1]), name='qV')
 
         # regression coefficents distribution
         U = Normal(loc=tf.zeros([d1, p]) + u_mean,
                    scale=tf.ones([d1, p]) * u_scale,
                    name='U')
-        V = Normal(loc=tf.zeros([p, d2]) + v_mean,
-                   scale=tf.ones([p, d2]) * v_scale,
+        V = Normal(loc=tf.zeros([p, d2-1]) + v_mean,
+                   scale=tf.ones([p, d2-1]) * v_scale,
                    name='V')
+        qU = tf.nn.dropout(self.qU, dropout_rate)
+        qV = tf.nn.dropout(self.qV, dropout_rate)
 
         du = tf.gather(self.qU, self.X_ph, axis=0)
         dv = du @ self.qV
+        dv = tf.concat([tf.zeros([batch_size, 1]), dv], axis=1)
+
         Y = Multinomial(total_count=self.total_count, logits=dv)
         self.log_loss = - (
             tf.reduce_sum(Y.log_prob(self.Y_ph)) * (num_samples / batch_size) + \
@@ -183,6 +186,7 @@ class Autoencoder(object):
             self.train = optimizer.apply_gradients(zip(self.gradients, self.variables))
 
             tf.global_variables_initializer().run()
+
 
     def fit(self, X, Y, epoch=10, batch_size=50):
         """ Fits the model.

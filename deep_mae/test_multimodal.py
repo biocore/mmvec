@@ -113,7 +113,7 @@ class TestAutoencoder(unittest.TestCase):
         # build small simulation
         res = random_multimodal(
             uB=-5,
-            num_microbes=2, num_metabolites=4, num_samples=10,
+            num_microbes=2, num_metabolites=4, num_samples=100,
             num_latent=2, low=-1, high=1,
             microbe_total=10, metabolite_total=10,
             seed=seed
@@ -121,11 +121,22 @@ class TestAutoencoder(unittest.TestCase):
         self.microbes, self.metabolites, self.X, self.B, self.U, self.V = res
 
     def test_fit(self):
+        np.random.seed(1)
+        tf.reset_default_graph()
         n, d1 = self.microbes.shape
         n, d2 = self.metabolites.shape
         with tf.Graph().as_default(), tf.Session() as session:
-            model = Autoencoder(session, n,d1, d2)
-            model.fit(self.microbes.values, self.metabolites.values)
+            set_random_seed(0)
+
+            model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
+            model.fit(self.microbes.values, self.metabolites.values, epoch=50)
+            res = softmax(np.hstack((np.zeros((d1, 1)), model.U @ model.V)))
+            exp = softmax(self.U @ self.V)
+            npt.assert_allclose(res, exp,
+                                rtol=1e-1, atol=1e-1)
+
+    def test_cross_validate(self):
+        pass
 
 
 class TestMultimodal(unittest.TestCase):
