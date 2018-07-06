@@ -6,11 +6,12 @@ from skbio.stats.composition import closure
 from sklearn.utils import check_random_state
 from scipy.stats import spearmanr
 from deep_mae.multimodal import (
-    onehot, build_model, cross_validation, rank_hits)
+    onehot,  cross_validation, rank_hits, Autoencoder)
 from skbio.util import get_data_path
 import numpy.testing as npt
 import pandas.util.testing as pdt
 from tensorflow import set_random_seed
+import tensorflow as tf
 
 
 def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
@@ -104,6 +105,27 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
         metabolite_counts, index=sample_ids, columns=ms_ids)
 
     return microbe_counts, metabolite_counts, X, beta, U, V
+
+
+class TestAutoencoder(unittest.TestCase):
+    def setUp(self):
+        seed = 0
+        # build small simulation
+        res = random_multimodal(
+            uB=-5,
+            num_microbes=2, num_metabolites=4, num_samples=10,
+            num_latent=2, low=-1, high=1,
+            microbe_total=10, metabolite_total=10,
+            seed=seed
+        )
+        self.microbes, self.metabolites, self.X, self.B, self.U, self.V = res
+
+    def test_fit(self):
+        n, d1 = self.microbes.shape
+        n, d2 = self.metabolites.shape
+        with tf.Graph().as_default(), tf.Session() as session:
+            model = Autoencoder(session, n,d1, d2)
+            model.fit(self.microbes.values, self.metabolites.values)
 
 
 class TestMultimodal(unittest.TestCase):

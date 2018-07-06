@@ -126,44 +126,100 @@ def onehot(microbes, metabolites):
     otu_hits = np.repeat(otu_ids, data)
     sample_ids = np.repeat(sample_ids, data)
 
-    ms_hits = metabolites[sample_ids, :]
-    return otu_hits.astype(np.int32), ms_hits, sample_ids
+    return otu_hits.astype(np.int32), sample_ids
 
 
-def build_model(microbes, metabolites,
-                latent_dim=5, dropout_rate=0.5, lam=0,
-                beta_1=0.999, beta_2=0.9999, clipnorm=10.):
-    """ Building a model.
 
-    Parameters
-    ----------
-    microbes : np.array
-       Table of microbe abundances (counts)
-    metabolites : np.array
-       Table of metabolite abundances (proportions)
-    """
-    d1 = microbes.shape[1]
-    d2 = metabolites.shape[1]
+class Autoencoder(object):
 
-    otu_input = Input(shape=(1,), dtype='float32', name='otu_input')
-    embedding = Embedding(input_dim=d1, output_dim=latent_dim,
-                          input_length=1, name='otu_embedding')(otu_input)
-    otu_embed = Flatten()(embedding)
+    def __init__(self, session, num_samples,
+                 d1, d2, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
+                 batch_size=50, latent_dim=3, dropout_rate=0.5, lam=0,
+                 learning_rate = 0.1, beta_1=0.999, beta_2=0.9999,
+                 clipnorm=10.):
+        """ Build a tensorflow model
 
-    ms_in = Dense(d2, activation='linear', use_bias=False,
-                  activity_regularizer=regularizers.l1(lam),
-                  name='ms_in')(otu_embed)
-    ms_drop = Dropout(dropout_rate, name='ms_drop')(ms_in)
-    ms_output = Activation('softmax', name='ms_output')(ms_drop)
+        Returns
+        -------
+        loss : tf.Tensor
+           The log loss of the model.
+        """
+        p = latent_dim
 
-    model = Model(inputs=[otu_input], outputs=[ms_output])
-    sgd = Adam(beta_1=beta_1, beta_2=beta_2, clipnorm=clipnorm)
-    model.compile(optimizer=sgd,
-                  loss={
-                      'ms_output': 'kullback_leibler_divergence'
-                  }
-                 )
-    return model
+        self.learning_rate = learning_rate
+        self.beta_1 = beta_1
+        self.beta_2 = beta_2
+        self.clipnorm = clipnorm
+        self.session = session
+
+        self.total_count = tf.placeholder(tf.float32, [batch_size], name='total_count')
+        self.Y_ph = tf.placeholder(tf.float32, [batch_size, d2], name='Y_ph')
+        self.X_ph = tf.placeholder(tf.int32, [batch_size], name='X_ph')
+
+        self.qU = tf.Variable(tf.random_normal([d1, p]), name='qU')
+        self.qV = tf.Variable(tf.random_normal([p, d2]), name='qV')
+
+        # regression coefficents distribution
+        U = Normal(loc=tf.zeros([d1, p]) + u_mean,
+                   scale=tf.ones([d1, p]) * u_scale,
+                   name='U')
+        V = Normal(loc=tf.zeros([p, d2]) + v_mean,
+                   scale=tf.ones([p, d2]) * v_scale,
+                   name='V')
+
+        du = tf.gather(self.qU, self.X_ph, axis=0)
+        dv = du @ self.qV
+        Y = Multinomial(total_count=self.total_count, logits=dv)
+        self.log_loss = - (
+            tf.reduce_sum(Y.log_prob(self.Y_ph)) * (num_samples / batch_size) + \
+            tf.reduce_sum(U.log_prob(self.qU)) + tf.reduce_sum(V.log_prob(self.qV))
+        )
+        with tf.name_scope('optimize'):
+            optimizer = tf.train.AdamOptimizer(
+                self.learning_rate, beta1=self.beta_1, beta2=self.beta_2)
+
+            gradients, self.variables = zip(*optimizer.compute_gradients(self.log_loss))
+            self.gradients, _ = tf.clip_by_global_norm(gradients, self.clipnorm)
+            self.train = optimizer.apply_gradients(zip(self.gradients, self.variables))
+
+            tf.global_variables_initializer().run()
+
+    def fit(self, X, Y, epoch=10, batch_size=50):
+        """ Fits the model.
+
+        Parameters
+        ----------
+        otu_in : np.array
+           Input table (likely OTUs).
+        ms_out : np.array
+           Output table (likely metabolites).
+        """
+
+        X_hits, sample_ids = onehot(X, Y)
+        iterations = epoch * X_hits.shape[0]
+
+        for i in range(0, iterations):
+            batch = np.random.randint(
+                X_hits.shape[0], size=batch_size)
+            batch_ids = sample_ids[batch]
+
+            total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
+
+            train_, loss, rU, rV = self.session.run(
+                [self.train, self.log_loss, self.qU, self.qV],
+                feed_dict={
+                    self.X_ph: X_hits[batch],
+                    self.Y_ph: Y[batch_ids, :],
+                    self.total_count: total
+                }
+            )
+        self.U, self.V = rU, rV
+
+    def predict(self, X):
+        pass
+
+    def cross_validate(self, X, Y):
+        pass
 
 
 def cross_validation(model, microbes, metabolites, top_N=50):
