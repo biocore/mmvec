@@ -102,22 +102,20 @@ def split(otu_table_file, metabolite_table_file,
         test_metabolites.to_hdf5(f, "test")
 
 
-def onehot(microbes, metabolites):
+def onehot(microbes):
     """ One hot encoding for microbes.
 
     Parameters
     ----------
     microbes : np.array
        Table of microbe abundances (counts)
-    metabolites : np.array
-       Table of metabolite abundances (proportions)
 
     Returns
     -------
     otu_hits : np.array
        One hot encodings of microbes
-    ms_hits : np.array
-       Repeated copies of the metabolite abundances
+    sample_ids : np.array
+       Sample ids
     """
     coo = coo_matrix(microbes)
     data = coo.data.astype(np.int64)
@@ -142,18 +140,24 @@ class Autoencoder(object):
         -------
         loss : tf.Tensor
            The log loss of the model.
+
+        TODO: Add summaries
         """
         p = latent_dim
 
         self.learning_rate = learning_rate
         self.beta_1 = beta_1
         self.beta_2 = beta_2
+        self.batch_size = batch_size
         self.clipnorm = clipnorm
         self.session = session
 
-        self.total_count = tf.placeholder(tf.float32, [batch_size], name='total_count')
-        self.Y_ph = tf.placeholder(tf.float32, [batch_size, d2], name='Y_ph')
-        self.X_ph = tf.placeholder(tf.int32, [batch_size], name='X_ph')
+        self.total_count = tf.placeholder(
+            tf.float32, [batch_size], name='total_count')
+        self.Y_ph = tf.placeholder(
+            tf.float32, [batch_size, d2], name='Y_ph')
+        self.X_ph = tf.placeholder(
+            tf.int32, [batch_size], name='X_ph')
 
         self.qU = tf.Variable(tf.random_normal([d1, p]), name='qU')
         self.qV = tf.Variable(tf.random_normal([p, d2-1]), name='qV')
@@ -173,19 +177,49 @@ class Autoencoder(object):
         dv = tf.concat([tf.zeros([batch_size, 1]), dv], axis=1)
 
         Y = Multinomial(total_count=self.total_count, logits=dv)
+        norm = (num_samples / batch_size)
         self.log_loss = - (
-            tf.reduce_sum(Y.log_prob(self.Y_ph)) * (num_samples / batch_size) + \
-            tf.reduce_sum(U.log_prob(self.qU)) + tf.reduce_sum(V.log_prob(self.qV))
+            tf.reduce_sum(Y.log_prob(self.Y_ph)) * norm + \
+            tf.reduce_sum(U.log_prob(self.qU)) + \
+            tf.reduce_sum(V.log_prob(self.qV))
         )
+
+        pred = tf.nn.log_softmax(dv) + \
+               tf.reshape(tf.log(self.total_count), [-1, 1])
+        err = tf.subtract(self.Y_ph, pred)
+        self.cv = tf.sqrt(
+            tf.reduce_mean(tf.reduce_mean(tf.multiply(err, err), axis=0)))
+
         with tf.name_scope('optimize'):
             optimizer = tf.train.AdamOptimizer(
                 self.learning_rate, beta1=self.beta_1, beta2=self.beta_2)
 
-            gradients, self.variables = zip(*optimizer.compute_gradients(self.log_loss))
-            self.gradients, _ = tf.clip_by_global_norm(gradients, self.clipnorm)
-            self.train = optimizer.apply_gradients(zip(self.gradients, self.variables))
+            gradients, self.variables = zip(
+                *optimizer.compute_gradients(self.log_loss))
+            self.gradients, _ = tf.clip_by_global_norm(
+                gradients, self.clipnorm)
+            self.train = optimizer.apply_gradients(
+                zip(self.gradients, self.variables))
 
             tf.global_variables_initializer().run()
+
+
+    def _loop(self, X_hits, Y, sample_ids, batch_size=50):
+        batch = np.random.randint(
+            X_hits.shape[0], size=batch_size)
+        batch_ids = sample_ids[batch]
+
+        total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
+
+        train_, loss, rU, rV = self.session.run(
+            [self.train, self.log_loss, self.qU, self.qV],
+            feed_dict={
+                self.X_ph: X_hits[batch],
+                self.Y_ph: Y[batch_ids, :],
+                self.total_count: total
+            }
+        )
+        return train_, loss, rU, rV
 
 
     def fit(self, X, Y, epoch=10, batch_size=50):
@@ -193,37 +227,90 @@ class Autoencoder(object):
 
         Parameters
         ----------
-        otu_in : np.array
+        X : np.array
            Input table (likely OTUs).
-        ms_out : np.array
+        Y : np.array
            Output table (likely metabolites).
-        """
 
-        X_hits, sample_ids = onehot(X, Y)
+        Returns
+        -------
+        loss: float
+            log likelihood loss
+        rU: np.array
+            microbe latent parameters
+        rV: np.array
+            metabolite latent parameters
+        """
+        X_hits, sample_ids = onehot(X)
         iterations = epoch * X_hits.shape[0]
 
         for i in range(0, iterations):
-            batch = np.random.randint(
-                X_hits.shape[0], size=batch_size)
-            batch_ids = sample_ids[batch]
+            _, loss, rU, rV = self._loop(
+                X_hits, Y, sample_ids, batch_size=batch_size)
 
+        return loss, rU, rV
+
+
+    def predict(self, X):
+        """ Performs a prediction
+
+        Parameters
+        ----------
+        X : np.array
+           Input table (likely OTUs).
+
+        Returns
+        """
+        X_hits, _ = onehot(X)
+        U = self.qU.eval()
+        V = self.qV.eval()
+
+        d1 = X_hits.shape[0]
+        r = U[X_hits] @ V
+
+        res = softmax(np.hstack(
+            (np.zeros((d1, 1)), r)))
+        return res
+
+
+    def cross_validate(self, X, Y):
+        """
+        Parameters
+        ----------
+        X : np.array
+           Input table (likely OTUs).
+        Y : np.array
+           Output table (likely metabolites).
+
+        Returns
+        -------
+        cv_loss: float
+           Euclidean norm of the errors (i.e. the RMSE)
+
+        """
+        X_hits, sample_ids = onehot(X)
+
+        total = Y[sample_ids, :].sum(axis=1).astype(np.float32)
+        iterations = len(X_hits) // self.batch_size
+        cv_losses = []
+        for _ in range(iterations):
+            batch = np.random.randint(
+                X_hits.shape[0], size=self.batch_size)
+            batch_ids = sample_ids[batch]
             total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
 
-            train_, loss, rU, rV = self.session.run(
-                [self.train, self.log_loss, self.qU, self.qV],
+            cv_loss = self.session.run(
+                [self.cv],
                 feed_dict={
-                    self.X_ph: X_hits[batch],
-                    self.Y_ph: Y[batch_ids, :],
+                    self.X_ph: X_hits,
+                    self.Y_ph: Y[sample_ids, :],
                     self.total_count: total
                 }
             )
-        self.U, self.V = rU, rV
+            cv_losses.append(cv_loss)
+        cv_loss = np.mean(cv_losses)
+        return cv_loss
 
-    def predict(self, X):
-        pass
-
-    def cross_validate(self, X, Y):
-        pass
 
 
 def cross_validation(model, microbes, metabolites, top_N=50):

@@ -127,7 +127,6 @@ class TestAutoencoder(unittest.TestCase):
         n, d2 = self.metabolites.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-
             model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
             model.fit(self.microbes.values, self.metabolites.values, epoch=50)
             res = softmax(np.hstack((np.zeros((d1, 1)), model.U @ model.V)))
@@ -136,10 +135,36 @@ class TestAutoencoder(unittest.TestCase):
                                 rtol=1e-1, atol=1e-1)
 
     def test_cross_validate(self):
-        pass
+        np.random.seed(1)
+        tf.reset_default_graph()
+        x = self.microbes.iloc[-5:]
+        y = self.metabolites.iloc[-5:]
+        n, d1 = self.microbes.shape
+        n, d2 = self.metabolites.shape
+        with tf.Graph().as_default(), tf.Session() as session:
+            set_random_seed(0)
+            model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
+            model.fit(self.microbes.values, self.metabolites.values, epoch=50)
+            cv_loss = model.cross_validate(x.values, y.values)
+            self.assertAlmostEqual(2.1956663, cv_loss)
+
+    def test_predict(self):
+        np.random.seed(1)
+        tf.reset_default_graph()
+        n, d1 = self.microbes.shape
+        n, d2 = self.metabolites.shape
+        with tf.Graph().as_default(), tf.Session() as session:
+            set_random_seed(0)
+            model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
+            model.fit(self.microbes.values, self.metabolites.values, epoch=50)
+            res = model.predict(self.microbes.values)
+
+            exp = np.array([[0.0445403, 0.14692668, 0.59810397, 0.21042904],
+                            [0.07458562, 0.19418391, 0.49825677, 0.23297369]])
+            npt.assert_allclose(exp, np.unique(res, axis=0))
 
 
-class TestMultimodal(unittest.TestCase):
+class TestOnehot(unittest.TestCase):
     def setUp(self):
         seed = 0
         # build small simulation
@@ -153,13 +178,10 @@ class TestMultimodal(unittest.TestCase):
         self.microbes, self.metabolites, self.X, self.B, self.U, self.V = res
 
     def test_onehot(self):
-        otu_hits, ms_hits, _ = onehot(self.microbes.values,
-                                      closure(self.metabolites.values))
-        npt.assert_allclose(ms_hits, closure(ms_hits))
+        otu_hits, _ = onehot(self.microbes.values)
 
-        exp_ms_hits = np.loadtxt(get_data_path('ms_hits.txt'))
         exp_otu_hits = np.loadtxt(get_data_path('otu_hits.txt'))
-        npt.assert_allclose(exp_ms_hits, ms_hits)
+
         npt.assert_allclose(exp_otu_hits, otu_hits)
 
     def test_onehot_simple(self):
@@ -173,22 +195,13 @@ class TestMultimodal(unittest.TestCase):
             seed=seed
         )
         microbes, metabolites, X, B, U, V = res
-        otu_hits, ms_hits, _ = onehot(microbes.values,
-                                      closure(metabolites.values))
+        otu_hits, sample_ids = onehot(microbes.values)
         exp_otu_hits = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
-        exp_ms_hits = np.array(
-            [[1., 0.],
-             [1., 0.],
-             [1., 0.],
-             [0.33333333, 0.66666667],
-             [0.33333333, 0.66666667],
-             [0.33333333, 0.66666667],
-             [0.66666667, 0.33333333],
-             [0.66666667, 0.33333333],
-             [0.66666667, 0.33333333]]
-        )
+
+        exp_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
+        npt.assert_allclose(exp_ids, sample_ids)
         npt.assert_allclose(exp_otu_hits, otu_hits)
-        npt.assert_allclose(exp_ms_hits, ms_hits)
+
 
 class TestMultimodalModel(unittest.TestCase):
     def setUp(self):
