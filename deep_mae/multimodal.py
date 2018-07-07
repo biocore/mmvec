@@ -17,6 +17,7 @@ import click
 from scipy.sparse import coo_matrix
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
+import datetime
 
 
 @click.group()
@@ -52,7 +53,7 @@ def split(otu_table_file, metabolite_table_file,
         columns=metabolites.ids(axis='observation'))
 
     microbes_df, metabolites_df = microbes_df.align(
-        metabolites_df, axis=0, join='inner')
+v        metabolites_df, axis=0, join='inner')
 
     # filter out microbes that don't appear in many samples
     microbes_df = microbes_df.loc[:, (microbes_df>0).sum(axis=0)>min_samples]
@@ -133,7 +134,7 @@ class Autoencoder(object):
                  d1, d2, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
                  batch_size=50, latent_dim=3, dropout_rate=0.5, lam=0,
                  learning_rate = 0.1, beta_1=0.999, beta_2=0.9999,
-                 clipnorm=10.):
+                 clipnorm=10., save_path=None):
         """ Build a tensorflow model
 
         Returns
@@ -141,9 +142,13 @@ class Autoencoder(object):
         loss : tf.Tensor
            The log loss of the model.
 
-        TODO: Add summaries
         """
         p = latent_dim
+
+        if save_path is None:
+            basename = "mylogfile"
+            suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+            save_path = "_".join([basename, suffix])
 
         self.learning_rate = learning_rate
         self.beta_1 = beta_1
@@ -190,6 +195,12 @@ class Autoencoder(object):
         self.cv = tf.sqrt(
             tf.reduce_mean(tf.reduce_mean(tf.multiply(err, err), axis=0)))
 
+        tf.summary.scalar('loss', loss)
+        tf.summary.histogram('qbeta', qbeta)
+        tf.summary.histogram('qgamma', qgamma)
+        self.merged = tf.summary.merge_all()
+
+        self.writer = tf.summary.FileWriter(save_path, self.session.graph)
         with tf.name_scope('optimize'):
             optimizer = tf.train.AdamOptimizer(
                 self.learning_rate, beta1=self.beta_1, beta2=self.beta_2)
@@ -204,25 +215,8 @@ class Autoencoder(object):
             tf.global_variables_initializer().run()
 
 
-    def _loop(self, X_hits, Y, sample_ids, batch_size=50):
-        batch = np.random.randint(
-            X_hits.shape[0], size=batch_size)
-        batch_ids = sample_ids[batch]
-
-        total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
-
-        train_, loss, rU, rV = self.session.run(
-            [self.train, self.log_loss, self.qU, self.qV],
-            feed_dict={
-                self.X_ph: X_hits[batch],
-                self.Y_ph: Y[batch_ids, :],
-                self.total_count: total
-            }
-        )
-        return train_, loss, rU, rV
-
-
-    def fit(self, X, Y, epoch=10, batch_size=50):
+    def fit(self, X, Y, epoch=10, batch_size=50, summary_interval=1000
+            testX=None, testY=None):
         """ Fits the model.
 
         Parameters
@@ -235,7 +229,9 @@ class Autoencoder(object):
         Returns
         -------
         loss: float
-            log likelihood loss
+            log likelihood loss.
+        cv : float
+            cross validation loss
         rU: np.array
             microbe latent parameters
         rV: np.array
@@ -243,12 +239,41 @@ class Autoencoder(object):
         """
         X_hits, sample_ids = onehot(X)
         iterations = epoch * X_hits.shape[0]
+        cv = None
 
         for i in range(0, iterations):
-            _, loss, rU, rV = self._loop(
-                X_hits, Y, sample_ids, batch_size=batch_size)
 
-        return loss, rU, rV
+            batch = np.random.randint(
+                X_hits.shape[0], size=batch_size)
+            batch_ids = sample_ids[batch]
+
+            total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
+            now = time.time()
+
+            if i % summary_interval == 0:
+                if testX is not None and testY is not None:
+                    cv = self.cross_validate(testX, testY)
+                train_, summary, loss, rU, rV = self.session.run(
+                    [self.train, self.merged, self.log_loss, self.qU, self.qV],
+                    feed_dict={
+                        self.X_ph: X_hits[batch],
+                        self.Y_ph: Y[batch_ids, :],
+                        self.total_count: total
+                    }
+                )
+                self.writer.add_summary(summary, i)
+            else:
+                train_, loss, rU, rV = self.session.run(
+                    [self.train, self.log_loss, self.qU, self.qV],
+                    feed_dict={
+                        self.X_ph: X_hits[batch],
+                        self.Y_ph: Y[batch_ids, :],
+                        self.total_count: total
+                    }
+                )
+                self.writer.add_summary(summary, i)
+
+        return loss, cv, rU, rV
 
 
     def predict(self, X):
@@ -299,8 +324,8 @@ class Autoencoder(object):
             batch_ids = sample_ids[batch]
             total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
 
-            cv_loss = self.session.run(
-                [self.cv],
+            cv_loss, summary = self.session.run(
+                [self.cv, self.merged],
                 feed_dict={
                     self.X_ph: X_hits,
                     self.Y_ph: Y[sample_ids, :],
@@ -308,9 +333,10 @@ class Autoencoder(object):
                 }
             )
             cv_losses.append(cv_loss)
+            self.writer.add_summary(summary, i)
+
         cv_loss = np.mean(cv_losses)
         return cv_loss
-
 
 
 def cross_validation(model, microbes, metabolites, top_N=50):
@@ -335,10 +361,9 @@ def cross_validation(model, microbes, metabolites, top_N=50):
        List of OTUs along with their spearman predictive accuracy
     """
 
-    otu_hits, ms_hits, sample_ids = onehot(
-        microbes.values, closure(metabolites.values))
+    otu_hits, sample_ids = onehot(microbes.values)
     batch_size = ms_hits.shape[0]
-    res = model.predict(otu_hits, batch_size)
+    res = model.predict(otu_hits)
     exp = ms_hits
 
     ms_r = []
@@ -448,6 +473,15 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 @click.option('--top-k',
               help=('Number of top hits to compare for cross-validation.'),
               default=50)
+@click.option('--learning-rate',
+              help=('Gradient descent decay rate.'),
+              default=1e-1)
+@click.option('--clipnorm',
+              help=('Gradient clipping size.'),
+              default=10.)
+@click.option('--summary-interval',
+              help=('Number of iterations before a storing a summary.'),
+              default=1000)
 @click.option('--summary-dir',
               help='Summary directory to save cross validation results.')
 @click.option('--ranks-file',
@@ -456,7 +490,8 @@ def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, latent_dim,
                 regularization, dropout_rate, top_k,
-                summary_dir, ranks_file):
+                learning_rate, clipnorm,
+                summary_interval, summary_dir, ranks_file):
 
     lam = regularization
     train_microbes = load_table(otu_train_file)
@@ -478,69 +513,56 @@ def autoencoder(otu_train_file, otu_test_file,
     microbe_ids = microbes_df.columns
     metabolite_ids = metabolites_df.columns
 
-    # normalize the microbe and metabolite counts to sum to 1
-    microbes = closure(microbes_df)
-    metabolites = closure(metabolites_df)
     params = []
 
-    # sname = 'microbe_latent_dim_' + str(microbe_latent_dim) + \
-    #        '_metabolite_latent_dim_' + str(metabolite_latent_dim) + \
-    #        '_lam' + str(lam)
+    sname = 'microbe_latent_dim_' + str(microbe_latent_dim) + \
+           '_metabolite_latent_dim_' + str(metabolite_latent_dim) + \
+           '_lam' + str(lam) + \
+           ''
 
-    otu_hits, ms_hits, _ = onehot(
-        microbes_df.values, closure(metabolites_df.values))
-    model = build_model(
-        microbes, metabolites,
-        latent_dim=latent_dim, lam=lam,
-        dropout_rate=dropout_rate
-    )
+    n, d1 = microbes_df.shape
+    n, d2 = metabolites_df.shape
 
-    # tbCallBack = keras.callbacks.TensorBoard(
-    #     log_dir=os.path.join(summary_dir + '/run_' + sname),
-    #     histogram_freq=0,
-    #     write_graph=True,
-    #     write_images=True)
+    train_microbes_df = pd.DataFrame(
+        np.array(train_microbes.matrix_data.todense()).T,
+        index=train_microbes.ids(axis='sample'),
+        columns=train_microbes.ids(axis='observation'))
 
-    model.fit(
-        {
-            'otu_input': otu_hits,
-        },
-        {
-            'ms_output': ms_hits
-        },
-        verbose=1,
-        #callbacks=[tbCallBack],
-        epochs=epochs, batch_size=batch_size)
+    train_metabolites_df = pd.DataFrame(
+        np.array(train_metabolites.matrix_data.todense()).T,
+        index=train_metabolites.ids(axis='sample'),
+        columns=train_metabolites.ids(axis='observation'))
 
-    microbes_df = pd.DataFrame(
+    test_microbes_df = pd.DataFrame(
         np.array(test_microbes.matrix_data.todense()).T,
         index=test_microbes.ids(axis='sample'),
         columns=test_microbes.ids(axis='observation'))
 
-    metabolites_df = pd.DataFrame(
+    test_metabolites_df = pd.DataFrame(
         np.array(test_metabolites.matrix_data.todense()).T,
         index=test_metabolites.ids(axis='sample'),
         columns=test_metabolites.ids(axis='observation'))
 
-    otu_hits, ms_hits, _ = onehot(
-        microbes_df.values, closure(metabolites_df.values))
+    with tf.Graph().as_default(), tf.Session() as session:
+        model = Autoencoder(
+            session, n, d1, d2,
+            dropout_rate=10e-6, latent_dim=latent_dim,
+            u_scale=lam, v_scale=lam,
+            learning_rate = 0.1, beta_1=0.999, beta_2=0.9999,
+            clipnorm=10., save_path=sname)
 
-    # otu_output, ms_output = model.predict(
-    #     [microbes, metabolites], batch_size=microbes.shape[0])
-    weights = model.get_weights()
-    U, V = weights[0], weights[1]
+        loss, cv, U, V = model.fit(train_microbes_df.values,
+                                   train_metabolites_df.values,
+                                   epoch=epochs)
 
-    ranks = U @ V
-    ranks = pd.DataFrame(ranks, index=microbes_df.columns,
-                         columns=metabolites_df.columns)
-    params, rank_stats = cross_validation(
-        model, microbes_df, metabolites_df, top_N=top_k)
+        ranks = pd.DataFrame(ranks, index=train_microbes_df.columns,
+                             columns=train_metabolites_df.columns)
+        params, rank_stats = cross_validation(
+            model, test_microbes_df, test_metabolites_df, top_N=top_k)
 
-    print(params)
-
-    params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
-    rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
-    ranks.to_csv(ranks_file)
+        params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
+        rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
+        ranks.to_csv(ranks_file)
 
 
 def rank_hits(ranks, k):
