@@ -20,7 +20,8 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
                       uB=0, sigmaB=2, sigmaQ=0.1,
                       uU=0, sigmaU=1, uV=0, sigmaV=1,
                       seed=0):
-    """
+    """ Generates two random tables
+
     Parameters
     ----------
     num_microbes : int
@@ -128,8 +129,9 @@ class TestAutoencoder(unittest.TestCase):
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
             model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
-            model.fit(self.microbes.values, self.metabolites.values, epoch=50)
+            model.fit(self.microbes.values, self.metabolites.values, epoch=20)
             res = softmax(np.hstack((np.zeros((d1, 1)), model.U @ model.V)))
+
             exp = softmax(self.U @ self.V)
             npt.assert_allclose(res, exp,
                                 rtol=1e-1, atol=1e-1)
@@ -145,7 +147,7 @@ class TestAutoencoder(unittest.TestCase):
             set_random_seed(0)
             model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
             model.fit(self.microbes.values, self.metabolites.values, epoch=50)
-            cv_loss = model.cross_validate(x.values, y.values)
+            cv_loss, _ = model.cross_validate(x.values, y.values)
             self.assertAlmostEqual(2.1956663, cv_loss)
 
     def test_predict(self):
@@ -158,7 +160,7 @@ class TestAutoencoder(unittest.TestCase):
             model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
             model.fit(self.microbes.values, self.metabolites.values, epoch=50)
             res = model.predict(self.microbes.values)
-
+            print(res)
             exp = np.array([[0.0445403, 0.14692668, 0.59810397, 0.21042904],
                             [0.07458562, 0.19418391, 0.49825677, 0.23297369]])
             npt.assert_allclose(exp, np.unique(res, axis=0))

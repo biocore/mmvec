@@ -1,5 +1,6 @@
 import os
-import keras
+import time
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from biom import load_table, Table
@@ -8,11 +9,6 @@ from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
 import matplotlib.pyplot as plt
 from scipy.stats import entropy, spearmanr
-from keras.optimizers import SGD, Adam
-from keras.layers import (Input, Embedding, Dense,
-                          Dropout, Flatten, Activation)
-from keras.models import Model
-from keras import regularizers
 import click
 from scipy.sparse import coo_matrix
 import tensorflow as tf
@@ -53,7 +49,7 @@ def split(otu_table_file, metabolite_table_file,
         columns=metabolites.ids(axis='observation'))
 
     microbes_df, metabolites_df = microbes_df.align(
-v        metabolites_df, axis=0, join='inner')
+        metabolites_df, axis=0, join='inner')
 
     # filter out microbes that don't appear in many samples
     microbes_df = microbes_df.loc[:, (microbes_df>0).sum(axis=0)>min_samples]
@@ -132,7 +128,7 @@ class Autoencoder(object):
 
     def __init__(self, session, num_samples,
                  d1, d2, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
-                 batch_size=50, latent_dim=3, dropout_rate=0.5, lam=0,
+                 batch_size=50, latent_dim=3, dropout_rate=0.5,
                  learning_rate = 0.1, beta_1=0.999, beta_2=0.9999,
                  clipnorm=10., save_path=None):
         """ Build a tensorflow model
@@ -146,7 +142,7 @@ class Autoencoder(object):
         p = latent_dim
 
         if save_path is None:
-            basename = "mylogfile"
+            basename = "logdir"
             suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
             save_path = "_".join([basename, suffix])
 
@@ -174,20 +170,21 @@ class Autoencoder(object):
         V = Normal(loc=tf.zeros([p, d2-1]) + v_mean,
                    scale=tf.ones([p, d2-1]) * v_scale,
                    name='V')
-        qU = tf.nn.dropout(self.qU, dropout_rate)
-        qV = tf.nn.dropout(self.qV, dropout_rate)
 
-        du = tf.gather(self.qU, self.X_ph, axis=0)
-        dv = du @ self.qV
-        dv = tf.concat([tf.zeros([batch_size, 1]), dv], axis=1)
+        #qU_drop = tf.nn.dropout(self.qU, dropout_rate, name='qU_drop')
+        #qV_drop = tf.nn.dropout(self.qV, dropout_rate, name='qV_drop')
 
-        Y = Multinomial(total_count=self.total_count, logits=dv)
+        du = tf.gather(self.qU, self.X_ph, axis=0, name='du')
+        dv = tf.concat([tf.zeros([batch_size, 1]),
+                        du @ self.qV], axis=1, name='dv')
+
+        Y = Multinomial(total_count=self.total_count, logits=dv, name='Y')
+
         norm = (num_samples / batch_size)
-        self.log_loss = - (
-            tf.reduce_sum(Y.log_prob(self.Y_ph)) * norm + \
-            tf.reduce_sum(U.log_prob(self.qU)) + \
-            tf.reduce_sum(V.log_prob(self.qV))
-        )
+        logprob_v =tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
+        logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
+        logprob_y = tf.reduce_sum(Y.log_prob(self.Y_ph), name='logprob_y')
+        self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
 
         pred = tf.nn.log_softmax(dv) + \
                tf.reshape(tf.log(self.total_count), [-1, 1])
@@ -195,9 +192,10 @@ class Autoencoder(object):
         self.cv = tf.sqrt(
             tf.reduce_mean(tf.reduce_mean(tf.multiply(err, err), axis=0)))
 
-        tf.summary.scalar('loss', loss)
-        tf.summary.histogram('qbeta', qbeta)
-        tf.summary.histogram('qgamma', qgamma)
+        tf.summary.scalar('loss', self.log_loss)
+        tf.summary.scalar('cv', self.cv)
+        tf.summary.histogram('qU', self.qU)
+        tf.summary.histogram('qV', self.qV)
         self.merged = tf.summary.merge_all()
 
         self.writer = tf.summary.FileWriter(save_path, self.session.graph)
@@ -212,10 +210,10 @@ class Autoencoder(object):
             self.train = optimizer.apply_gradients(
                 zip(self.gradients, self.variables))
 
-            tf.global_variables_initializer().run()
+        tf.global_variables_initializer().run()
 
 
-    def fit(self, X, Y, epoch=10, batch_size=50, summary_interval=1000
+    def fit(self, X, Y, epoch=10, batch_size=50, summary_interval=1000,
             testX=None, testY=None):
         """ Fits the model.
 
@@ -241,14 +239,13 @@ class Autoencoder(object):
         iterations = epoch * X_hits.shape[0]
         cv = None
 
-        for i in range(0, iterations):
+        for i in tqdm(range(0, iterations)):
 
             batch = np.random.randint(
                 X_hits.shape[0], size=batch_size)
             batch_ids = sample_ids[batch]
 
             total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
-            now = time.time()
 
             if i % summary_interval == 0:
                 if testX is not None and testY is not None:
@@ -271,9 +268,12 @@ class Autoencoder(object):
                         self.total_count: total
                     }
                 )
-                self.writer.add_summary(summary, i)
+            # self.writer.add_summary(summary, i)
 
-        return loss, cv, rU, rV
+        self.U = rU
+        self.V = rV
+
+        return loss, cv
 
 
     def predict(self, X):
@@ -285,14 +285,14 @@ class Autoencoder(object):
            Input table (likely OTUs).
 
         Returns
+        -------
+        np.array :
+           Predicted abundances.
         """
         X_hits, _ = onehot(X)
-        U = self.qU.eval()
-        V = self.qV.eval()
 
         d1 = X_hits.shape[0]
-        r = U[X_hits] @ V
-
+        r = self.U[X_hits] @ self.V
         res = softmax(np.hstack(
             (np.zeros((d1, 1)), r)))
         return res
@@ -360,11 +360,11 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     rank_stats : pd.DataFrame
        List of OTUs along with their spearman predictive accuracy
     """
-
+    # a little redundant
     otu_hits, sample_ids = onehot(microbes.values)
-    batch_size = ms_hits.shape[0]
-    res = model.predict(otu_hits)
-    exp = ms_hits
+    batch_size = len(sample_ids)
+    res = model.predict(microbes.values)
+    exp = metabolites.values[sample_ids]
 
     ms_r = []
     prec = []
@@ -380,7 +380,6 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 
         exp_names = np.argsort(exp[i, :])[-top_N:]
         res_names = np.argsort(res[i, :])[-top_N:]
-
         result = spearmanr(exp[i, res_names],
                            res[i, res_names])
         r = result.correlation
@@ -461,10 +460,16 @@ def cross_validation(model, microbes, metabolites, top_N=50):
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
               default=3)
-@click.option('--regularization',
-              help=('Parameter regularization.  Helps with preventing overfitting.'
-                    'Higher regularization forces more parameters to zero.'),
-              default=0.)
+@click.option('--input_prior',
+              help=('Width of normal prior for input embedding.  '
+                    'Smaller values will regularize parameters towards zero. '
+                    'Values must be greater than 0.'),
+              default=1.)
+@click.option('--output_prior',
+              help=('Width of normal prior for input embedding.  '
+                    'Smaller values will regularize parameters towards zero. '
+                    'Values must be greater than 0.'),
+              default=1.)
 @click.option('--dropout-rate',
               help=('Dropout regularization.  Helps with preventing overfitting.'
                     'This is the probability of dropping a parameter at a given iteration.'
@@ -489,11 +494,12 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, latent_dim,
-                regularization, dropout_rate, top_k,
+                input_prior, output_prior,
+                dropout_rate, top_k,
                 learning_rate, clipnorm,
                 summary_interval, summary_dir, ranks_file):
 
-    lam = regularization
+
     train_microbes = load_table(otu_train_file)
     test_microbes = load_table(otu_test_file)
     train_metabolites = load_table(metabolite_train_file)
@@ -515,10 +521,11 @@ def autoencoder(otu_train_file, otu_test_file,
 
     params = []
 
-    sname = 'microbe_latent_dim_' + str(microbe_latent_dim) + \
-           '_metabolite_latent_dim_' + str(metabolite_latent_dim) + \
-           '_lam' + str(lam) + \
-           ''
+    sname = 'latent_dim_' + str(latent_dim) + \
+           '_input_prior_%.2f' % input_prior + \
+           '_output_prior_%.2f' % output_prior + \
+           '_dropout_rate_%.2f' % dropout_rate
+    sname = os.path.join(summary_dir, sname)
 
     n, d1 = microbes_df.shape
     n, d2 = metabolites_df.shape
@@ -546,17 +553,22 @@ def autoencoder(otu_train_file, otu_test_file,
     with tf.Graph().as_default(), tf.Session() as session:
         model = Autoencoder(
             session, n, d1, d2,
-            dropout_rate=10e-6, latent_dim=latent_dim,
-            u_scale=lam, v_scale=lam,
-            learning_rate = 0.1, beta_1=0.999, beta_2=0.9999,
+            latent_dim=latent_dim,
+            u_scale=input_prior, v_scale=output_prior,
+            learning_rate = learning_rate, beta_1=0.999, beta_2=0.9999,
             clipnorm=10., save_path=sname)
 
-        loss, cv, U, V = model.fit(train_microbes_df.values,
-                                   train_metabolites_df.values,
-                                   epoch=epochs)
+        loss, cv = model.fit(train_microbes_df.values,
+                             train_metabolites_df.values,
+                             epoch=epochs)
 
+        U, V = model.U, model.V
+        d1 = U.shape[0]
+        uv = U @ V
+        ranks = clr(softmax(np.hstack((np.zeros((d1, 1)), U @ V))))
         ranks = pd.DataFrame(ranks, index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
+
         params, rank_stats = cross_validation(
             model, test_microbes_df, test_metabolites_df, top_N=top_k)
 
