@@ -164,27 +164,28 @@ class Autoencoder(object):
         self.qV = tf.Variable(tf.random_normal([p, d2-1]), name='qV')
 
         # regression coefficents distribution
-        U = Normal(loc=tf.zeros([d1, p]) + u_mean,
-                   scale=tf.ones([d1, p]) * u_scale,
-                   name='U')
-        V = Normal(loc=tf.zeros([p, d2-1]) + v_mean,
-                   scale=tf.ones([p, d2-1]) * v_scale,
-                   name='V')
+        # U = Normal(loc=tf.zeros([d1, p]) + u_mean,
+        #            scale=tf.ones([d1, p]) * u_scale,
+        #            name='U')
+        # V = Normal(loc=tf.zeros([p, d2-1]) + v_mean,
+        #            scale=tf.ones([p, d2-1]) * v_scale,
+        #            name='V')
 
-        #qU_drop = tf.nn.dropout(self.qU, dropout_rate, name='qU_drop')
-        #qV_drop = tf.nn.dropout(self.qV, dropout_rate, name='qV_drop')
+        qU = tf.nn.dropout(self.qU, dropout_rate, name='qU_drop')
+        qV = tf.nn.dropout(self.qV, dropout_rate, name='qV_drop')
 
-        du = tf.gather(self.qU, self.X_ph, axis=0, name='du')
+        du = tf.gather(qU, self.X_ph, axis=0, name='du')
         dv = tf.concat([tf.zeros([batch_size, 1]),
-                        du @ self.qV], axis=1, name='dv')
+                        du @ qV], axis=1, name='dv')
 
         Y = Multinomial(total_count=self.total_count, logits=dv, name='Y')
 
         norm = (num_samples / batch_size)
-        logprob_v =tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
-        logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
+        #logprob_v =tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
+        #logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
         logprob_y = tf.reduce_sum(Y.log_prob(self.Y_ph), name='logprob_y')
-        self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
+        # self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
+        self.log_loss = - logprob_y * norm
 
         pred = tf.nn.log_softmax(dv) + \
                tf.reshape(tf.log(self.total_count), [-1, 1])
@@ -219,7 +220,7 @@ class Autoencoder(object):
 
         Parameters
         ----------
-        X : np.array
+       X : np.array
            Input table (likely OTUs).
         Y : np.array
            Output table (likely metabolites).
@@ -487,7 +488,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 @click.option('--summary-interval',
               help=('Number of iterations before a storing a summary.'),
               default=1000)
-@click.option('--summary-dir',
+@click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
 @click.option('--ranks-file',
               help='Ranks file containing microbe-metabolite rankings.')
@@ -564,7 +565,7 @@ def autoencoder(otu_train_file, otu_test_file,
 
         U, V = model.U, model.V
         d1 = U.shape[0]
-        uv = U @ V
+
         ranks = clr(softmax(np.hstack((np.zeros((d1, 1)), U @ V))))
         ranks = pd.DataFrame(ranks, index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
