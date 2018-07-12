@@ -485,6 +485,9 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 @click.option('--clipnorm',
               help=('Gradient clipping size.'),
               default=10.)
+@click.option('--threads',
+              help=('Number of threads to utilize.'),
+              default=64)
 @click.option('--summary-interval',
               help=('Number of iterations before a storing a summary.'),
               default=1000)
@@ -497,7 +500,7 @@ def autoencoder(otu_train_file, otu_test_file,
                 epochs, batch_size, latent_dim,
                 input_prior, output_prior,
                 dropout_rate, top_k,
-                learning_rate, clipnorm,
+                learning_rate, clipnorm, threads,
                 summary_interval, summary_dir, ranks_file):
 
 
@@ -551,7 +554,10 @@ def autoencoder(otu_train_file, otu_test_file,
         index=test_metabolites.ids(axis='sample'),
         columns=test_metabolites.ids(axis='observation'))
 
-    with tf.Graph().as_default(), tf.Session() as session:
+    config = tf.ConfigProto()
+    config.intra_op_parallelism_threads = threads
+    config.inter_op_parallelism_threads = threads
+    with tf.Graph().as_default(), tf.Session(config=config) as session:
         model = Autoencoder(
             session, n, d1, d2,
             latent_dim=latent_dim,
