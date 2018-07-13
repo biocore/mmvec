@@ -51,16 +51,16 @@ def split(otu_table_file, metabolite_table_file,
     microbes_df, metabolites_df = microbes_df.align(
         metabolites_df, axis=0, join='inner')
 
+
     # filter out microbes that don't appear in many samples
     microbes_df = microbes_df.loc[:, (microbes_df>0).sum(axis=0)>min_samples]
     if metadata_file is None or metadata_column is None:
         sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
-        sample_ids = np.array([x in sample_ids for x in microbes_df.index])
+        sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
     else:
         metadata = pd.read_table(metadata_file, index_col=0)
         sample_ids = set(metadata.loc[metadata[metadata_column]].index)
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
-
 
     train_microbes = microbes_df.loc[~sample_ids]
     test_microbes = microbes_df.loc[sample_ids]
@@ -164,15 +164,17 @@ class Autoencoder(object):
         self.qV = tf.Variable(tf.random_normal([p, d2-1]), name='qV')
 
         # regression coefficents distribution
-        # U = Normal(loc=tf.zeros([d1, p]) + u_mean,
-        #            scale=tf.ones([d1, p]) * u_scale,
-        #            name='U')
-        # V = Normal(loc=tf.zeros([p, d2-1]) + v_mean,
-        #            scale=tf.ones([p, d2-1]) * v_scale,
-        #            name='V')
+        U = Normal(loc=tf.zeros([d1, p]) + u_mean,
+                   scale=tf.ones([d1, p]) * u_scale,
+                   name='U')
+        V = Normal(loc=tf.zeros([p, d2-1]) + v_mean,
+                   scale=tf.ones([p, d2-1]) * v_scale,
+                   name='V')
+        qU = self.qU
+        qV = self.qV
 
-        qU = tf.nn.dropout(self.qU, dropout_rate, name='qU_drop')
-        qV = tf.nn.dropout(self.qV, dropout_rate, name='qV_drop')
+        # qU = tf.nn.dropout(self.qU, dropout_rate, name='qU_drop')
+        # qV = tf.nn.dropout(self.qV, dropout_rate, name='qV_drop')
 
         du = tf.gather(qU, self.X_ph, axis=0, name='du')
         dv = tf.concat([tf.zeros([batch_size, 1]),
@@ -181,11 +183,11 @@ class Autoencoder(object):
         Y = Multinomial(total_count=self.total_count, logits=dv, name='Y')
 
         norm = (num_samples / batch_size)
-        #logprob_v =tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
-        #logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
+        logprob_v =tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
+        logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
         logprob_y = tf.reduce_sum(Y.log_prob(self.Y_ph), name='logprob_y')
-        # self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
-        self.log_loss = - logprob_y * norm
+        # self.log_loss = - logprob_y * norm
+        self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
 
         pred = tf.nn.log_softmax(dv) + \
                tf.reshape(tf.log(self.total_count), [-1, 1])
@@ -215,12 +217,12 @@ class Autoencoder(object):
 
 
     def fit(self, X, Y, epoch=10, batch_size=50, summary_interval=1000,
-            testX=None, testY=None):
+            testX=None, testY=None, ):
         """ Fits the model.
 
         Parameters
         ----------
-       X : np.array
+        X : np.array
            Input table (likely OTUs).
         Y : np.array
            Output table (likely metabolites).
@@ -495,13 +497,18 @@ def cross_validation(model, microbes, metabolites, top_N=50):
               help='Summary directory to save cross validation results.')
 @click.option('--ranks-file',
               help='Ranks file containing microbe-metabolite rankings.')
+@click.option('--fast-mode',
+              help='Super memory intensive alternative that is much faster '
+              'to run.  Input data files must be significantly smaller than 2GB '
+              'in dense representation.')
 def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, latent_dim,
                 input_prior, output_prior,
                 dropout_rate, top_k,
                 learning_rate, clipnorm, threads,
-                summary_interval, summary_dir, ranks_file):
+                summary_interval, summary_dir, ranks_file,
+                fast_mode):
 
 
     train_microbes = load_table(otu_train_file)
