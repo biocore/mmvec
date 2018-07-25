@@ -126,8 +126,7 @@ def onehot(microbes):
 
 class Autoencoder(object):
 
-    def __init__(self, session, num_samples,
-                 d1, d2, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
+    def __init__(self, d1, d2, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
                  batch_size=50, latent_dim=3, dropout_rate=0.5,
                  learning_rate = 0.1, beta_1=0.999, beta_2=0.9999,
                  clipnorm=10., save_path=None):
@@ -151,47 +150,83 @@ class Autoencoder(object):
         self.beta_2 = beta_2
         self.batch_size = batch_size
         self.clipnorm = clipnorm
+        self.d1 = d1
+        self.d2 = d2
+        self.p = p
+        self.u_mean = u_mean
+        self.u_scale = u_scale
+        self.v_mean = v_mean
+        self.v_scale = v_scale
+        self.batch_size = batch_size
+        self.latent_dim = latent_dim
+        self.dropout_rate = dropout_rate
+        self.learning_rate = learning_rate
+        self.beta_1 = beta_1
+        self.beta_2 = beta_2
+        self.clipnorm = clipnorm
+        self.save_path = save_path
+
+
+    def __call__(self, session, X, Y):
+        """ Initialize the actual graph
+
+        Parameters
+        ----------
+        session : tf.Session
+            Tensorflow session
+        X : sparse array in coo format
+            Input OTU table, where rows are samples and columns are
+            observations
+        Y : np.array
+            Output metabolite table
+        """
         self.session = session
+        self.nnz = len(X.data)
 
-        self.total_count = tf.placeholder(
-            tf.float32, [batch_size], name='total_count')
-        self.Y_ph = tf.placeholder(
-            tf.float32, [batch_size, d2], name='Y_ph')
-        self.X_ph = tf.placeholder(
-            tf.int32, [batch_size], name='X_ph')
+        X_ph = tf.SparseTensor(
+            indices=np.array([X.row,  X.col]).T,
+            values=X.data,
+            dense_shape=X.shape)
+        Y_ph = tf.constant(Y, dtype=tf.float32)
+        total_count = tf.reduce_sum(Y_ph, axis=1)
+        batch_ids = tf.multinomial(tf.log(tf.reshape(X_ph.values, [1, -1])),
+                                   self.batch_size)
+        batch_ids = tf.squeeze(batch_ids)
+        X_samples = tf.gather(X_ph.indices, 0, axis=1)
+        X_obs = tf.gather(X_ph.indices, 1, axis=1)
+        sample_ids = tf.gather(X_samples, batch_ids)
 
-        self.qU = tf.Variable(tf.random_normal([d1, p]), name='qU')
-        self.qV = tf.Variable(tf.random_normal([p, d2-1]), name='qV')
+        Y_batch = tf.gather(Y_ph, sample_ids)
+        X_batch = tf.gather(X_obs, batch_ids)
+
+        self.qU = tf.Variable(tf.random_normal([self.d1, self.p]), name='qU')
+        self.qV = tf.Variable(tf.random_normal([self.p, self.d2-1]), name='qV')
 
         # regression coefficents distribution
-        U = Normal(loc=tf.zeros([d1, p]) + u_mean,
-                   scale=tf.ones([d1, p]) * u_scale,
+        U = Normal(loc=tf.zeros([self.d1, self.p]) + self.u_mean,
+                   scale=tf.ones([self.d1, self.p]) * self.u_scale,
                    name='U')
-        V = Normal(loc=tf.zeros([p, d2-1]) + v_mean,
-                   scale=tf.ones([p, d2-1]) * v_scale,
+        V = Normal(loc=tf.zeros([self.p, self.d2-1]) + self.v_mean,
+                   scale=tf.ones([self.p, self.d2-1]) * self.v_scale,
                    name='V')
-        qU = self.qU
-        qV = self.qV
 
-        # qU = tf.nn.dropout(self.qU, dropout_rate, name='qU_drop')
-        # qV = tf.nn.dropout(self.qV, dropout_rate, name='qV_drop')
+        du = tf.gather(self.qU, X_batch, axis=0, name='du')
+        dv = tf.concat([tf.zeros([self.batch_size, 1]),
+                        du @ self.qV], axis=1, name='dv')
 
-        du = tf.gather(qU, self.X_ph, axis=0, name='du')
-        dv = tf.concat([tf.zeros([batch_size, 1]),
-                        du @ qV], axis=1, name='dv')
-
-        Y = Multinomial(total_count=self.total_count, logits=dv, name='Y')
-
-        norm = (num_samples / batch_size)
+        tc = tf.gather(total_count, sample_ids)
+        Y = Multinomial(total_count=tc,
+                        logits=dv, name='Y')
+        num_samples = X.shape[0]
+        norm = num_samples / self.batch_size
         logprob_v =tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
         logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
-        logprob_y = tf.reduce_sum(Y.log_prob(self.Y_ph), name='logprob_y')
-        # self.log_loss = - logprob_y * norm
+        logprob_y = tf.reduce_sum(Y.log_prob(Y_batch), name='logprob_y')
         self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
 
         pred = tf.nn.log_softmax(dv) + \
-               tf.reshape(tf.log(self.total_count), [-1, 1])
-        err = tf.subtract(self.Y_ph, pred)
+               tf.reshape(tf.log(tc), [-1, 1])
+        err = tf.subtract(Y_batch, pred)
         self.cv = tf.sqrt(
             tf.reduce_mean(tf.reduce_mean(tf.multiply(err, err), axis=0)))
 
@@ -201,7 +236,7 @@ class Autoencoder(object):
         tf.summary.histogram('qV', self.qV)
         self.merged = tf.summary.merge_all()
 
-        self.writer = tf.summary.FileWriter(save_path, self.session.graph)
+        self.writer = tf.summary.FileWriter(self.save_path, self.session.graph)
         with tf.name_scope('optimize'):
             optimizer = tf.train.AdamOptimizer(
                 self.learning_rate, beta1=self.beta_1, beta2=self.beta_2)
@@ -216,8 +251,8 @@ class Autoencoder(object):
         tf.global_variables_initializer().run()
 
 
-    def fit(self, X, Y, epoch=10, batch_size=50, summary_interval=1000,
-            testX=None, testY=None, ):
+    def fit(self, epoch=10, summary_interval=1000,
+            testX=None, testY=None):
         """ Fits the model.
 
         Parameters
@@ -238,38 +273,24 @@ class Autoencoder(object):
         rV: np.array
             metabolite latent parameters
         """
-        X_hits, sample_ids = onehot(X)
-        iterations = epoch * X_hits.shape[0]
+        #X_hits, sample_ids = onehot(X)
+        print(self.nnz, self.batch_size)
+        iterations = epoch * self.nnz // self.batch_size
+
         cv = None
 
         for i in tqdm(range(0, iterations)):
-
-            batch = np.random.randint(
-                X_hits.shape[0], size=batch_size)
-            batch_ids = sample_ids[batch]
-
-            total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
 
             if i % summary_interval == 0:
                 if testX is not None and testY is not None:
                     cv = self.cross_validate(testX, testY)
                 train_, summary, loss, rU, rV = self.session.run(
-                    [self.train, self.merged, self.log_loss, self.qU, self.qV],
-                    feed_dict={
-                        self.X_ph: X_hits[batch],
-                        self.Y_ph: Y[batch_ids, :],
-                        self.total_count: total
-                    }
+                    [self.train, self.merged, self.log_loss, self.qU, self.qV]
                 )
                 self.writer.add_summary(summary, i)
             else:
                 train_, loss, rU, rV = self.session.run(
-                    [self.train, self.log_loss, self.qU, self.qV],
-                    feed_dict={
-                        self.X_ph: X_hits[batch],
-                        self.Y_ph: Y[batch_ids, :],
-                        self.total_count: total
-                    }
+                    [self.train, self.log_loss, self.qU, self.qV]
                 )
             # self.writer.add_summary(summary, i)
 
@@ -546,6 +567,7 @@ def autoencoder(otu_train_file, otu_test_file,
         index=train_microbes.ids(axis='sample'),
         columns=train_microbes.ids(axis='observation'))
 
+    train_microbes_coo = train_microbes.matrix_data.tocoo().T
     train_metabolites_df = pd.DataFrame(
         np.array(train_metabolites.matrix_data.todense()).T,
         index=train_metabolites.ids(axis='sample'),
@@ -566,15 +588,14 @@ def autoencoder(otu_train_file, otu_test_file,
     config.inter_op_parallelism_threads = threads
     with tf.Graph().as_default(), tf.Session(config=config) as session:
         model = Autoencoder(
-            session, n, d1, d2,
+            d1, d2,
             latent_dim=latent_dim,
             u_scale=input_prior, v_scale=output_prior,
             learning_rate = learning_rate, beta_1=0.999, beta_2=0.9999,
             clipnorm=10., save_path=sname)
+        model(session, train_microbes_coo, train_metabolites_df.values)
 
-        loss, cv = model.fit(train_microbes_df.values,
-                             train_metabolites_df.values,
-                             epoch=epochs)
+        loss, cv = model.fit(epoch=epochs)
 
         U, V = model.U, model.V
         d1 = U.shape[0]
@@ -628,7 +649,7 @@ def rank_hits(ranks, k):
         dest = edges.loc[i, 'dest']
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
 
-    edges['rank'] = edges['rank'].astype(np.float64)
+    edges['rank'] = edges['rank'].astype(np.float32)
     return edges
 
 
