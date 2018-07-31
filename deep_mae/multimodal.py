@@ -215,11 +215,10 @@ class Autoencoder(object):
                         du @ self.qV], axis=1, name='dv')
 
         tc = tf.gather(total_count, sample_ids)
-        Y = Multinomial(total_count=tc,
-                        logits=dv, name='Y')
+        Y = Multinomial(total_count=tc, logits=dv, name='Y')
         num_samples = X.shape[0]
         norm = num_samples / self.batch_size
-        logprob_v =tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
+        logprob_v = tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
         logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
         logprob_y = tf.reduce_sum(Y.log_prob(Y_batch), name='logprob_y')
         self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
@@ -296,10 +295,7 @@ class Autoencoder(object):
                 train_, loss, rU, rV = self.session.run(
                     [self.train, self.log_loss, self.qU, self.qV]
                 )
-
-
-            # self.writer.add_summary(summary, i)
-
+            # checkpoint model
             now = time.time()
             if now - last_checkpoint_time > checkpoint_interval:
                 saver.save(self.session,
@@ -362,16 +358,11 @@ class Autoencoder(object):
             batch_ids = sample_ids[batch]
             total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
 
-            cv_loss, summary = self.session.run(
-                [self.cv, self.merged],
-                feed_dict={
-                    self.X_ph: X_hits,
-                    self.Y_ph: Y[sample_ids, :],
-                    self.total_count: total
-                }
+            cv_loss = self.session.run(
+                [self.cv]
             )
+
             cv_losses.append(cv_loss)
-            self.writer.add_summary(summary, i)
 
         cv_loss = np.mean(cv_losses)
         return cv_loss
@@ -657,7 +648,7 @@ def rank_hits(ranks, k):
         dest = edges.loc[i, 'dest']
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
 
-    edges['rank'] = edges['rank'].astype(np.float32)
+    edges['rank'] = edges['rank'].astype(np.float64)
     return edges
 
 

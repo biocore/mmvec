@@ -5,6 +5,7 @@ from skbio.stats.composition import clr_inv as softmax
 from skbio.stats.composition import closure
 from sklearn.utils import check_random_state
 from scipy.stats import spearmanr
+from scipy.sparse import coo_matrix
 from deep_mae.multimodal import (
     onehot,  cross_validation, rank_hits, Autoencoder)
 from skbio.util import get_data_path
@@ -125,11 +126,13 @@ class TestAutoencoder(unittest.TestCase):
         np.random.seed(1)
         tf.reset_default_graph()
         n, d1 = self.microbes.shape
+
         n, d2 = self.metabolites.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-            model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
-            model.fit(self.microbes.values, self.metabolites.values, epoch=20)
+            model = Autoencoder(d1, d2, dropout_rate=10e-6, latent_dim=2)
+            model(session, coo_matrix(self.microbes.values), self.metabolites.values)
+            model.fit(epoch=20)
             res = softmax(np.hstack((np.zeros((d1, 1)), model.U @ model.V)))
 
             exp = softmax(self.U @ self.V)
@@ -145,10 +148,11 @@ class TestAutoencoder(unittest.TestCase):
         n, d2 = self.metabolites.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-            model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
-            model.fit(self.microbes.values, self.metabolites.values, epoch=50)
-            cv_loss, _ = model.cross_validate(x.values, y.values)
-            self.assertAlmostEqual(2.1956663, cv_loss)
+            model = Autoencoder(d1, d2, dropout_rate=10e-6, latent_dim=2)
+            model(session, coo_matrix(self.microbes.values), self.metabolites.values)
+            model.fit(epoch=50)
+            cv_loss = model.cross_validate(x.values, y.values)
+            self.assertAlmostEqual(2.714532, cv_loss, places=5)
 
     def test_predict(self):
         np.random.seed(1)
@@ -157,13 +161,13 @@ class TestAutoencoder(unittest.TestCase):
         n, d2 = self.metabolites.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-            model = Autoencoder(session, n, d1, d2, dropout_rate=10e-6, latent_dim=2)
-            model.fit(self.microbes.values, self.metabolites.values, epoch=50)
+            model = Autoencoder(d1, d2, dropout_rate=10e-6, latent_dim=2)
+            model(session, coo_matrix(self.microbes.values), self.metabolites.values)
+            model.fit(epoch=50)
             res = model.predict(self.microbes.values)
-            print(res)
-            exp = np.array([[0.0445403, 0.14692668, 0.59810397, 0.21042904],
-                            [0.07458562, 0.19418391, 0.49825677, 0.23297369]])
-            npt.assert_allclose(exp, np.unique(res, axis=0))
+            exp = np.array([[0.030375, 0.168372, 0.619572, 0.181681],
+                            [0.069957, 0.180757, 0.564098, 0.185187]])
+            npt.assert_allclose(exp, np.unique(res, axis=0), atol=1e-1, rtol=1e-1)
 
 
 class TestOnehot(unittest.TestCase):
@@ -205,129 +209,7 @@ class TestOnehot(unittest.TestCase):
         npt.assert_allclose(exp_otu_hits, otu_hits)
 
 
-class TestMultimodalModel(unittest.TestCase):
-    def setUp(self):
-        np.random.seed(1)
-        set_random_seed(0)
-        seed = 0
-        # build small simulation
-        self.res = random_multimodal(
-            uB=-5,
-            num_microbes=2, num_metabolites=4, num_samples=500,
-            num_latent=2, low=-1, high=1,
-            microbe_total=10, metabolite_total=10,
-            seed=seed
-        )
-
-    def test_build_model(self):
-        microbes, metabolites, X, B, U, V = self.res
-
-        epochs = 10
-        batch_size = 100
-        model = build_model(microbes, metabolites,
-                            latent_dim=2, dropout_rate=0., lam=0,
-                            beta_1=0.999, beta_2=0.9999, clipnorm=10.)
-        otu_hits, ms_hits, _ = onehot(microbes.values,
-                                      closure(metabolites.values))
-        model.fit(
-            {
-                'otu_input': otu_hits,
-            },
-            {
-                'ms_output': ms_hits
-            },
-            verbose=0,
-            #callbacks=[tbCallBack],
-            epochs=epochs, batch_size=batch_size)
-        weights = model.get_weights()
-        rU, rV = weights[0], weights[1]
-
-        r, p = spearmanr(np.ravel(rU @ rV), np.ravel(U @ V))
-        self.assertGreater(r, 0.15)
-
-    def test_cross_validation(self):
-
-        res = random_multimodal(
-            uB=-5,
-            num_microbes=2, num_metabolites=5, num_samples=500,
-            num_latent=2, low=-1, high=1,
-            microbe_total=10, metabolite_total=10,
-            seed=0
-        )
-        microbes, metabolites, X, B, U, V = res
-
-        epochs = 10
-        batch_size = 100
-        model = build_model(microbes, metabolites,
-                            latent_dim=2, dropout_rate=0., lam=0,
-                            beta_1=0.999, beta_2=0.9999, clipnorm=10.)
-        otu_hits, ms_hits, sample_ids = onehot(microbes.values,
-                                      closure(metabolites.values))
-        model.fit(
-            {
-                'otu_input': otu_hits,
-            },
-            {
-                'ms_output': ms_hits
-            },
-            verbose=0,
-            #callbacks=[tbCallBack],
-            epochs=epochs, batch_size=batch_size)
-        sids = list(sample_ids[:50]) + list(sample_ids[-50:])
-        params, stats = cross_validation(
-            model, microbes.iloc[sids], metabolites.iloc[sids], top_N=4)
-
-
-        exp_params = pd.Series(
-            [900.000000, 900.000000, 100.000000, 3100.000000,
-             0.688889, 0.3007, 0.775000, 0.620000],
-            index=['FN', 'FP', 'TN', 'TP', 'f1_score',
-                   'meanRK', 'precision', 'recall'])
-
-        tuples = [('OTU_0', 'sample_0'),
-                  ('OTU_0', 'sample_1'),
-                  ('OTU_0', 'sample_2'),
-                  ('OTU_0', 'sample_3'),
-                  ('OTU_0', 'sample_4'),
-                  ('OTU_0', 'sample_495'),
-                  ('OTU_0', 'sample_496'),
-                  ('OTU_0', 'sample_497'),
-                  ('OTU_0', 'sample_498'),
-                  ('OTU_0', 'sample_499'),
-                  ('OTU_1', 'sample_4'),
-                  ('OTU_1', 'sample_495'),
-                  ('OTU_1', 'sample_496'),
-                  ('OTU_1', 'sample_497'),
-                  ('OTU_1', 'sample_498'),
-                  ('OTU_1', 'sample_499')]
-        index = pd.MultiIndex.from_tuples(tuples, names=['OTU', 'sample_ids'])
-
-        exp_stats = pd.DataFrame(
-            [[1, 1, 0, 3, 0.683772, -0.316228],
-             [1, 1, 0, 3, 0.367544, 0.632456],
-             [1, 1, 0, 3, 0.000000, 1.000000],
-             [1, 1, 0, 3, 0.789181, 0.210819],
-             [0, 0, 1, 4, 0.367544, -0.632456],
-             [1, 1, 0, 3, 0.741801, 0.258199],
-             [1, 1, 0, 3, 0.741801, 0.258199],
-             [1, 1, 0, 3, 0.400000, 0.600000],
-             [1, 1, 0, 3, 0.262135, 0.737865],
-             [1, 1, 0, 3, 0.741801, 0.258199],
-             [0, 0, 1, 4, 0.367544, -0.632456],
-             [1, 1, 0, 3, 0.741801, 0.258199],
-             [1, 1, 0, 3, 0.741801, 0.258199],
-             [1, 1, 0, 3, 0.400000, 0.600000],
-             [1, 1, 0, 3, 0.262135, 0.737865],
-             [1, 1, 0, 3, 0.741801, 0.258199]],
-            index=index,
-            columns=['FN', 'FP', 'TN', 'TP', 'pvalue', 'spearman_r']
-        )
-
-        npt.assert_allclose(params.values, exp_params.values,
-                            atol=1e-4, rtol=1e-4)
-
-        npt.assert_allclose(stats.values, exp_stats.values,
-                            atol=1e-4, rtol=1e-4)
+class TestRankHits(unittest.TestCase):
 
     def test_rank_hits(self):
         ranks = pd.DataFrame(
