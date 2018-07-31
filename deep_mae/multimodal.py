@@ -251,7 +251,7 @@ class Autoencoder(object):
         tf.global_variables_initializer().run()
 
 
-    def fit(self, epoch=10, summary_interval=1000,
+    def fit(self, epoch=10, summary_interval=1000, checkpoint_interval=3600,
             testX=None, testY=None):
         """ Fits the model.
 
@@ -274,10 +274,13 @@ class Autoencoder(object):
             metabolite latent parameters
         """
         #X_hits, sample_ids = onehot(X)
-        print(self.nnz, self.batch_size)
+
         iterations = epoch * self.nnz // self.batch_size
 
         cv = None
+        last_checkpoint_time = 0
+        start_time = time.time()
+        saver = tf.train.Saver()
 
         for i in tqdm(range(0, iterations)):
 
@@ -288,11 +291,22 @@ class Autoencoder(object):
                     [self.train, self.merged, self.log_loss, self.qU, self.qV]
                 )
                 self.writer.add_summary(summary, i)
+
             else:
                 train_, loss, rU, rV = self.session.run(
                     [self.train, self.log_loss, self.qU, self.qV]
                 )
+
+
             # self.writer.add_summary(summary, i)
+
+            now = time.time()
+            if now - last_checkpoint_time > checkpoint_interval:
+                saver.save(self.session,
+                           os.path.join(self.save_path, "model.ckpt"),
+                           global_step=i)
+                last_checkpoint_time = now
+
 
         self.U = rU
         self.V = rV
@@ -401,7 +415,6 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     tp_stats, fn_stats, fp_stats, tn_stats = [], [], [], []
 
     for i in range(n):
-
         exp_names = np.argsort(exp[i, :])[-top_N:]
         res_names = np.argsort(res[i, :])[-top_N:]
         result = spearmanr(exp[i, res_names],
@@ -518,18 +531,13 @@ def cross_validation(model, microbes, metabolites, top_N=50):
               help='Summary directory to save cross validation results.')
 @click.option('--ranks-file',
               help='Ranks file containing microbe-metabolite rankings.')
-@click.option('--fast-mode',
-              help='Super memory intensive alternative that is much faster '
-              'to run.  Input data files must be significantly smaller than 2GB '
-              'in dense representation.')
 def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, latent_dim,
                 input_prior, output_prior,
                 dropout_rate, top_k,
                 learning_rate, clipnorm, threads,
-                summary_interval, summary_dir, ranks_file,
-                fast_mode):
+                summary_interval, summary_dir, ranks_file):
 
 
     train_microbes = load_table(otu_train_file)
@@ -591,8 +599,8 @@ def autoencoder(otu_train_file, otu_test_file,
             d1, d2,
             latent_dim=latent_dim,
             u_scale=input_prior, v_scale=output_prior,
-            learning_rate = learning_rate, beta_1=0.999, beta_2=0.9999,
-            clipnorm=10., save_path=sname)
+            learning_rate = learning_rate, beta_1=0.9, beta_2=0.999,
+            clipnorm=clipnorm, save_path=sname)
         model(session, train_microbes_coo, train_metabolites_df.values)
 
         loss, cv = model.fit(epoch=epochs)
