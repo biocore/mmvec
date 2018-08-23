@@ -631,7 +631,7 @@ def autoencoder(otu_train_file, otu_test_file,
             d1, d2,
             latent_dim=latent_dim,
             u_scale=input_prior, v_scale=output_prior,
-            learning_rate = learning_rate, beta_1=0.9, beta_2=0.999,
+            learning_rate = learning_rate, beta_1=beta1, beta_2=beta2,
             clipnorm=clipnorm, save_path=sname)
         model(session, train_microbes_coo, train_metabolites_df.values)
 
