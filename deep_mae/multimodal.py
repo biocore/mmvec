@@ -566,8 +566,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 def autoencoder(otu_train_file, otu_test_file,
                 metabolite_train_file, metabolite_test_file,
                 epochs, batch_size, latent_dim,
-                input_prior, output_prior,
-                dropout_rate, top_k,
+                input_prior, output_prior, top_k,
                 learning_rate, beta1, beta2, clipnorm, threads,
                 summary_interval, summary_dir, ranks_file):
 
@@ -596,7 +595,9 @@ def autoencoder(otu_train_file, otu_test_file,
     sname = 'latent_dim_' + str(latent_dim) + \
            '_input_prior_%.2f' % input_prior + \
            '_output_prior_%.2f' % output_prior + \
-           '_dropout_rate_%.2f' % dropout_rate
+           '_beta1_%.2f' % beta1 + \
+           '_beta2_%.2f' % beta2
+
     sname = os.path.join(summary_dir, sname)
 
     n, d1 = microbes_df.shape
