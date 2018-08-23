@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 from skbio.stats.composition import clr_inv as softmax
-from skbio.stats.composition import closure
+from skbio.stats.composition import closure, ilr_inv
 from sklearn.utils import check_random_state
 from scipy.stats import spearmanr
 from scipy.sparse import coo_matrix
@@ -16,13 +16,12 @@ import tensorflow as tf
 
 
 def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
-                      num_latent=5, low=-1, high=1,
+                      latent_dim=3, low=-1, high=1,
                       microbe_total=10, metabolite_total=100,
                       uB=0, sigmaB=2, sigmaQ=0.1,
                       uU=0, sigmaU=1, uV=0, sigmaV=1,
                       seed=0):
-    """ Generates two random tables
-
+    """
     Parameters
     ----------
     num_microbes : int
@@ -31,12 +30,8 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
        Number of molecules to simulate
     num_samples : int
        Number of samples to generate
-    num_latent_microbes :
-       Number of latent microbial dimensions
-    num_latent_metabolites
-       Number of latent metabolite dimensions
-    num_latent_shared
-       Number of dimensions in shared representation
+    latent_dim :
+       Number of latent dimensions
     low : float
        Lower bound of gradient
     high : float
@@ -57,9 +52,9 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
        Standard deviation of microbial input projection
        coefficient distribution
     uV : float
-       Mean of metabolite input projection coefficient distribution
-    sigmaU : float
-       Standard deviation of metabolite input projection
+       Mean of metabolite output projection coefficient distribution
+    sigmaV : float
+       Standard deviation of metabolite output projection
        coefficient distribution
     seed : float
        Random seed
@@ -77,19 +72,26 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
 
     X = np.vstack((np.ones(num_samples),
                    np.linspace(low, high, num_samples))).T
-
-    microbes = softmax(state.normal(X @ beta, sigmaQ))
-
+    #microbes = softmax(state.normal(X @ beta, sigmaQ))
+    #microbes = softmax(
+    #    state.normal(loc=0, scale=sigmaQ,
+    #                 size=(num_samples, num_microbes)
+    #                )
+    #)
+    microbes = ilr_inv(state.multivariate_normal(
+        mean=np.zeros(num_microbes-1), cov=np.diag([sigmaQ]*(num_microbes-1)),
+        size=num_samples)
+    )
     U = state.normal(
-        uU, sigmaU, size=(num_microbes, num_latent))
+        uU, sigmaU, size=(num_microbes, latent_dim))
     V = state.normal(
-        uV, sigmaV, size=(num_latent, num_metabolites))
-
-    probs = softmax(U @ V)
+        uV, sigmaV, size=(latent_dim, num_metabolites-1))
+    phi = np.hstack((np.zeros((num_microbes, 1)), U @ V))
+    probs = softmax(phi)
     microbe_counts = np.zeros((num_samples, num_microbes))
     metabolite_counts = np.zeros((num_samples, num_metabolites))
     n1 = microbe_total
-    n2 = metabolite_total // n1
+    n2 = metabolite_total // microbe_total
     for n in range(num_samples):
         otu = state.multinomial(n1, microbes[n, :])
         for i in range(num_microbes):
@@ -116,7 +118,7 @@ class TestAutoencoder(unittest.TestCase):
         res = random_multimodal(
             uB=-5,
             num_microbes=2, num_metabolites=4, num_samples=100,
-            num_latent=2, low=-1, high=1,
+            latent_dim=2, low=-1, high=1,
             microbe_total=10, metabolite_total=10,
             seed=seed
         )
@@ -126,16 +128,22 @@ class TestAutoencoder(unittest.TestCase):
         np.random.seed(1)
         tf.reset_default_graph()
         n, d1 = self.microbes.shape
-
         n, d2 = self.metabolites.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
             model = Autoencoder(d1, d2, dropout_rate=10e-6, latent_dim=2)
-            model(session, coo_matrix(self.microbes.values), self.metabolites.values)
+            model(session, coo_matrix(self.microbes.values),
+                  self.metabolites.values)
             model.fit(epoch=20)
-            res = softmax(np.hstack((np.zeros((d1, 1)), model.U @ model.V)))
+            U_ = np.hstack(
+                (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
+            V_ = np.vstack(
+                (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
 
-            exp = softmax(self.U @ self.V)
+            res = softmax(np.hstack((np.zeros((d1, 1)), U_ @ V_)))
+            print(res)
+            exp = softmax(np.hstack((np.zeros((d1, 1)), self.U @ self.V)))
+
             npt.assert_allclose(res, exp,
                                 rtol=1e-1, atol=1e-1)
 
@@ -149,10 +157,12 @@ class TestAutoencoder(unittest.TestCase):
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
             model = Autoencoder(d1, d2, dropout_rate=10e-6, latent_dim=2)
-            model(session, coo_matrix(self.microbes.values), self.metabolites.values)
+            model(session, coo_matrix(self.microbes.values),
+                  self.metabolites.values)
             model.fit(epoch=50)
             cv_loss = model.cross_validate(x.values, y.values)
-            self.assertAlmostEqual(2.714532, cv_loss, places=5)
+            print(cv_loss)
+            self.assertAlmostEqual(2.7152736, cv_loss, places=5)
 
     def test_predict(self):
         np.random.seed(1)
@@ -161,13 +171,19 @@ class TestAutoencoder(unittest.TestCase):
         n, d2 = self.metabolites.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-            model = Autoencoder(d1, d2, dropout_rate=10e-6, latent_dim=2)
-            model(session, coo_matrix(self.microbes.values), self.metabolites.values)
+            model = Autoencoder(d1, d2, latent_dim=2)
+            model(session, coo_matrix(self.microbes.values),
+                  self.metabolites.values)
             model.fit(epoch=50)
             res = model.predict(self.microbes.values)
+            exp = np.array(
+                [[0.20285113, 0.25748045, 0.30648222, 0.2331862],
+                 [0.11538753, 0.19641036, 0.18928348, 0.49891863]]
+            )
             exp = np.array([[0.030375, 0.168372, 0.619572, 0.181681],
                             [0.069957, 0.180757, 0.564098, 0.185187]])
-            npt.assert_allclose(exp, np.unique(res, axis=0), atol=1e-1, rtol=1e-1)
+            npt.assert_allclose(exp, np.unique(res, axis=0),
+                                atol=1e-1, rtol=1e-1)
 
 
 class TestOnehot(unittest.TestCase):
@@ -177,7 +193,7 @@ class TestOnehot(unittest.TestCase):
         res = random_multimodal(
             uB=-5,
             num_microbes=2, num_metabolites=4, num_samples=10,
-            num_latent=2, low=-1, high=1,
+            latent_dim=2, low=-1, high=1,
             microbe_total=10, metabolite_total=10,
             seed=seed
         )
@@ -187,7 +203,6 @@ class TestOnehot(unittest.TestCase):
         otu_hits, _ = onehot(self.microbes.values)
 
         exp_otu_hits = np.loadtxt(get_data_path('otu_hits.txt'))
-
         npt.assert_allclose(exp_otu_hits, otu_hits)
 
     def test_onehot_simple(self):
@@ -196,13 +211,13 @@ class TestOnehot(unittest.TestCase):
         res = random_multimodal(
             uB=-5,
             num_microbes=2, num_metabolites=2, num_samples=3,
-            num_latent=1, low=-1, high=1,
+            latent_dim=1, low=-1, high=1,
             microbe_total=3, metabolite_total=3,
             seed=seed
         )
         microbes, metabolites, X, B, U, V = res
         otu_hits, sample_ids = onehot(microbes.values)
-        exp_otu_hits = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
+        exp_otu_hits = np.array([0, 1, 1, 0, 0, 1, 0, 0, 0])
 
         exp_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
         npt.assert_allclose(exp_ids, sample_ids)

@@ -199,29 +199,57 @@ class Autoencoder(object):
         Y_batch = tf.gather(Y_ph, sample_ids)
         X_batch = tf.gather(X_obs, batch_ids)
 
-        self.qU = tf.Variable(tf.random_normal([self.d1, self.p]), name='qU')
-        self.qV = tf.Variable(tf.random_normal([self.p, self.d2-1]), name='qV')
+        self.qUmain = tf.Variable(
+            tf.random_normal([self.d1, self.p]), name='qU')
+        self.qUbias = tf.Variable(
+            tf.random_normal([self.d1, 1]), name='qUbias')
+        self.qVmain = tf.Variable(
+            tf.random_normal([self.p, self.d2-1]), name='qV')
+        self.qVbias = tf.Variable(
+            tf.random_normal([1, self.d2-1]), name='qVbias')
+
+        qU = tf.concat(
+            [tf.ones([self.d1, 1]), self.qUbias, self.qUmain], axis=1)
+        qV = tf.concat(
+            [self.qVbias, tf.ones([1, self.d2-1]), self.qVmain], axis=0)
 
         # regression coefficents distribution
-        U = Normal(loc=tf.zeros([self.d1, self.p]) + self.u_mean,
+        Umain = Normal(loc=tf.zeros([self.d1, self.p]) + self.u_mean,
                    scale=tf.ones([self.d1, self.p]) * self.u_scale,
                    name='U')
-        V = Normal(loc=tf.zeros([self.p, self.d2-1]) + self.v_mean,
+        Ubias = Normal(loc=tf.zeros([self.d1, 1]) + self.u_mean,
+                   scale=tf.ones([self.d1, 1]) * self.u_scale,
+                   name='biasU')
+
+        Vmain = Normal(loc=tf.zeros([self.p, self.d2-1]) + self.v_mean,
                    scale=tf.ones([self.p, self.d2-1]) * self.v_scale,
                    name='V')
+        Vbias = Normal(loc=tf.zeros([1, self.d2-1]) + self.v_mean,
+                   scale=tf.ones([1, self.d2-1]) * self.v_scale,
+                   name='biasV')
 
-        du = tf.gather(self.qU, X_batch, axis=0, name='du')
+        du = tf.gather(qU, X_batch, axis=0, name='du')
         dv = tf.concat([tf.zeros([self.batch_size, 1]),
-                        du @ self.qV], axis=1, name='dv')
+                        du @ qV], axis=1, name='dv')
 
         tc = tf.gather(total_count, sample_ids)
         Y = Multinomial(total_count=tc, logits=dv, name='Y')
         num_samples = X.shape[0]
         norm = num_samples / self.batch_size
-        logprob_v = tf.reduce_sum(V.log_prob(self.qV), name='logprob_v')
-        logprob_u = tf.reduce_sum(U.log_prob(self.qU), name='logprob_u')
+        logprob_vmain = tf.reduce_sum(
+            Vmain.log_prob(self.qVmain), name='logprob_vmain')
+        logprob_vbias = tf.reduce_sum(
+            Vbias.log_prob(self.qVbias), name='logprob_vbias')
+        logprob_umain = tf.reduce_sum(
+            Umain.log_prob(self.qUmain), name='logprob_umain')
+        logprob_ubias = tf.reduce_sum(
+            Ubias.log_prob(self.qUbias), name='logprob_ubias')
         logprob_y = tf.reduce_sum(Y.log_prob(Y_batch), name='logprob_y')
-        self.log_loss = - (logprob_y * norm + logprob_u + logprob_v)
+        self.log_loss = - (
+            logprob_y * norm +
+            logprob_umain + logprob_ubias +
+            logprob_vmain + logprob_vbias
+        )
 
         pred = tf.nn.log_softmax(dv) + \
                tf.reshape(tf.log(tc), [-1, 1])
@@ -229,10 +257,13 @@ class Autoencoder(object):
         self.cv = tf.sqrt(
             tf.reduce_mean(tf.reduce_mean(tf.multiply(err, err), axis=0)))
 
-        tf.summary.scalar('loss', self.log_loss)
-        tf.summary.scalar('cv', self.cv)
-        tf.summary.histogram('qU', self.qU)
-        tf.summary.histogram('qV', self.qV)
+        tf.summary.scalar('logloss', self.log_loss)
+        tf.summary.scalar('cv_rmse', self.cv)
+        tf.summary.histogram('qUmain', self.qUmain)
+        tf.summary.histogram('qVmain', self.qVmain)
+
+        tf.summary.histogram('qUbias', self.qUbias)
+        tf.summary.histogram('qVbias', self.qVbias)
         self.merged = tf.summary.merge_all()
 
         self.writer = tf.summary.FileWriter(self.save_path, self.session.graph)
@@ -256,10 +287,12 @@ class Autoencoder(object):
 
         Parameters
         ----------
-        X : np.array
-           Input table (likely OTUs).
-        Y : np.array
-           Output table (likely metabolites).
+        epoch : int
+           Number of epochs to train
+        summary_interval : int
+           Number of seconds until a summary is recorded
+        checkpoint_interval : int
+           Number of seconds until a checkpoint is recorded
 
         Returns
         -------
@@ -267,34 +300,35 @@ class Autoencoder(object):
             log likelihood loss.
         cv : float
             cross validation loss
-        rU: np.array
-            microbe latent parameters
-        rV: np.array
-            metabolite latent parameters
         """
-        #X_hits, sample_ids = onehot(X)
-
         iterations = epoch * self.nnz // self.batch_size
 
         cv = None
         last_checkpoint_time = 0
+        last_summary_time = 0
         start_time = time.time()
         saver = tf.train.Saver()
-
+        now = time.time()
         for i in tqdm(range(0, iterations)):
 
-            if i % summary_interval == 0:
+            if now - last_summary_time > summary_interval:
                 if testX is not None and testY is not None:
                     cv = self.cross_validate(testX, testY)
-                train_, summary, loss, rU, rV = self.session.run(
-                    [self.train, self.merged, self.log_loss, self.qU, self.qV]
+                res = self.session.run(
+                    [self.train, self.merged, self.log_loss,
+                     self.qUmain, self.qUbias,
+                     self.qVmain, self.qVbias]
                 )
+                train_, summary, loss, rU, rUb, rV, rVb = res
                 self.writer.add_summary(summary, i)
-
+                last_summary_time = now
             else:
-                train_, loss, rU, rV = self.session.run(
-                    [self.train, self.log_loss, self.qU, self.qV]
+                res = self.session.run(
+                    [self.train, self.log_loss,
+                     self.qUmain, self.qUbias,
+                     self.qVmain, self.qVbias]
                 )
+                train_, loss, rU, rUb, rV, rVb = res
             # checkpoint model
             now = time.time()
             if now - last_checkpoint_time > checkpoint_interval:
@@ -306,6 +340,8 @@ class Autoencoder(object):
 
         self.U = rU
         self.V = rV
+        self.Ubias = rUb
+        self.Vbias = rVb
 
         return loss, cv
 
@@ -326,7 +362,11 @@ class Autoencoder(object):
         X_hits, _ = onehot(X)
 
         d1 = X_hits.shape[0]
-        r = self.U[X_hits] @ self.V
+        U_ = np.hstack(
+            (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))
+        V_ = np.vstack(
+            (self.Vbias, np.ones((1, self.V.shape[1])), self.V))
+        r = U_[X_hits] @ V_
         res = softmax(np.hstack(
             (np.zeros((d1, 1)), r)))
         return res
@@ -373,8 +413,8 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 
     Parameters
     ----------
-    model : keras.model
-       Pre-trained model
+    model : Autoencoder
+       Pre-trained tensorflow model
     microbes : pd.DataFrame
        Microbe abundances (counts) on test dataset
     metabolites : pd.DataFrame
@@ -498,17 +538,18 @@ def cross_validation(model, microbes, metabolites, top_N=50):
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
               default=1.)
-@click.option('--dropout-rate',
-              help=('Dropout regularization.  Helps with preventing overfitting.'
-                    'This is the probability of dropping a parameter at a given iteration.'
-                    'Values must be between (0, 1)'),
-              default=0.9)
 @click.option('--top-k',
               help=('Number of top hits to compare for cross-validation.'),
               default=50)
 @click.option('--learning-rate',
               help=('Gradient descent decay rate.'),
               default=1e-1)
+@click.option('--beta1',
+              help=('Gradient decay rate for first Adam momentum estimates'),
+              default=0.9)
+@click.option('--beta2',
+              help=('Gradient decay rate for second Adam momentum estimates'),
+              default=0.95)
 @click.option('--clipnorm',
               help=('Gradient clipping size.'),
               default=10.)
@@ -527,7 +568,7 @@ def autoencoder(otu_train_file, otu_test_file,
                 epochs, batch_size, latent_dim,
                 input_prior, output_prior,
                 dropout_rate, top_k,
-                learning_rate, clipnorm, threads,
+                learning_rate, beta1, beta2, clipnorm, threads,
                 summary_interval, summary_dir, ranks_file):
 
 
