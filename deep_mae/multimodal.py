@@ -386,6 +386,8 @@ class Autoencoder(object):
         cv_loss: float
            Euclidean norm of the errors (i.e. the RMSE)
 
+        TODO: This cross validation is not currently working
+        Will need to be fixed ASAP
         """
         X_hits, sample_ids = onehot(X)
 
@@ -556,8 +558,11 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 @click.option('--threads',
               help=('Number of threads to utilize.'),
               default=64)
+@click.option('--checkpoint-interval',
+              help=('Number of seconds before a storing a summary.'),
+              default=1000)
 @click.option('--summary-interval',
-              help=('Number of iterations before a storing a summary.'),
+              help=('Number of seconds before a storing a summary.'),
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
@@ -568,7 +573,8 @@ def autoencoder(otu_train_file, otu_test_file,
                 epochs, batch_size, latent_dim,
                 input_prior, output_prior, top_k,
                 learning_rate, beta1, beta2, clipnorm, threads,
-                summary_interval, summary_dir, ranks_file):
+                checkpoint_interval, summary_interval,
+                summary_dir, ranks_file):
 
 
     train_microbes = load_table(otu_train_file)
@@ -636,7 +642,8 @@ def autoencoder(otu_train_file, otu_test_file,
             clipnorm=clipnorm, save_path=sname)
         model(session, train_microbes_coo, train_metabolites_df.values)
 
-        loss, cv = model.fit(epoch=epochs)
+        loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval,
+                             checkpoint_interval=checkpoint_interval)
 
         U, V = model.U, model.V
         d1 = U.shape[0]
