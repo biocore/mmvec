@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import time
 from tqdm import tqdm
@@ -651,6 +652,11 @@ def autoencoder(otu_train_file, otu_test_file,
         ranks = clr(softmax(np.hstack((np.zeros((d1, 1)), U @ V))))
         ranks = pd.DataFrame(ranks, index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
+
+        np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
+        np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)
+        np.savetxt(os.path.join(summary_dir, 'Ubias.txt'), model.Ubias)
+        np.savetxt(os.path.join(summary_dir, 'Vbias.txt'), model.Vbias)
 
         params, rank_stats = cross_validation(
             model, test_microbes_df, test_metabolites_df, top_N=top_k)
