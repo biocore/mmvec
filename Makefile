@@ -9,7 +9,7 @@ help:
 test:
 	$(TEST_COMMAND)
 pep8:
-	pycodestyle songbird setup.py
-	flake8 songbird setup.py
+	pycodestyle maestro setup.py
+	flake8 maestro setup.py
 
 all: pep8 test

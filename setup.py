@@ -56,6 +56,5 @@ setup(name='maestro',
           'scikit-bio >= 0.5.1',
       ],
       classifiers=classifiers,
-      package_data={
-      },
+      package_data={}
 )

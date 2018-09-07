@@ -5,6 +5,7 @@ from skbio.stats.composition import ilr_inv
 from skbio.stats.composition import clr_inv as softmax
 from scipy.sparse import coo_matrix
 
+
 def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
                       latent_dim=3, low=-1, high=1,
                       microbe_total=10, metabolite_total=100,
@@ -133,7 +134,6 @@ def split_tables(otu_table, metabolite_table,
     microbes_df, metabolites_df = microbes_df.align(
         metabolites_df, axis=0, join='inner')
 
-
     # filter out microbes that don't appear in many samples
     microbes_df = microbes_df.loc[:, (microbes_df>0).sum(axis=0)>min_samples]
     if metadata is None or training_column is None:
@@ -148,7 +148,7 @@ def split_tables(otu_table, metabolite_table,
     train_metabolites = metabolites_df.loc[~sample_ids]
     test_metabolites = metabolites_df.loc[sample_ids]
 
-    return train_microbes, test_microbes, train_metabolites, test_metaobolites
+    return train_microbes, test_microbes, train_metabolites, test_metabolites
 
 
 def onehot(microbes):
