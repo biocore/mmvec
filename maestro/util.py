@@ -63,12 +63,6 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
 
     X = np.vstack((np.ones(num_samples),
                    np.linspace(low, high, num_samples))).T
-    #microbes = softmax(state.normal(X @ beta, sigmaQ))
-    #microbes = softmax(
-    #    state.normal(loc=0, scale=sigmaQ,
-    #                 size=(num_samples, num_microbes)
-    #                )
-    #)
     microbes = ilr_inv(state.multivariate_normal(
         mean=np.zeros(num_microbes-1), cov=np.diag([sigmaQ]*(num_microbes-1)),
         size=num_samples)
@@ -110,12 +104,13 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     metabolite_counts = pd.DataFrame(
         metabolite_counts, index=sample_ids, columns=ms_ids)
 
-    return microbe_counts, metabolite_counts, X, beta, Umain, Ubias, Vmain, Vbias
+    return (microbe_counts, metabolite_counts, X, beta,
+            Umain, Ubias, Vmain, Vbias)
 
 
 def split_tables(otu_table, metabolite_table,
                  metadata=None, training_column=None, num_test=10,
-                 min_sample=10):
+                 min_samples=10):
     """ Splits otu and metabolite tables into training and testing datasets.
 
     Parameters
@@ -135,7 +130,8 @@ def split_tables(otu_table, metabolite_table,
         metabolites_df, axis=0, join='inner')
 
     # filter out microbes that don't appear in many samples
-    microbes_df = microbes_df.loc[:, (microbes_df>0).sum(axis=0)>min_samples]
+    idx = (microbes_df > 0).sum(axis=0) > min_samples
+    microbes_df = microbes_df.loc[:, idx]
     if metadata is None or training_column is None:
         sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
@@ -192,11 +188,12 @@ def rank_hits(ranks, k):
        List of edges along with corresponding ranks.
     """
     axis = 1
-    lookup = {x : i for i, x in enumerate(ranks.columns)}
+
     def sort_f(x):
         return [
             ranks.columns[i] for i in np.argsort(x)[-k:]
         ]
+
     idx = ranks.index
     topk = ranks.apply(sort_f, axis=axis).values
     topk = pd.DataFrame([x for x in topk], index=idx)
@@ -215,4 +212,3 @@ def rank_hits(ranks, k):
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
     edges['rank'] = edges['rank'].astype(np.float64)
     return edges
-

@@ -1,30 +1,23 @@
 import unittest
 import numpy as np
-import pandas as pd
 from skbio.stats.composition import clr_inv as softmax
-from skbio.stats.composition import closure, ilr_inv
-from sklearn.utils import check_random_state
 from scipy.stats import spearmanr
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import pdist
-from scipy.spatial.distance import squareform
-from maestro.multimodal import Autoencoder, cross_validation
-from maestro.util import onehot, rank_hits, random_multimodal
-from skbio.util import get_data_path
+from maestro.multimodal import Autoencoder
+from maestro.util import random_multimodal
 import numpy.testing as npt
-import pandas.util.testing as pdt
 from tensorflow import set_random_seed
 import tensorflow as tf
 
 
 class TestAutoencoder(unittest.TestCase):
     def setUp(self):
-        seed = 0
         # build small simulation
         res = random_multimodal(
             num_microbes=8, num_metabolites=8, num_samples=100,
-            latent_dim=2, sigmaQ = 3,
-            microbe_total = 1000, metabolite_total=10000
+            latent_dim=2, sigmaQ=3,
+            microbe_total=1000, metabolite_total=10000, seed=0
         )
         (self.microbes, self.metabolites, self.X, self.B,
          self.U, self.Ubias, self.V, self.Vbias) = res
@@ -40,7 +33,6 @@ class TestAutoencoder(unittest.TestCase):
             model(session, coo_matrix(self.microbes.values),
                   self.metabolites.values)
             model.fit(epoch=1000)
-            os.rmdir(model.savepath)
 
             modelU = np.hstack(
                 (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
@@ -65,7 +57,6 @@ class TestAutoencoder(unittest.TestCase):
             self.assertLess(u_p, 1e-4)
             self.assertLess(v_p, 1e-4)
             self.assertLess(s_p, 1e-4)
-
 
     # def test_cross_validate(self):
     #     np.random.seed(1)
@@ -94,12 +85,11 @@ class TestAutoencoder(unittest.TestCase):
             model(session, coo_matrix(self.microbes.values),
                   self.metabolites.values)
             model.fit(epoch=50)
-            os.rmdir(model.savepath)
             res = model.predict(self.microbes.values)
 
             exp = np.array(
                 [[0.05642149, 0.05688434, 0.24697137, 0.42419982,
-                  0.10783383, 0.07360239, 0.0106469 , 0.02343986],
+                  0.10783383, 0.07360239, 0.0106469, 0.02343986],
                  [0.06396461, 0.10756036, 0.36204142, 0.2413285,
                   0.1236904, 0.06076086, 0.02120197, 0.01945188],
                  [0.06511185, 0.10943013, 0.36919167, 0.264807,
@@ -117,8 +107,6 @@ class TestAutoencoder(unittest.TestCase):
             )
             npt.assert_allclose(exp, np.unique(res, axis=0),
                                 atol=1e-1, rtol=1e-1)
-
-
 
 
 if __name__ == "__main__":

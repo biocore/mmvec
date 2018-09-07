@@ -1,20 +1,10 @@
 import unittest
 import numpy as np
 import pandas as pd
-from skbio.stats.composition import clr_inv as softmax
-from skbio.stats.composition import closure, ilr_inv
-from sklearn.utils import check_random_state
-from scipy.stats import spearmanr
-from scipy.sparse import coo_matrix
-from scipy.spatial.distance import pdist
-from scipy.spatial.distance import squareform
-from maestro.multimodal import Autoencoder, cross_validation
 from maestro.util import onehot, rank_hits, random_multimodal
 from skbio.util import get_data_path
 import numpy.testing as npt
 import pandas.util.testing as pdt
-from tensorflow import set_random_seed
-import tensorflow as tf
 
 
 class TestOnehot(unittest.TestCase):
@@ -34,8 +24,8 @@ class TestOnehot(unittest.TestCase):
     def test_onehot(self):
         otu_hits, _ = onehot(self.microbes.values)
         np.savetxt(get_data_path('otu_hits.txt'), otu_hits)
-        #exp_otu_hits = np.loadtxt(get_data_path('otu_hits.txt'))
-        #npt.assert_allclose(exp_otu_hits, otu_hits)
+        exp_otu_hits = np.loadtxt(get_data_path('otu_hits.txt'))
+        npt.assert_allclose(exp_otu_hits, otu_hits)
 
     def test_onehot_simple(self):
         seed = 0

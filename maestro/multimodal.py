@@ -3,13 +3,8 @@ import time
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-from biom import load_table, Table
-from biom.util import biom_open
-from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
-import matplotlib.pyplot as plt
-from scipy.stats import entropy, spearmanr
-from scipy.sparse import coo_matrix
+from scipy.stats import spearmanr
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
 import datetime
@@ -20,7 +15,7 @@ class Autoencoder(object):
 
     def __init__(self, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
                  batch_size=50, latent_dim=3, dropout_rate=0.5,
-                 learning_rate = 0.1, beta_1=0.999, beta_2=0.9999,
+                 learning_rate=0.1, beta_1=0.999, beta_2=0.9999,
                  clipnorm=10., save_path=None):
         """ Build a tensorflow model
 
@@ -55,7 +50,6 @@ class Autoencoder(object):
         self.beta_2 = beta_2
         self.clipnorm = clipnorm
         self.save_path = save_path
-
 
     def __call__(self, session, X, Y):
         """ Initialize the actual graph
@@ -107,18 +101,18 @@ class Autoencoder(object):
 
         # regression coefficents distribution
         Umain = Normal(loc=tf.zeros([self.d1, self.p]) + self.u_mean,
-                   scale=tf.ones([self.d1, self.p]) * self.u_scale,
-                   name='U')
+                       scale=tf.ones([self.d1, self.p]) * self.u_scale,
+                       name='U')
         Ubias = Normal(loc=tf.zeros([self.d1, 1]) + self.u_mean,
-                   scale=tf.ones([self.d1, 1]) * self.u_scale,
-                   name='biasU')
+                       scale=tf.ones([self.d1, 1]) * self.u_scale,
+                       name='biasU')
 
         Vmain = Normal(loc=tf.zeros([self.p, self.d2-1]) + self.v_mean,
-                   scale=tf.ones([self.p, self.d2-1]) * self.v_scale,
-                   name='V')
+                       scale=tf.ones([self.p, self.d2-1]) * self.v_scale,
+                       name='V')
         Vbias = Normal(loc=tf.zeros([1, self.d2-1]) + self.v_mean,
-                   scale=tf.ones([1, self.d2-1]) * self.v_scale,
-                   name='biasV')
+                       scale=tf.ones([1, self.d2-1]) * self.v_scale,
+                       name='biasV')
 
         du = tf.gather(qU, X_batch, axis=0, name='du')
         dv = tf.concat([tf.zeros([self.batch_size, 1]),
@@ -143,8 +137,7 @@ class Autoencoder(object):
             logprob_vmain + logprob_vbias
         )
 
-        pred = tf.nn.log_softmax(dv) + \
-               tf.reshape(tf.log(tc), [-1, 1])
+        pred = tf.nn.log_softmax(dv) + tf.reshape(tf.log(tc), [-1, 1])
         err = tf.subtract(Y_batch, pred)
         self.cv = tf.sqrt(
             tf.reduce_mean(tf.reduce_mean(tf.multiply(err, err), axis=0)))
@@ -172,7 +165,6 @@ class Autoencoder(object):
 
         tf.global_variables_initializer().run()
 
-
     def fit(self, epoch=10, summary_interval=1000, checkpoint_interval=3600,
             testX=None, testY=None):
         """ Fits the model.
@@ -198,7 +190,6 @@ class Autoencoder(object):
         cv = None
         last_checkpoint_time = 0
         last_summary_time = 0
-        start_time = time.time()
         saver = tf.train.Saver()
         now = time.time()
         for i in tqdm(range(0, iterations)):
@@ -237,7 +228,6 @@ class Autoencoder(object):
 
         return loss, cv
 
-
     def predict(self, X):
         """ Performs a prediction
 
@@ -263,44 +253,8 @@ class Autoencoder(object):
             (np.zeros((d1, 1)), r)))
         return res
 
-
     def cross_validate(self, X, Y):
-        """ Perform real time cross validation
-
-        Parameters
-        ----------
-        X : np.array
-           Input table (likely OTUs).
-        Y : np.array
-           Output table (likely metabolites).
-
-        Returns
-        -------
-        cv_loss: float
-           Euclidean norm of the errors (i.e. the RMSE)
-
-        TODO: This cross validation is not currently working
-        Will need to be fixed ASAP
-        """
-        X_hits, sample_ids = onehot(X)
-
-        total = Y[sample_ids, :].sum(axis=1).astype(np.float32)
-        iterations = len(X_hits) // self.batch_size
-        cv_losses = []
-        for _ in range(iterations):
-            batch = np.random.randint(
-                X_hits.shape[0], size=self.batch_size)
-            batch_ids = sample_ids[batch]
-            total = Y[batch_ids, :].sum(axis=1).astype(np.float32)
-
-            cv_loss = self.session.run(
-                [self.cv]
-            )
-
-            cv_losses.append(cv_loss)
-
-        cv_loss = np.mean(cv_losses)
-        return cv_loss
+        pass
 
 
 def cross_validation(model, microbes, metabolites, top_N=50):
@@ -326,11 +280,9 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     """
     # a little redundant
     otu_hits, sample_ids = onehot(microbes.values)
-    batch_size = len(sample_ids)
     res = model.predict(microbes.values)
     exp = metabolites.values[sample_ids]
 
-    ms_r = []
     prec = []
     recall = []
     tps = fps = fns = tns = 0
@@ -355,7 +307,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
         rank_stats.append(r)
         rank_pvals.append(pval)
 
-        hits  = set(res_names)
+        hits = set(res_names)
         truth = set(exp_names)
 
         tp_stats.append(len(hits & truth))
@@ -389,7 +341,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 
     rank_stats = pd.DataFrame(
         {
-            'spearman_r' : rank_stats,
+            'spearman_r': rank_stats,
             'pvalue': rank_pvals,
             'OTU': otu_names,
             'sample_ids': microbes.index[sample_ids],
@@ -401,10 +353,5 @@ def cross_validation(model, microbes, metabolites, top_N=50):
     )
 
     rank_stats = rank_stats.groupby(by=['OTU', 'sample_ids']).mean()
-    #rank_stats = rank_stats.drop_duplicates()
 
     return params, rank_stats
-
-
-if __name__ == '__main__':
-    multimodal()

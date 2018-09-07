@@ -7,10 +7,8 @@
 #
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
-
 import re
 import ast
-import os
 from glob import glob
 from setuptools import setup
 
@@ -33,9 +31,15 @@ description = ('Deep Multimodal Autoencoder')
 
 with open('README.md') as f:
     long_description = f.read()
-extensions = [
-]
-version='0.0.1'
+
+# version parsing from __init__ pulled from Flask's setup.py
+# https://github.com/mitsuhiko/flask/blob/master/setup.py
+_version_re = re.compile(r'__version__\s+=\s+(.*)')
+with open('songbird/__init__.py', 'rb') as f:
+    hit = _version_re.search(f.read().decode('utf-8')).group(1)
+    version = str(ast.literal_eval(hit))
+
+
 setup(name='maestro',
       version=version,
       license='BSD',
@@ -56,5 +60,4 @@ setup(name='maestro',
           'scikit-bio >= 0.5.1',
       ],
       classifiers=classifiers,
-      package_data={}
-)
+      package_data={})
