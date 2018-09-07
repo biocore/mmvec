@@ -1,0 +1,27 @@
+# Travis yml file inspired by scikit-bio
+# Check on http://lint.travis-ci.org/ after modifying it!
+sudo: false
+language: python
+env:
+  - PYVERSION=3.5
+before_install:
+  - export MPLBACKEND='Agg'
+  - wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - export MINICONDA_PREFIX="$HOME/miniconda"
+  - bash miniconda.sh -b -p $MINICONDA_PREFIX
+  - export PATH="$MINICONDA_PREFIX/bin:$PATH"
+  - conda config --set always_yes yes
+  - conda update -q conda
+  - conda info -a
+install:
+  - wget -q https://raw.githubusercontent.com/qiime2/environment-files/master/latest/staging/qiime2-latest-py35-linux-conda.yml
+  - conda env create -q -n test_env --file qiime2-latest-py35-linux-conda.yml
+  - conda install --yes -q -n test_env --file ci/conda_requirements.txt -c biocore
+  - source activate test_env
+  - pip install -e .
+script:
+  - make all
+notifications:
+  webhooks:
+    on_success: change
+    on_failure: always
