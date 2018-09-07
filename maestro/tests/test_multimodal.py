@@ -1,3 +1,5 @@
+import os
+import glob
 import unittest
 import numpy as np
 from skbio.stats.composition import clr_inv as softmax
@@ -21,6 +23,11 @@ class TestAutoencoder(unittest.TestCase):
         )
         (self.microbes, self.metabolites, self.X, self.B,
          self.U, self.Ubias, self.V, self.Vbias) = res
+
+    def tearDown(self):
+        # remove all log directories
+        for r in glob.glob("logdir*"):
+            os.rmdir(r)
 
     def test_fit(self):
         np.random.seed(1)
