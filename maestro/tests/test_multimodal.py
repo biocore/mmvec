@@ -16,9 +16,9 @@ class TestAutoencoder(unittest.TestCase):
     def setUp(self):
         # build small simulation
         res = random_multimodal(
-            num_microbes=3, num_metabolites=6, num_samples=200,
+            num_microbes=8, num_metabolites=8, num_samples=150,
             latent_dim=2, sigmaQ=2,
-            microbe_total=1000, metabolite_total=10000, seed=0
+            microbe_total=1000, metabolite_total=10000, seed=1
         )
         (self.microbes, self.metabolites, self.X, self.B,
          self.U, self.Ubias, self.V, self.Vbias) = res
@@ -60,25 +60,9 @@ class TestAutoencoder(unittest.TestCase):
             self.assertGreater(u_r, 0.5)
             self.assertGreater(v_r, 0.5)
             self.assertGreater(s_r, 0.5)
-            self.assertLess(u_p, 1e-4)
-            self.assertLess(v_p, 1e-4)
-            self.assertLess(s_p, 1e-4)
-
-    # def test_cross_validate(self):
-    #     np.random.seed(1)
-    #     tf.reset_default_graph()
-    #     x = self.microbes.iloc[-5:]
-    #     y = self.metabolites.iloc[-5:]
-    #     n, d1 = self.microbes.shape
-    #     n, d2 = self.metabolites.shape
-    #     with tf.Graph().as_default(), tf.Session() as session:
-    #         set_random_seed(0)
-    #         model = Autoencoder(latent_dim=2)
-    #         model(session, coo_matrix(self.microbes.values),
-    #               self.metabolites.values)
-    #         model.fit(epoch=1000)
-    #         cv_loss = model.cross_validate(x.values, y.values)
-    #         self.assertAlmostEqual(2.23643, cv_loss, places=5)
+            self.assertLess(u_p, 1e-2)
+            self.assertLess(v_p, 1e-2)
+            self.assertLess(s_p, 1e-2)
 
 
 if __name__ == "__main__":
