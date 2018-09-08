@@ -1,0 +1,214 @@
+import numpy as np
+import pandas as pd
+from sklearn.utils import check_random_state
+from skbio.stats.composition import ilr_inv
+from skbio.stats.composition import clr_inv as softmax
+from scipy.sparse import coo_matrix
+
+
+def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
+                      latent_dim=3, low=-1, high=1,
+                      microbe_total=10, metabolite_total=100,
+                      uB=0, sigmaB=2, sigmaQ=0.1,
+                      uU=0, sigmaU=1, uV=0, sigmaV=1,
+                      seed=0):
+    """
+    Parameters
+    ----------
+    num_microbes : int
+       Number of microbial species to simulate
+    num_metabolites : int
+       Number of molecules to simulate
+    num_samples : int
+       Number of samples to generate
+    latent_dim :
+       Number of latent dimensions
+    low : float
+       Lower bound of gradient
+    high : float
+       Upper bound of gradient
+    microbe_total : int
+       Total number of microbial species
+    metabolite_total : int
+       Total number of metabolite species
+    uB : float
+       Mean of regression coefficient distribution
+    sigmaB : float
+       Standard deviation of regression coefficient distribution
+    sigmaQ : float
+       Standard deviation of error distribution
+    uU : float
+       Mean of microbial input projection coefficient distribution
+    sigmaU : float
+       Standard deviation of microbial input projection
+       coefficient distribution
+    uV : float
+       Mean of metabolite output projection coefficient distribution
+    sigmaV : float
+       Standard deviation of metabolite output projection
+       coefficient distribution
+    seed : float
+       Random seed
+
+    Returns
+    -------
+    microbe_counts : pd.DataFrame
+       Count table of microbial counts
+    metabolite_counts : pd.DataFrame
+       Count table of metabolite counts
+    """
+    state = check_random_state(seed)
+    # only have two coefficients
+    beta = state.normal(uB, sigmaB, size=(2, num_microbes))
+
+    X = np.vstack((np.ones(num_samples),
+                   np.linspace(low, high, num_samples))).T
+    microbes = ilr_inv(state.multivariate_normal(
+        mean=np.zeros(num_microbes-1), cov=np.diag([sigmaQ]*(num_microbes-1)),
+        size=num_samples)
+    )
+    Umain = state.normal(
+        uU, sigmaU, size=(num_microbes, latent_dim))
+    Vmain = state.normal(
+        uV, sigmaV, size=(latent_dim, num_metabolites-1))
+
+    Ubias = state.normal(
+        uU, sigmaU, size=(num_microbes, 1))
+    Vbias = state.normal(
+        uV, sigmaV, size=(1, num_metabolites-1))
+
+    U_ = np.hstack(
+        (np.ones((num_microbes, 1)), Ubias, Umain))
+    V_ = np.vstack(
+        (Vbias, np.ones((1, num_metabolites-1)), Vmain))
+
+    phi = np.hstack((np.zeros((num_microbes, 1)), U_ @ V_))
+    probs = softmax(phi)
+    microbe_counts = np.zeros((num_samples, num_microbes))
+    metabolite_counts = np.zeros((num_samples, num_metabolites))
+    n1 = microbe_total
+    n2 = metabolite_total // microbe_total
+    for n in range(num_samples):
+        otu = state.multinomial(n1, microbes[n, :])
+        for i in range(num_microbes):
+            ms = state.multinomial(otu[i] * n2, probs[i, :])
+            metabolite_counts[n, :] += ms
+        microbe_counts[n, :] += otu
+
+    otu_ids = ['OTU_%d' % d for d in range(microbe_counts.shape[1])]
+    ms_ids = ['metabolite_%d' % d for d in range(metabolite_counts.shape[1])]
+    sample_ids = ['sample_%d' % d for d in range(metabolite_counts.shape[0])]
+
+    microbe_counts = pd.DataFrame(
+        microbe_counts, index=sample_ids, columns=otu_ids)
+    metabolite_counts = pd.DataFrame(
+        metabolite_counts, index=sample_ids, columns=ms_ids)
+
+    return (microbe_counts, metabolite_counts, X, beta,
+            Umain, Ubias, Vmain, Vbias)
+
+
+def split_tables(otu_table, metabolite_table,
+                 metadata=None, training_column=None, num_test=10,
+                 min_samples=10):
+    """ Splits otu and metabolite tables into training and testing datasets.
+
+    Parameters
+    ----------
+    otu_table : biom.Table
+       Table of microbe abundances
+    metabolite_table : biom.Table
+       Table of metabolite intensities
+
+    Returns
+    -------
+    """
+    microbes_df = otu_table.to_dataframe().T
+    metabolites_df = metabolite_table.to_dataframe().T
+
+    microbes_df, metabolites_df = microbes_df.align(
+        metabolites_df, axis=0, join='inner')
+
+    # filter out microbes that don't appear in many samples
+    idx = (microbes_df > 0).sum(axis=0) > min_samples
+    microbes_df = microbes_df.loc[:, idx]
+    if metadata is None or training_column is None:
+        sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
+        sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
+    else:
+        sample_ids = set(metadata.loc[metadata[training_column]].index)
+        sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
+
+    train_microbes = microbes_df.loc[~sample_ids]
+    test_microbes = microbes_df.loc[sample_ids]
+    train_metabolites = metabolites_df.loc[~sample_ids]
+    test_metabolites = metabolites_df.loc[sample_ids]
+
+    return train_microbes, test_microbes, train_metabolites, test_metabolites
+
+
+def onehot(microbes):
+    """ One hot encoding for microbes.
+
+    Parameters
+    ----------
+    microbes : np.array
+       Table of microbe abundances (counts)
+
+    Returns
+    -------
+    otu_hits : np.array
+       One hot encodings of microbes
+    sample_ids : np.array
+       Sample ids
+    """
+    coo = coo_matrix(microbes)
+    data = coo.data.astype(np.int64)
+    otu_ids = coo.col
+    sample_ids = coo.row
+    otu_hits = np.repeat(otu_ids, data)
+    sample_ids = np.repeat(sample_ids, data)
+
+    return otu_hits.astype(np.int32), sample_ids
+
+
+def rank_hits(ranks, k):
+    """ Creates an edge list based on rank matrix.
+
+    Parameters
+    ----------
+    ranks : pd.DataFrame
+       Matrix of ranks (aka conditional probabilities)
+    k : int
+       Number of nearest neighbors
+
+    Returns
+    -------
+    edges : pd.DataFrame
+       List of edges along with corresponding ranks.
+    """
+    axis = 1
+
+    def sort_f(x):
+        return [
+            ranks.columns[i] for i in np.argsort(x)[-k:]
+        ]
+
+    idx = ranks.index
+    topk = ranks.apply(sort_f, axis=axis).values
+    topk = pd.DataFrame([x for x in topk], index=idx)
+    top_hits = topk.reset_index()
+    top_hits = top_hits.rename(columns={'index': 'src'})
+    edges = pd.melt(
+        top_hits, id_vars=['src'],
+        var_name='rank',
+        value_vars=list(range(k)),
+        value_name='dest')
+
+    # fill in actual ranks
+    for i in edges.index:
+        src = edges.loc[i, 'src']
+        dest = edges.loc[i, 'dest']
+        edges.loc[i, 'rank'] = ranks.loc[src, dest]
+    edges['rank'] = edges['rank'].astype(np.float64)
+    return edges
