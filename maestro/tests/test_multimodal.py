@@ -8,7 +8,6 @@ from scipy.sparse import coo_matrix
 from scipy.spatial.distance import pdist
 from maestro.multimodal import Autoencoder
 from maestro.util import random_multimodal
-import numpy.testing as npt
 from tensorflow import set_random_seed
 import tensorflow as tf
 
