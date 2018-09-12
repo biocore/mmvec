@@ -172,7 +172,7 @@ def onehot(microbes):
     return otu_hits.astype(np.int32), sample_ids
 
 
-def rank_hits(ranks, k):
+def rank_hits(ranks, k, pos=True):
     """ Creates an edge list based on rank matrix.
 
     Parameters
@@ -181,6 +181,9 @@ def rank_hits(ranks, k):
        Matrix of ranks (aka conditional probabilities)
     k : int
        Number of nearest neighbors
+    pos : bool
+       Specifies either most associated or least associated.
+       This is a proxy to positively correlated or negatively correlated.
 
     Returns
     -------
@@ -190,9 +193,14 @@ def rank_hits(ranks, k):
     axis = 1
 
     def sort_f(x):
-        return [
-            ranks.columns[i] for i in np.argsort(x)[-k:]
-        ]
+        if pos:
+            return [
+                ranks.columns[i] for i in np.argsort(x)[-k:]
+            ]
+        else:
+            return [
+                ranks.columns[i] for i in np.argsort(x)[:k]
+            ]
 
     idx = ranks.index
     topk = ranks.apply(sort_f, axis=axis).values

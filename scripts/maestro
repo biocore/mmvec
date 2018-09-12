@@ -161,7 +161,7 @@ def autoencoder(microbe_file, metabolite_file,
 
         ranks = pd.DataFrame(
             clr(softmax(np.hstack(
-                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))).T,
+                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
             index=train_microbes_df.columns,
             columns=train_metabolites_df.columns)
 
