@@ -27,7 +27,7 @@ classes = """
 """
 classifiers = [s.strip() for s in classes.split('\n') if s]
 
-description = ('Deep Multimodal Autoencoder')
+description = ('Deep Multimodal Autoencoders')
 
 with open('README.md') as f:
     long_description = f.read()
