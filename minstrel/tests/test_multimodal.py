@@ -6,8 +6,8 @@ from skbio.stats.composition import clr_inv as softmax
 from scipy.stats import spearmanr
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import pdist
-from maestro.multimodal import Autoencoder
-from maestro.util import random_multimodal
+from minstrel.multimodal import Autoencoder
+from minstrel.util import random_multimodal
 from tensorflow import set_random_seed
 import tensorflow as tf
 
