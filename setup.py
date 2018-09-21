@@ -40,7 +40,7 @@ with open('maestro/__init__.py', 'rb') as f:
     version = str(ast.literal_eval(hit))
 
 
-setup(name='maestro',
+setup(name='minstrel',
       version=version,
       license='BSD',
       description=description,

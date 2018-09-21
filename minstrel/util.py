@@ -127,7 +127,8 @@ def split_tables(otu_table, metabolite_table,
     metabolites_df = metabolite_table.to_dataframe().T
 
     microbes_df, metabolites_df = microbes_df.align(
-        metabolites_df, axis=0, join='inner')
+        metabolites_df, axis=0, join='inner'
+    )
 
     # filter out microbes that don't appear in many samples
     idx = (microbes_df > 0).sum(axis=0) > min_samples
