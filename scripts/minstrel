@@ -15,16 +15,16 @@ from scipy.sparse import coo_matrix
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
 import datetime
-from maestro.multimodal import Autoencoder, cross_validation
-from maestro.util import onehot, rank_hits, random_multimodal, split_tables
+from minstrel.multimodal import Autoencoder, cross_validation
+from minstrel.util import onehot, rank_hits, random_multimodal, split_tables
 
 
 @click.group()
-def maestro():
+def minstrel():
     pass
 
 
-@maestro.command()
+@minstrel.command()
 @click.option('--microbe-file',
               help='Input microbial abundances')
 @click.option('--metabolite-file',
@@ -178,7 +178,7 @@ def autoencoder(microbe_file, metabolite_file,
         ranks.to_csv(ranks_file)
 
 
-@maestro.command()
+@minstrel.command()
 @click.option('--ranks-file',
               help='Ranks file containing microbe-metabolite rankings')
 @click.option('--k-nearest-neighbors',
@@ -212,4 +212,4 @@ def network(ranks_file, k_nearest_neighbors, node_metadata, edge_metadata, axis)
 
 
 if __name__ == '__main__':
-    maestro()
+    minstrel()
