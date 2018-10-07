@@ -286,7 +286,6 @@ class Autoencoder(object):
         return res
 
 
-
 def cross_validation(model, microbes, metabolites, top_N=50):
     """ Running cross validation on test data.
 

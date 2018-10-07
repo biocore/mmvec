@@ -43,8 +43,7 @@ class TestAutoencoder(unittest.TestCase):
             model = Autoencoder(beta_1=0.8, beta_2=0.9, latent_dim=2)
             model(session,
                   coo_matrix(self.trainX.values), self.trainY.values,
-                  coo_matrix(self.testX.values), self.testY.values
-            )
+                  coo_matrix(self.testX.values), self.testY.values)
             model.fit(epoch=1000)
 
             modelU = np.hstack(
