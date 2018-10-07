@@ -51,29 +51,42 @@ class Autoencoder(object):
         self.clipnorm = clipnorm
         self.save_path = save_path
 
-    def __call__(self, session, X, Y):
+    def __call__(self, session, trainX, trainY, testX, testY):
         """ Initialize the actual graph
 
         Parameters
         ----------
         session : tf.Session
             Tensorflow session
-        X : sparse array in coo format
-            Input OTU table, where rows are samples and columns are
+        trainX : sparse array in coo format
+            Test input OTU table, where rows are samples and columns are
             observations
-        Y : np.array
-            Output metabolite table
+        trainY : np.array
+            Test output metabolite table
+        testX : sparse array in coo format
+            Test input OTU table, where rows are samples and columns are
+            observations.  This is mainly for cross validation.
+        testY : np.array
+            Test output metabolite table.  This is mainly for cross validation.
         """
         self.session = session
-        self.nnz = len(X.data)
-        self.d1 = X.shape[1]
-        self.d2 = Y.shape[1]
+        self.nnz = len(trainX.data)
+        self.d1 = trainX.shape[1]
+        self.d2 = trainY.shape[1]
+        self.cv_size = len(testX.data)
 
         X_ph = tf.SparseTensor(
-            indices=np.array([X.row,  X.col]).T,
-            values=X.data,
-            dense_shape=X.shape)
-        Y_ph = tf.constant(Y, dtype=tf.float32)
+            indices=np.array([trainX.row,  trainX.col]).T,
+            values=trainX.data,
+            dense_shape=trainX.shape)
+        Y_ph = tf.constant(trainY, dtype=tf.float32)
+
+        X_holdout = tf.SparseTensor(
+            indices=np.array([testX.row,  testX.col]).T,
+            values=testX.data,
+            dense_shape=testX.shape)
+        Y_holdout = tf.constant(testY, dtype=tf.float32)
+
         total_count = tf.reduce_sum(Y_ph, axis=1)
         batch_ids = tf.multinomial(tf.log(tf.reshape(X_ph.values, [1, -1])),
                                    self.batch_size)
@@ -120,7 +133,7 @@ class Autoencoder(object):
 
         tc = tf.gather(total_count, sample_ids)
         Y = Multinomial(total_count=tc, logits=dv, name='Y')
-        num_samples = X.shape[0]
+        num_samples = trainX.shape[0]
         norm = num_samples / self.batch_size
         logprob_vmain = tf.reduce_sum(
             Vmain.log_prob(self.qVmain), name='logprob_vmain')
@@ -137,16 +150,35 @@ class Autoencoder(object):
             logprob_vmain + logprob_vbias
         )
 
-        pred = tf.nn.log_softmax(dv) + tf.reshape(tf.log(tc), [-1, 1])
-        err = tf.subtract(Y_batch, pred)
-        self.cv = tf.sqrt(
-            tf.reduce_mean(tf.reduce_mean(tf.multiply(err, err), axis=0)))
+        # cross validation
+        with tf.name_scope('accuracy'):
+            cv_batch_ids = tf.multinomial(
+                tf.log(tf.reshape(X_holdout.values, [1, -1])),
+                self.cv_size)
+            cv_batch_ids = tf.squeeze(cv_batch_ids)
+            X_cv_samples = tf.gather(X_holdout.indices, 0, axis=1)
+            X_cv = tf.gather(X_holdout.indices, 1, axis=1)
+            cv_sample_ids = tf.gather(X_cv_samples, cv_batch_ids)
+
+            Y_cvbatch = tf.gather(Y_holdout, cv_sample_ids)
+            X_cvbatch = tf.gather(X_cv, cv_batch_ids)
+            holdout_count = tf.reduce_sum(Y_cvbatch, axis=1)
+            cv_du = tf.gather(qU, X_cvbatch, axis=0, name='cv_du')
+            pred = tf.reshape(
+                holdout_count, [-1, 1]) * tf.nn.softmax(
+                    tf.concat([tf.zeros([
+                        self.cv_size, 1]),
+                               cv_du @ qV], axis=1, name='pred')
+                )
+
+            self.cv = tf.reduce_mean(
+                tf.squeeze(tf.abs(pred - Y_cvbatch))
+            )
 
         tf.summary.scalar('logloss', self.log_loss)
         tf.summary.scalar('cv_rmse', self.cv)
         tf.summary.histogram('qUmain', self.qUmain)
         tf.summary.histogram('qVmain', self.qVmain)
-
         tf.summary.histogram('qUbias', self.qUbias)
         tf.summary.histogram('qVbias', self.qVbias)
         self.merged = tf.summary.merge_all()
@@ -253,8 +285,6 @@ class Autoencoder(object):
             (np.zeros((d1, 1)), r)))
         return res
 
-    def cross_validate(self, X, Y):
-        pass
 
 
 def cross_validation(model, microbes, metabolites, top_N=50):

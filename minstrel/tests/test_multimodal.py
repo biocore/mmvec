@@ -22,6 +22,11 @@ class TestAutoencoder(unittest.TestCase):
         )
         (self.microbes, self.metabolites, self.X, self.B,
          self.U, self.Ubias, self.V, self.Vbias) = res
+        num_train = 10
+        self.trainX = self.microbes.iloc[:-num_train]
+        self.testX = self.microbes.iloc[-num_train:]
+        self.trainY = self.metabolites.iloc[:-num_train]
+        self.testY = self.metabolites.iloc[-num_train:]
 
     def tearDown(self):
         # remove all log directories
@@ -31,13 +36,15 @@ class TestAutoencoder(unittest.TestCase):
     def test_fit(self):
         np.random.seed(1)
         tf.reset_default_graph()
-        n, d1 = self.microbes.shape
-        n, d2 = self.metabolites.shape
+        n, d1 = self.trainX.shape
+        n, d2 = self.trainY.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
             model = Autoencoder(beta_1=0.8, beta_2=0.9, latent_dim=2)
-            model(session, coo_matrix(self.microbes.values),
-                  self.metabolites.values)
+            model(session,
+                  coo_matrix(self.trainX.values), self.trainY.values,
+                  coo_matrix(self.testX.values), self.testY.values
+            )
             model.fit(epoch=1000)
 
             modelU = np.hstack(
@@ -63,6 +70,9 @@ class TestAutoencoder(unittest.TestCase):
             self.assertLess(u_p, 1e-2)
             self.assertLess(v_p, 1e-2)
             self.assertLess(s_p, 1e-2)
+
+            # sanity check cross validation
+            self.assertAlmostEqual(417.02945, model.cv.eval(), delta=0.001)
 
 
 if __name__ == "__main__":

@@ -132,6 +132,7 @@ def autoencoder(microbe_file, metabolite_file,
     n, d2 = metabolites.shape
 
     train_microbes_coo = coo_matrix(train_microbes_df.values)
+    test_microbes_coo = coo_matrix(test_microbes_df.values)
 
     config = tf.ConfigProto()
     config.intra_op_parallelism_threads = threads
@@ -140,9 +141,12 @@ def autoencoder(microbe_file, metabolite_file,
         model = Autoencoder(
             latent_dim=latent_dim,
             u_scale=input_prior, v_scale=output_prior,
-            learning_rate = learning_rate, beta_1=beta1, beta_2=beta2,
+            learning_rate = learning_rate,
+            beta_1=beta1, beta_2=beta2,
             clipnorm=clipnorm, save_path=sname)
-        model(session, train_microbes_coo, train_metabolites_df.values)
+        model(session,
+              train_microbes_coo, train_metabolites_df.values,
+              test_microbes_coo, test_metabolites_df.values)
 
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval,
                              checkpoint_interval=checkpoint_interval)
