@@ -1,14 +1,11 @@
-import os
 import biom
-import skbio
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-from skbio import OrdinationResults
-from skbio.stats.composition import clr, clr_inv, centralize
+from skbio.stats.composition import clr, clr_inv
 from qiime2.plugin import Metadata
 from minstrel.multimodal import Autoencoder
-from minstrel.util import onehot, rank_hits, random_multimodal, split_tables
+from minstrel.util import split_tables
 from scipy.sparse import coo_matrix
 
 
@@ -39,13 +36,6 @@ def autoencoder(microbes: biom.Table,
     (train_microbes_df, test_microbes_df,
      train_metabolites_df, test_metabolites_df) = res
 
-    # filter out low abundance microbes
-    microbe_ids = microbes.ids(axis='observation')
-    metabolite_ids = metabolites.ids(axis='observation')
-
-    n, d1 = microbes.shape
-    n, d2 = metabolites.shape
-
     train_microbes_coo = coo_matrix(train_microbes_df.values)
     test_microbes_coo = coo_matrix(test_microbes_df.values)
 
@@ -61,7 +51,6 @@ def autoencoder(microbes: biom.Table,
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval)
 
         U, V = model.U, model.V
-        d1 = U.shape[0]
 
         U_ = np.hstack(
             (np.ones((model.U.shape[0], 1)),

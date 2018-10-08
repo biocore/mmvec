@@ -1,13 +1,10 @@
 import biom
-import qiime2
 import unittest
 import numpy as np
 import tensorflow as tf
 from minstrel.q2._method import autoencoder
 from minstrel.util import random_multimodal
-from skbio import OrdinationResults
-from skbio.stats.composition import clr, clr_inv, centralize
-import numpy.testing as npt
+from skbio.stats.composition import clr_inv
 from scipy.stats import spearmanr
 
 
@@ -43,18 +40,15 @@ class TestAutoencoder(unittest.TestCase):
         np.random.seed(1)
         tf.reset_default_graph()
         latent_dim = 2
-        with tf.Graph().as_default(), tf.Session() as session:
-            tf.set_random_seed(0)
-            res = autoencoder(
-                self.microbes, self.metabolites,
-                epochs=1000, latent_dim=latent_dim
-            )
+        tf.set_random_seed(0)
+        res = autoencoder(
+            self.microbes, self.metabolites,
+            epochs=1000, latent_dim=latent_dim
+        )
+        s_r, s_p = spearmanr(np.ravel(res), np.ravel(self.exp))
 
-
-            s_r, s_p = spearmanr(np.ravel(res), np.ravel(self.exp))
-
-            self.assertGreater(s_r, 0.5)
-            self.assertLess(s_p, 1e-2)
+        self.assertGreater(s_r, 0.5)
+        self.assertLess(s_p, 1e-2)
 
 
 if __name__ == "__main__":
