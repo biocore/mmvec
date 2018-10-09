@@ -42,7 +42,7 @@ with open('minstrel/__init__.py', 'rb') as f:
 
 setup(name='minstrel',
       version=version,
-      license='BSD',
+      license='BSD-3-Clause',
       description=description,
       long_description=long_description,
       author="gneiss development team",
@@ -60,4 +60,8 @@ setup(name='minstrel',
           'scikit-bio >= 0.5.1',
       ],
       classifiers=classifiers,
-      package_data={})
+      entry_points={
+          'qiime2.plugins': ['q2-minstrel=minstrel.q2.plugin_setup:plugin']
+      },
+      package_data={},
+      zip_safe=False)

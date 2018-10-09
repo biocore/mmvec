@@ -1,42 +1,28 @@
-# deep-mae
-Deep multi-modal autoencoder
+# minstrel
+Multi-modal autoencoder
 
 # Installation
 ```
-conda create -n mae tensorflow keras numpy scipy pandas scikit-bio biom-format
+conda create -n mae tensorflow numpy scipy pandas scikit-bio biom-format
 source activate mae
-pip install git+https://github.com/mortonjt/deep-mae.git
+pip install git+https://github.com/mortonjt/minstrel.git
 ```
 
 # Getting started
 
-First split up your data into training and testing sets.
-You can also use this to filter out features observed in few samples.
-The number of examples that you would like to cross-validate against
-can be specified by `num_test` as follows
-```
-multimodal.py split \
-	--otu-table-file data/otu.biom \
-	--metabolite-table-file data/ms.biom \
-	--num_test 20 \
-	--min_samples 10 \
-	--output_dir split_data
-```
+To get started you can run a quick example as follows.  This will generate
+microbe-metabolite conditional probabilities that are accurate up to rank.
 
-Once the data is splitted, you can then run the model and perform
-cross-validation.
 ```
-multimodal.py autoencoder \
-	--otu-train-file split_data/train_otu.biom \
-	--metabolite-train-file split_data/train_ms.biom \
-	--otu-test-file split_data/test_otu.biom \
-	--metabolite-test-file split_data/test_ms.biom \
+minstrel autoencoder \
+	--otu-file data/otu.biom \
+	--metabolite-file data/ms.biom \
 	--summary-dir summary \
 	--results-file cv-results.csv \
 	--ranks-file ranks.csv
 ```
 
-Finally we can use the results from the autoencoder to build a
+We can use the results from the autoencoder to build a
 network as follows
 ```
 multimodal.py network \
@@ -46,3 +32,36 @@ multimodal.py network \
 ```
 
 This information can be directly feed into cytoscape.
+
+More information can found under `minstrel --help`
+
+# Qiime2 plugin
+
+If you want to make this qiime2 compatible, install this in your
+qiime2 conda environment and run the following
+
+```
+qiime dev refresh-cache
+```
+
+This should allow your q2 environment to recognize minstrel.  To test run
+the qiime2 plugin, run the following commands
+
+```
+qiime tools import \
+	--input-path data/otu.biom \
+	--output-path otu.qza \
+	--type FeatureTable[Frequency]
+
+qiime tools import \
+	--input-path data/ms.biom \
+	--output-path ms.qza \
+	--type FeatureTable[Frequency]
+
+qiime minstrel autoencoder \
+	--i-microbes otu.qza \
+	--i-metabolites ms.qza \
+	--o-conditional-ranks ranks.qza
+```
+
+More information can found under `qiime minstrel --help`
