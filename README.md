@@ -3,7 +3,7 @@ Multi-modal autoencoder
 
 # Installation
 ```
-conda create -n mae python=3.5 tensorflow numpy scipy pandas scikit-bio tqdm
+conda create -n mae python=3.5 tensorflow numpy scipy pandas scikit-bio tqdm pip
 conda install -n mae biom-format -c conda-forge
 source activate mae
 pip install git+https://github.com/mortonjt/minstrel.git
