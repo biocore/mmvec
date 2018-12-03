@@ -28,10 +28,8 @@ minstrel autoencoder \
 While this is running, you can open up another session and run `tensorboard --logdir .` for diagnosis.
 
 See the following url for a more complete tutorial with real datasets.
+
 https://github.com/knightlab-analyses/multiomic-cooccurences
-
-
-This information can be directly feed into cytoscape.
 
 More information can found under `minstrel --help`
 
