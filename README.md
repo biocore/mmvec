@@ -1,5 +1,5 @@
 # minstrel
-Multi-modal autoencoder
+Neural networks for estimating microbe-metabolite co-occurence probabilities.
 
 # Installation
 ```
@@ -8,6 +8,8 @@ conda install -n mae biom-format -c conda-forge
 source activate mae
 pip install h5py git+https://github.com/mortonjt/minstrel.git
 ```
+
+If you are getting errors, it is likely because you have garbage channels under your .condarc.  Make sure to delete your .condarc -- you shouldn't need it.
 
 # Getting started
 
