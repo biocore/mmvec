@@ -2,8 +2,8 @@ import biom
 import unittest
 import numpy as np
 import tensorflow as tf
-from minstrel.q2._method import autoencoder
-from minstrel.util import random_multimodal
+from rhapsody.q2._method import autoencoder
+from rhapsody.util import random_multimodal
 from skbio.stats.composition import clr_inv
 from scipy.stats import spearmanr
 

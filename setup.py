@@ -27,7 +27,7 @@ classes = """
 """
 classifiers = [s.strip() for s in classes.split('\n') if s]
 
-description = ('Deep Multimodal Autoencoders')
+description = ('Microbe-metabolite interactions through neural networks')
 
 with open('README.md') as f:
     long_description = f.read()
@@ -35,12 +35,12 @@ with open('README.md') as f:
 # version parsing from __init__ pulled from Flask's setup.py
 # https://github.com/mitsuhiko/flask/blob/master/setup.py
 _version_re = re.compile(r'__version__\s+=\s+(.*)')
-with open('minstrel/__init__.py', 'rb') as f:
+with open('rhapsody/__init__.py', 'rb') as f:
     hit = _version_re.search(f.read().decode('utf-8')).group(1)
     version = str(ast.literal_eval(hit))
 
 
-setup(name='minstrel',
+setup(name='rhapsody',
       version=version,
       license='BSD-3-Clause',
       description=description,
@@ -49,8 +49,8 @@ setup(name='minstrel',
       author_email="jamietmorton@gmail.com",
       maintainer="gneiss development team",
       maintainer_email="jamietmorton@gmail.com",
-      packages=['minstrel'],
-      scripts=glob('scripts/minstrel'),
+      packages=['rhapsody'],
+      scripts=glob('scripts/rhapsody'),
       install_requires=[
           'biom-format',
           'numpy >= 1.9.2',
@@ -61,7 +61,7 @@ setup(name='minstrel',
       ],
       classifiers=classifiers,
       entry_points={
-          'qiime2.plugins': ['q2-minstrel=minstrel.q2.plugin_setup:plugin']
+          'qiime2.plugins': ['q2-rhapsody=rhapsody.q2.plugin_setup:plugin']
       },
       package_data={},
       zip_safe=False)

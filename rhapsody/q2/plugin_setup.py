@@ -7,7 +7,7 @@
 # ----------------------------------------------------------------------------
 import qiime2.plugin
 import qiime2.sdk
-from minstrel import __version__
+from rhapsody import __version__
 from ._method import autoencoder
 from qiime2.plugin import (Str, Properties, Int, Float,  Metadata)
 from q2_types.feature_table import FeatureTable, Composition, Frequency
@@ -15,18 +15,18 @@ from q2_types.feature_table import FeatureTable, Composition, Frequency
 
 
 # citations = qiime2.plugin.Citations.load(
-#             'citations.bib', package='minstrel')
+#             'citations.bib', package='rhapsody')
 
 plugin = qiime2.plugin.Plugin(
-    name='minstrel',
+    name='rhapsody',
     version=__version__,
-    website="https://github.com/mortonjt/minstrel",
+    website="https://github.com/mortonjt/rhapsody",
     # citations=[citations['morton2017balance']],
     short_description=('Plugin for performing microbe-metabolite '
                        'co-occurence analysis.'),
     description=('This is a QIIME 2 plugin supporting microbe-metabolite '
                  'co-occurence analysis using multimodal autoencoders.'),
-    package='minstrel')
+    package='rhapsody')
 
 plugin.methods.register_function(
     function=autoencoder,
