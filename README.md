@@ -1,4 +1,4 @@
-# minstrel
+# rhapsody
 Neural networks for estimating microbe-metabolite co-occurence probabilities.
 
 # Installation
@@ -6,7 +6,7 @@ Neural networks for estimating microbe-metabolite co-occurence probabilities.
 conda create -n mae python=3.5 tensorflow numpy scipy pandas scikit-bio tqdm pip
 conda install -n mae biom-format -c conda-forge
 source activate mae
-pip install h5py git+https://github.com/mortonjt/minstrel.git
+pip install h5py git+https://github.com/mortonjt/rhapsody.git
 ```
 
 If you are getting errors, it is likely because you have garbage channels under your .condarc.  Make sure to delete your .condarc -- you shouldn't need it.
@@ -17,7 +17,7 @@ To get started you can run a quick example as follows.  This will generate
 microbe-metabolite conditional probabilities that are accurate up to rank.
 
 ```
-minstrel autoencoder \
+rhapsody autoencoder \
 	--otu-file data/otu.biom \
 	--metabolite-file data/ms.biom \
 	--summary-dir summary \
@@ -31,7 +31,7 @@ See the following url for a more complete tutorial with real datasets.
 
 https://github.com/knightlab-analyses/multiomic-cooccurences
 
-More information can found under `minstrel --help`
+More information can found under `rhapsody --help`
 
 # Qiime2 plugin
 
@@ -42,7 +42,7 @@ qiime2 conda environment and run the following
 qiime dev refresh-cache
 ```
 
-This should allow your q2 environment to recognize minstrel.  To test run
+This should allow your q2 environment to recognize rhapsody.  To test run
 the qiime2 plugin, run the following commands
 
 ```
@@ -56,10 +56,10 @@ qiime tools import \
 	--output-path ms.qza \
 	--type FeatureTable[Frequency]
 
-qiime minstrel autoencoder \
+qiime rhapsody autoencoder \
 	--i-microbes otu.qza \
 	--i-metabolites ms.qza \
 	--o-conditional-ranks ranks.qza
 ```
 
-More information can found under `qiime minstrel --help`
+More information can found under `qiime rhapsody --help`

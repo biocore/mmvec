@@ -4,8 +4,8 @@ import numpy as np
 import tensorflow as tf
 from skbio.stats.composition import clr, clr_inv
 from qiime2.plugin import Metadata
-from minstrel.multimodal import Autoencoder
-from minstrel.util import split_tables
+from rhapsody.multimodal import Autoencoder
+from rhapsody.util import split_tables
 from scipy.sparse import coo_matrix
 
 
