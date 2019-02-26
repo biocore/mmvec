@@ -8,7 +8,7 @@ from skbio.stats.composition import clr_inv
 from scipy.stats import spearmanr
 
 
-class TestAutoencoder(unittest.TestCase):
+class TestMMvec(unittest.TestCase):
 
     def setUp(self):
         res = random_multimodal(
@@ -41,11 +41,11 @@ class TestAutoencoder(unittest.TestCase):
         tf.reset_default_graph()
         latent_dim = 2
         tf.set_random_seed(0)
-        res = mmvec(
+        res_ranks, res_biplot = mmvec(
             self.microbes, self.metabolites,
             epochs=1000, latent_dim=latent_dim
         )
-        s_r, s_p = spearmanr(np.ravel(res), np.ravel(self.exp))
+        s_r, s_p = spearmanr(np.ravel(res_ranks), np.ravel(self.exp_ranks))
 
         self.assertGreater(s_r, 0.5)
         self.assertLess(s_p, 1e-2)

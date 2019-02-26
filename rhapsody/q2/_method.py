@@ -2,11 +2,13 @@ import biom
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+from skbio import OrdinationResults
 from skbio.stats.composition import clr, clr_inv
 from qiime2.plugin import Metadata
 from rhapsody.multimodal import MMvec
 from rhapsody.util import split_tables
 from scipy.sparse import coo_matrix
+
 
 
 def mmvec(microbes: biom.Table,
@@ -21,7 +23,7 @@ def mmvec(microbes: biom.Table,
           input_prior: float=1,
           output_prior: float=1,
           learning_rate: float=0.001,
-          summary_interval: int=60) -> pd.DataFrame:
+          summary_interval: int=60) -> (pd.DataFrame, OrdinationResults):
 
     # Note: there are a couple of biom -> pandas conversions taking
     # place here.  This is currently done on purpose, since we
@@ -77,10 +79,10 @@ def mmvec(microbes: biom.Table,
             samples=samples, features=features,
             proportion_explained=proportion_explained)
 
-        # ranks = pd.DataFrame(
-        #     clr(clr_inv(np.hstack(
-        #         (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-        #     index=train_microbes_df.columns,
-        #     columns=train_metabolites_df.columns)
+        ranks = pd.DataFrame(
+            clr(clr_inv(np.hstack(
+                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
+            index=train_microbes_df.columns,
+            columns=train_metabolites_df.columns)
 
-        return biplot
+        return ranks, biplot

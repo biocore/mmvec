@@ -11,6 +11,9 @@ from rhapsody import __version__
 from ._method import mmvec
 from qiime2.plugin import (Str, Properties, Int, Float,  Metadata)
 from q2_types.feature_table import FeatureTable, Composition, Frequency
+from q2_types.feature_data import FeatureData
+# import differentials from songbird
+from songbird.q2 import Differential
 
 
 plugin = qiime2.plugin.Plugin(
@@ -41,6 +44,7 @@ plugin.methods.register_function(
         'summary_interval': Int
     },
     outputs=[
+        ('ranks', FeatureData[Differential])
         ('conditional_biplot', PCoAResults % Properties('biplot'))
     ],
     input_descriptions={
