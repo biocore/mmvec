@@ -11,13 +11,13 @@ import datetime
 from .util import onehot
 
 
-class Autoencoder(object):
+class MMvec(object):
 
     def __init__(self, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
                  batch_size=50, latent_dim=3, dropout_rate=0.5,
                  learning_rate=0.1, beta_1=0.9, beta_2=0.95,
                  clipnorm=10., save_path=None):
-        """ Build a tensorflow model
+        """ Build a tensorflow model for microbe-metabolite vectors
 
         Returns
         -------
@@ -291,7 +291,7 @@ def cross_validation(model, microbes, metabolites, top_N=50):
 
     Parameters
     ----------
-    model : Autoencoder
+    model : MMvec
        Pre-trained tensorflow model
     microbes : pd.DataFrame
        Microbe abundances (counts) on test dataset

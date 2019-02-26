@@ -2,7 +2,7 @@ import biom
 import unittest
 import numpy as np
 import tensorflow as tf
-from rhapsody.q2._method import autoencoder
+from rhapsody.q2._method import mmvec
 from rhapsody.util import random_multimodal
 from skbio.stats.composition import clr_inv
 from scipy.stats import spearmanr
@@ -41,7 +41,7 @@ class TestAutoencoder(unittest.TestCase):
         tf.reset_default_graph()
         latent_dim = 2
         tf.set_random_seed(0)
-        res = autoencoder(
+        res = mmvec(
             self.microbes, self.metabolites,
             epochs=1000, latent_dim=latent_dim
         )

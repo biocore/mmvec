@@ -8,28 +8,23 @@
 import qiime2.plugin
 import qiime2.sdk
 from rhapsody import __version__
-from ._method import autoencoder
+from ._method import mmvec
 from qiime2.plugin import (Str, Properties, Int, Float,  Metadata)
 from q2_types.feature_table import FeatureTable, Composition, Frequency
-# from q2_types.ordination import PCoAResults
 
-
-# citations = qiime2.plugin.Citations.load(
-#             'citations.bib', package='rhapsody')
 
 plugin = qiime2.plugin.Plugin(
     name='rhapsody',
     version=__version__,
     website="https://github.com/mortonjt/rhapsody",
-    # citations=[citations['morton2017balance']],
     short_description=('Plugin for performing microbe-metabolite '
                        'co-occurence analysis.'),
     description=('This is a QIIME 2 plugin supporting microbe-metabolite '
-                 'co-occurence analysis using multimodal autoencoders.'),
+                 'co-occurence analysis using multimodal mmvecs.'),
     package='rhapsody')
 
 plugin.methods.register_function(
-    function=autoencoder,
+    function=mmvec,
     inputs={'microbes': FeatureTable[Frequency],
             'metabolites': FeatureTable[Frequency]},
     parameters={
@@ -46,8 +41,7 @@ plugin.methods.register_function(
         'summary_interval': Int
     },
     outputs=[
-        ('conditional_ranks',
-         FeatureTable[Composition % Properties('coefficients')])
+        ('conditional_biplot', PCoAResults % Properties('biplot'))
     ],
     input_descriptions={
         'microbes': 'Input table of microbial counts.',
@@ -76,7 +70,7 @@ plugin.methods.register_function(
         'learning_rate': ('Gradient descent decay rate.'),
 
     },
-    name='Multimodal autoencoder',
+    name='Multimodal mmvec',
     description=("Performs bi-loglinear multinomial regression and calculates "
                  "the conditional probability ranks of metabolite "
                  "co-occurence given the microbe presence."),

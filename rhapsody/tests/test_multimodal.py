@@ -6,13 +6,13 @@ from skbio.stats.composition import clr_inv as softmax
 from scipy.stats import spearmanr
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import pdist
-from rhapsody.multimodal import Autoencoder
+from rhapsody.multimodal import MMvec
 from rhapsody.util import random_multimodal
 from tensorflow import set_random_seed
 import tensorflow as tf
 
 
-class TestAutoencoder(unittest.TestCase):
+class TestMMvec(unittest.TestCase):
     def setUp(self):
         # build small simulation
         res = random_multimodal(
@@ -40,7 +40,7 @@ class TestAutoencoder(unittest.TestCase):
         n, d2 = self.trainY.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-            model = Autoencoder(beta_1=0.8, beta_2=0.9, latent_dim=2)
+            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=2)
             model(session,
                   coo_matrix(self.trainX.values), self.trainY.values,
                   coo_matrix(self.testX.values), self.testY.values)
