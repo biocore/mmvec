@@ -224,19 +224,29 @@ class MMvec(object):
         last_summary_time = 0
         saver = tf.train.Saver()
         now = time.time()
+
+        loss = []
+        cv = []
+        iter_n = []
+
         for i in tqdm(range(0, iterations)):
 
             if now - last_summary_time > summary_interval:
-                if testX is not None and testY is not None:
-                    cv = self.cross_validate(testX, testY)
                 res = self.session.run(
-                    [self.train, self.merged, self.log_loss,
+                    [self.train, self.merged,
+                     self.log_loss, self.cv,
                      self.qUmain, self.qUbias,
                      self.qVmain, self.qVbias]
                 )
-                train_, summary, loss, rU, rUb, rV, rVb = res
+                (train_, summary, train_loss, test_cv,
+                 rU, rUb, rV, rVb) = res
                 self.writer.add_summary(summary, i)
                 last_summary_time = now
+
+                cv.append(test_cv)
+                loss.append(train_loss)
+                iter_n.append(i)
+
             else:
                 res = self.session.run(
                     [self.train, self.log_loss,
@@ -252,6 +262,20 @@ class MMvec(object):
                            os.path.join(self.save_path, "model.ckpt"),
                            global_step=i)
                 last_checkpoint_time = now
+
+        res = self.session.run(
+            [self.train, self.merged,
+             self.log_loss, self.cv,
+             self.qUmain, self.qUbias,
+             self.qVmain, self.qVbias]
+        )
+
+        (train_, summary, train_loss, test_cv,
+         rU, rUb, rV, rVb) = res
+
+        cv.append(test_cv)
+        loss.append(train_loss)
+        iter_n.append(i)
 
         self.U = rU
         self.V = rV

@@ -2,6 +2,7 @@ import biom
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+from skbio import OrdinationResults
 from skbio.stats.composition import clr, clr_inv
 from qiime2.plugin import Metadata
 from rhapsody.multimodal import MMvec
@@ -15,13 +16,13 @@ def mmvec(microbes: biom.Table,
           training_column: str=None,
           num_testing_examples: int=5,
           min_feature_count: int=10,
-          epochs: int=100,
+          epochs: int=10000,
           batch_size: int=50,
           latent_dim: int=3,
           input_prior: float=1,
           output_prior: float=1,
-          learning_rate: float=0.001,
-          summary_interval: int=60) -> pd.DataFrame:
+          learning_rate: float=1e-5,
+          summary_interval: int=60) -> (pd.DataFrame, OrdinationResults):
 
     # Note: there are a couple of biom -> pandas conversions taking
     # place here.  This is currently done on purpose, since we
@@ -51,7 +52,6 @@ def mmvec(microbes: biom.Table,
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval)
 
         U, V = model.U, model.V
-
         U_ = np.hstack(
             (np.ones((model.U.shape[0], 1)),
              model.Ubias.reshape(-1, 1), U)
@@ -64,10 +64,10 @@ def mmvec(microbes: biom.Table,
         metabolite_embed = np.hstack((np.zeros((V_.shape[0], 1)), V_))
 
         pc_ids = ['PC%d' % i for i in range(len(V_.shape[0]))]
-        samples = pd.DataFrame(microbe_embed,
-                               columns=pc_ids, index=differential.index)
-        features = pd.DataFrame(metabolite_embed.T,
-                                columns=pc_ids, index=differential.columns)
+        samples = pd.DataFrame(metabolite_embed.T,
+                               columns=pc_ids, index=train_metabolites_df.columns)
+        features = pd.DataFrame(microbe_embed,
+                                columns=pc_ids, index=train_microbes_df.columns)
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
         eigvals = pd.Series(np.ones(len(pc_ids)), index=pc_ids)
@@ -77,10 +77,10 @@ def mmvec(microbes: biom.Table,
             samples=samples, features=features,
             proportion_explained=proportion_explained)
 
-        # ranks = pd.DataFrame(
-        #     clr(clr_inv(np.hstack(
-        #         (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-        #     index=train_microbes_df.columns,
-        #     columns=train_metabolites_df.columns)
+        ranks = pd.DataFrame(
+            clr(clr_inv(np.hstack(
+                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
+            index=train_microbes_df.columns,
+            columns=train_metabolites_df.columns)
 
-        return biplot
+        return ranks, biplot
