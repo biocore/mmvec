@@ -10,7 +10,6 @@ from rhapsody.util import split_tables
 from scipy.sparse import coo_matrix
 
 
-
 def mmvec(microbes: biom.Table,
           metabolites: biom.Table,
           metadata: Metadata=None,
