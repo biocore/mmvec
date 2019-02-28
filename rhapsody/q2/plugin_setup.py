@@ -5,17 +5,21 @@
 #
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
+import importlib
 import qiime2.plugin
 import qiime2.sdk
 from rhapsody import __version__
-from ._method import mmvec
 from qiime2.plugin import (Str, Properties, Int, Float,  Metadata)
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults
 
 # import differentials from songbird
-from songbird.q2 import Differential
+from rhapsody.q2 import (
+    Conditional, ConditionalFormat, ConditionalDirFmt,
+    mmvec
+)
+
 
 
 plugin = qiime2.plugin.Plugin(
@@ -25,7 +29,7 @@ plugin = qiime2.plugin.Plugin(
     short_description=('Plugin for performing microbe-metabolite '
                        'co-occurence analysis.'),
     description=('This is a QIIME 2 plugin supporting microbe-metabolite '
-                 'co-occurence analysis using multimodal mmvecs.'),
+                 'co-occurence analysis using mmvec.'),
     package='rhapsody')
 
 plugin.methods.register_function(
@@ -46,12 +50,16 @@ plugin.methods.register_function(
         'summary_interval': Int
     },
     outputs=[
-        ('ranks', FeatureData[Differential])
+        ('conditionals', FeatureData[Conditional]),
         ('conditional_biplot', PCoAResults % Properties('biplot'))
     ],
     input_descriptions={
         'microbes': 'Input table of microbial counts.',
         'metabolites': 'Input table of metabolite intensities.',
+    },
+    output_descriptions={
+        'conditionals': 'Mean-centered Conditional log-probabilities.',
+        'conditional_biplot': 'Biplot of microbe-metabolite vectors.',
     },
     parameter_descriptions={
         'metadata': 'Sample metadata table with covariates of interest.',
@@ -76,9 +84,17 @@ plugin.methods.register_function(
         'learning_rate': ('Gradient descent decay rate.'),
 
     },
-    name='Multimodal mmvec',
+    name='Microbe metabolite vectors',
     description=("Performs bi-loglinear multinomial regression and calculates "
                  "the conditional probability ranks of metabolite "
                  "co-occurence given the microbe presence."),
     citations=[]
 )
+
+
+plugin.register_formats(ConditionalFormat, ConditionalDirFmt)
+plugin.register_semantic_types(Conditional)
+plugin.register_semantic_type_to_format(
+    FeatureData[Conditional], ConditionalDirFmt)
+
+importlib.import_module('rhapsody.q2._transformer')
