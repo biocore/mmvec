@@ -57,8 +57,8 @@ plugin.methods.register_function(
         'metadata': 'Sample metadata table with covariates of interest.',
         'training_column': ("The metadata column specifying which "
                             "samples are for training/testing. "
-                            "Entries must be marked `True` for training "
-                            "examples and `False` for testing examples. "),
+                            "Entries must be marked `Train` for training "
+                            "examples and `Test` for testing examples. "),
         'num_testing_examples': ("The number of random examples to select "
                                  "if `training_column` isn't specified"),
         'epochs': ('The number of total number of iterations '
