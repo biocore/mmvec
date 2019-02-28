@@ -80,7 +80,6 @@ class TestSplitTables(unittest.TestCase):
 
     def setUp(self):
 
-
         omat = np.array([
             [104, 10, 2, 0, 0],
             [4, 100, 20, 0, 0],
@@ -102,7 +101,6 @@ class TestSplitTables(unittest.TestCase):
             [59, 9, 0, 0, 33]
         ]) * 10e6
 
-
         oids = list(map(lambda x: 'o'+str(x), np.arange(omat.shape[0])))
         mids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[0])))
         sids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[1])))
@@ -112,10 +110,9 @@ class TestSplitTables(unittest.TestCase):
 
         self.metadata = pd.DataFrame(
             {
-                'testing' : ['Train', 'Test', 'Train', 'Test', 'Train'],
-                'bad' : [True, False, True, False, True]
-            },
-            index=sids
+                'testing': ['Train', 'Test', 'Train', 'Test', 'Train'],
+                'bad': [True, False, True, False, True]
+            }, index=sids
         )
 
     def test_split_tables_train_column(self):
