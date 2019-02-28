@@ -10,8 +10,10 @@ import qiime2.sdk
 from rhapsody import __version__
 from ._method import mmvec
 from qiime2.plugin import (Str, Properties, Int, Float,  Metadata)
-from q2_types.feature_table import FeatureTable, Composition, Frequency
+from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
+from q2_types.ordination import PCoAResults
+
 # import differentials from songbird
 from songbird.q2 import Differential
 

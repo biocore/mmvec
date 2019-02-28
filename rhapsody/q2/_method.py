@@ -12,17 +12,17 @@ from scipy.sparse import coo_matrix
 
 def mmvec(microbes: biom.Table,
           metabolites: biom.Table,
-          metadata: Metadata=None,
-          training_column: str=None,
-          num_testing_examples: int=5,
-          min_feature_count: int=10,
-          epochs: int=100,
-          batch_size: int=50,
-          latent_dim: int=3,
-          input_prior: float=1,
-          output_prior: float=1,
-          learning_rate: float=0.001,
-          summary_interval: int=60) -> (pd.DataFrame, OrdinationResults):
+          metadata: Metadata = None,
+          training_column: str = None,
+          num_testing_examples: int = 5,
+          min_feature_count: int = 10,
+          epochs: int = 100,
+          batch_size: int = 50,
+          latent_dim: int = 3,
+          input_prior: float = 1,
+          output_prior: float = 1,
+          learning_rate: float = 0.001,
+          summary_interval: int = 60) -> (pd.DataFrame, OrdinationResults):
 
     # Note: there are a couple of biom -> pandas conversions taking
     # place here.  This is currently done on purpose, since we
@@ -66,9 +66,9 @@ def mmvec(microbes: biom.Table,
 
         pc_ids = ['PC%d' % i for i in range(len(V_.shape[0]))]
         samples = pd.DataFrame(microbe_embed,
-                               columns=pc_ids, index=differential.index)
+                               columns=pc_ids, index=microbe_embed.index)
         features = pd.DataFrame(metabolite_embed.T,
-                                columns=pc_ids, index=differential.columns)
+                                columns=pc_ids, index=metabolite_embed.columns)
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
         eigvals = pd.Series(np.ones(len(pc_ids)), index=pc_ids)

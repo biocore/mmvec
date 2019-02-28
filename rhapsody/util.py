@@ -151,7 +151,8 @@ def split_tables(otu_table, metabolite_table,
         sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
     else:
-        sample_ids = set(metadata.loc[metadata[training_column]!='Train'].index)
+        idx = metadata.loc[metadata[training_column] != 'Train'].index
+        sample_ids = set(idx)
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
 
     train_microbes = microbes_df.loc[~sample_ids]
