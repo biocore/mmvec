@@ -52,10 +52,12 @@ class TestMMvec(unittest.TestCase):
         self.assertLess(s_p, 1e-2)
 
         # make sure the biplot is of the correct dimensions
-        npt.assert_allclose(res_biplot.samples.shape,
-                            np.array([self.microbes.shape[0], latent_dim+2]))
-        npt.assert_allclose(res_biplot.features.shape,
-                            np.array([self.metabolites.shape[0], latent_dim+2]))
+        npt.assert_allclose(
+            res_biplot.samples.shape,
+            np.array([self.microbes.shape[0], latent_dim+2]))
+        npt.assert_allclose(
+            res_biplot.features.shape,
+            np.array([self.metabolites.shape[0], latent_dim+2]))
 
 
 if __name__ == "__main__":

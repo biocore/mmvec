@@ -14,7 +14,6 @@ from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults
 
-# import differentials from songbird
 from rhapsody.q2 import (
     Conditional, ConditionalFormat, ConditionalDirFmt,
     mmvec
