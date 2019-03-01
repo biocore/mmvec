@@ -119,6 +119,20 @@ def split_tables(otu_table, metabolite_table,
        Table of microbe abundances
     metabolite_table : biom.Table
        Table of metabolite intensities
+    metadata : pd.DataFrame
+       DataFrame of sample metadata information.  This is primarily used
+       to indicated training and testing samples
+    training_column : str
+       The column used to indicate training and testing samples.
+       Samples labeled 'Train' are allocated to the training set.
+       All other samples are placed in the testing dataset.
+    num_test : int
+       If metadata or training_column is not specified, then `num_test`
+       indicates how many testing samples will be allocated for
+       cross validation.
+    min_samples : int
+       The minimum number of samples a microbe needs to be observed in
+       in order to not get filtered out
 
     Returns
     -------
@@ -137,7 +151,8 @@ def split_tables(otu_table, metabolite_table,
         sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
     else:
-        sample_ids = set(metadata.loc[metadata[training_column]].index)
+        idx = metadata.loc[metadata[training_column] != 'Train'].index
+        sample_ids = set(idx)
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
 
     train_microbes = microbes_df.loc[~sample_ids]
