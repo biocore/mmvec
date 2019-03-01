@@ -64,7 +64,7 @@ def mmvec(microbes: biom.Table,
         microbe_embed = U_
         metabolite_embed = np.hstack((np.zeros((V_.shape[0], 1)), V_))
 
-        pc_ids = ['PC%d' % i for i in range(len(V_.shape[0]))]
+        pc_ids = ['PC%d' % i for i in range(latent_dim)]
         samples = pd.DataFrame(microbe_embed,
                                columns=pc_ids, index=microbe_embed.index)
         features = pd.DataFrame(metabolite_embed.T,
