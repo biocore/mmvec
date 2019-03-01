@@ -1,4 +1,3 @@
-import qiime2
 import pandas as pd
 
 from rhapsody.q2 import ConditionalFormat
