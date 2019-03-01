@@ -64,11 +64,11 @@ def mmvec(microbes: biom.Table,
         microbe_embed = U_
         metabolite_embed = np.hstack((np.zeros((V_.shape[0], 1)), V_))
 
-        pc_ids = ['PC%d' % i for i in range(latent_dim)]
+        pc_ids = ['PC%d' % i for i in range(U_.shape[1])]
         samples = pd.DataFrame(microbe_embed,
-                               columns=pc_ids, index=microbe_embed.index)
+                               columns=pc_ids, index=train_microbes_df.columns)
         features = pd.DataFrame(metabolite_embed.T,
-                                columns=pc_ids, index=metabolite_embed.columns)
+                                columns=pc_ids, index=train_metabolites_df.columns)
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
         eigvals = pd.Series(np.ones(len(pc_ids)), index=pc_ids)

@@ -34,7 +34,7 @@ class TestMMvec(unittest.TestCase):
 
         uv = U_ @ V_
         h = np.zeros((d1, 1))
-        self.exp = clr_inv(np.hstack((h, uv)))
+        self.exp_ranks = clr_inv(np.hstack((h, uv)))
 
     def test_fit(self):
         np.random.seed(1)
