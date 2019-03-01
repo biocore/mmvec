@@ -6,6 +6,7 @@ from rhapsody.q2._method import mmvec
 from rhapsody.util import random_multimodal
 from skbio.stats.composition import clr_inv
 from scipy.stats import spearmanr
+import numpy.testing as npt
 
 
 class TestMMvec(unittest.TestCase):
@@ -49,6 +50,12 @@ class TestMMvec(unittest.TestCase):
 
         self.assertGreater(s_r, 0.5)
         self.assertLess(s_p, 1e-2)
+
+        # make sure the biplot is of the correct dimensions
+        npt.assert_allclose(res_biplot.samples.shape,
+                            np.array([self.microbes.shape[0], latent_dim+2]))
+        npt.assert_allclose(res_biplot.features.shape,
+                            np.array([self.metabolites.shape[0], latent_dim+2]))
 
 
 if __name__ == "__main__":
