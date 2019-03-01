@@ -20,8 +20,6 @@ from rhapsody.q2 import (
     mmvec
 )
 
-
-
 plugin = qiime2.plugin.Plugin(
     name='rhapsody',
     version=__version__,
