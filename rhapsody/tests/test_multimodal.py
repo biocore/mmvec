@@ -73,6 +73,7 @@ class TestMMvec(unittest.TestCase):
             # sanity check cross validation
             self.assertLess(model.cv.eval(), 500)
 
+
 class TestMMvecBenchmark(unittest.TestCase):
     def setUp(self):
         # build small simulation
@@ -100,8 +101,7 @@ class TestMMvecBenchmark(unittest.TestCase):
             set_random_seed(0)
             model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=2,
                           batch_size=2000,
-                          device_name="/device:GPU:0"
-            )
+                          device_name="/device:GPU:0")
             model(session,
                   coo_matrix(self.trainX.values), self.trainY.values,
                   coo_matrix(self.testX.values), self.testY.values)
@@ -118,8 +118,7 @@ class TestMMvecBenchmark(unittest.TestCase):
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
             model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=2,
-                          batch_size=2000,
-            )
+                          batch_size=2000)
             model(session,
                   coo_matrix(self.trainX.values), self.trainY.values,
                   coo_matrix(self.testX.values), self.testY.values)

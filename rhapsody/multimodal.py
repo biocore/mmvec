@@ -24,10 +24,10 @@ class MMvec(object):
         loss : tf.Tensor
            The log loss of the model.
 
-
         Notes
         -----
-        To enable a GPU, set the device to '/device:GPU:x' where x is 0 or greater
+        To enable a GPU, set the device to '/device:GPU:x'
+        where x is 0 or greater
         """
         p = latent_dim
         self.device_name = device_name
@@ -92,12 +92,13 @@ class MMvec(object):
             Y_holdout = tf.constant(testY, dtype=tf.float32)
 
             total_count = tf.reduce_sum(Y_ph, axis=1)
-            batch_ids = tf.multinomial(tf.log(tf.reshape(X_ph.values, [1, -1])),
-                                       self.batch_size)
+            batch_ids = tf.multinomial(
+                tf.log(tf.reshape(X_ph.values, [1, -1])),
+                self.batch_size)
             batch_ids = tf.squeeze(batch_ids)
             X_samples = tf.gather(X_ph.indices, 0, axis=1)
             X_obs = tf.gather(X_ph.indices, 1, axis=1)
-
+            sample_ids = tf.gather(X_samples, batch_ids)
 
             Y_batch = tf.gather(Y_ph, sample_ids)
             X_batch = tf.gather(X_obs, batch_ids)
@@ -189,7 +190,8 @@ class MMvec(object):
             tf.summary.histogram('qVbias', self.qVbias)
             self.merged = tf.summary.merge_all()
 
-            self.writer = tf.summary.FileWriter(self.save_path, self.session.graph)
+            self.writer = tf.summary.FileWriter(
+                self.save_path, self.session.graph)
 
         with tf.device(self.device_name):
             with tf.name_scope('optimize'):
