@@ -40,11 +40,11 @@ class TestMMvec(unittest.TestCase):
         n, d2 = self.trainY.shape
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=2, batch_size=2000)
+            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=2)
             model(session,
                   coo_matrix(self.trainX.values), self.trainY.values,
                   coo_matrix(self.testX.values), self.testY.values)
-            model.fit(epoch=10000)
+            model.fit(epoch=1000)
 
             modelU = np.hstack(
                 (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
