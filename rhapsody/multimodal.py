@@ -78,7 +78,10 @@ class MMvec(object):
         self.d1 = trainX.shape[1]
         self.d2 = trainY.shape[1]
         self.cv_size = len(testX.data)
-        with tf.device(self.device_name):
+
+        # keep the multinomial sampling on the cpu
+        # https://github.com/tensorflow/tensorflow/issues/18058
+        with tf.device('/cpu:0'):
             X_ph = tf.SparseTensor(
                 indices=np.array([trainX.row,  trainX.col]).T,
                 values=trainX.data,
@@ -103,6 +106,7 @@ class MMvec(object):
             Y_batch = tf.gather(Y_ph, sample_ids)
             X_batch = tf.gather(X_obs, batch_ids)
 
+        with tf.device(self.device_name):
             self.qUmain = tf.Variable(
                 tf.random_normal([self.d1, self.p]), name='qU')
             self.qUbias = tf.Variable(
@@ -155,6 +159,9 @@ class MMvec(object):
                 logprob_vmain + logprob_vbias
             )
 
+        # keep the multinomial sampling on the cpu
+        # https://github.com/tensorflow/tensorflow/issues/18058
+        with tf.device('/cpu:0'):
             # cross validation
             with tf.name_scope('accuracy'):
                 cv_batch_ids = tf.multinomial(
