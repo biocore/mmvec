@@ -3,10 +3,9 @@ Neural networks for estimating microbe-metabolite co-occurence probabilities.
 
 # Installation
 ```
-conda create -n mae python=3.5 tensorflow numpy scipy pandas scikit-bio tqdm pip
-conda install -n mae biom-format -c conda-forge
-source activate mae
-pip install h5py git+https://github.com/mortonjt/rhapsody.git
+conda create -n rhapsody python=3.5 tensorflow numpy scipy pandas scikit-bio tqdm pip biom-format h5py -c conda-forge
+conda activate rhapsody
+pip install git+https://github.com/mortonjt/rhapsody.git
 ```
 
 If you are getting errors, it is likely because you have garbage channels under your .condarc.  Make sure to delete your .condarc -- you shouldn't need it.
@@ -18,14 +17,16 @@ microbe-metabolite conditional probabilities that are accurate up to rank.
 
 ```
 rhapsody mmvec \
-	--otu-file data/otu.biom \
+	--otu-file data/otus.biom \
 	--metabolite-file data/ms.biom \
 	--summary-dir summary \
 	--results-file cv-results.csv \
 	--ranks-file ranks.csv
 ```
 
-While this is running, you can open up another session and run `tensorboard --logdir .` for diagnosis.
+While this is running, you can open up another session and run `tensorboard --logdir .` for diagnosis, see FAQs below for more details.
+
+If you investigate the summary folder, you will notice that there are a number of files deposited.
 
 See the following url for a more complete tutorial with real datasets.
 
@@ -36,13 +37,14 @@ More information can found under `rhapsody --help`
 # Qiime2 plugin
 
 If you want to make this qiime2 compatible, install this in your
-qiime2 conda environment and run the following
+qiime2 conda environment (see qiime2 installation instructions [here](https://qiime2.org/)) and run the following
 
 ```
+pip install git+https://github.com/biocore/rhapsody.git
 qiime dev refresh-cache
 ```
 
-This should allow your q2 environment to recognize rhapsody.  To test run
+This should allow your q2 environment to recognize rhapsody.  Before running the To test run
 the qiime2 plugin, run the following commands
 
 ```
@@ -87,7 +89,7 @@ qiime emperor biplot \
 	--i-biplot results/conditional_biplot.qza \
 	--m-sample-metadata-file data/metabolite-metadata.txt \
 	--m-feature-metadata-file data/microbe-metadata.txt \
-	--o-visualization emperor.qzv --verbose
+	--o-visualization emperor.qzv
 
 ```
 

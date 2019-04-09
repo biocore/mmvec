@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from skbio import OrdinationResults
-from skbio.stats.composition import clr, clr_inv
 from qiime2.plugin import Metadata
 from rhapsody.multimodal import MMvec
 from rhapsody.util import split_tables
