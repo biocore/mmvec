@@ -164,10 +164,12 @@ def autoencoder(microbe_file, metabolite_file,
         )
 
         ranks = pd.DataFrame(
-            clr(softmax(np.hstack(
-                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
+            np.zeros((model.U.shape[0], 1)), U_ @ V_,
             index=train_microbes_df.columns,
             columns=train_metabolites_df.columns)
+
+        # shift the reference from the first microbe to the average microbe
+        ranks = ranks - ranks.mean(axis=1)
 
         np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
         np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)

@@ -47,19 +47,48 @@ the qiime2 plugin, run the following commands
 
 ```
 qiime tools import \
-	--input-path data/otu.biom \
-	--output-path otu.qza \
+	--input-path data/otus.biom \
+	--output-path otus.qza \
 	--type FeatureTable[Frequency]
 
 qiime tools import \
 	--input-path data/ms.biom \
 	--output-path ms.qza \
 	--type FeatureTable[Frequency]
-
-qiime rhapsody mmvec \
-	--i-microbes otu.qza \
-	--i-metabolites ms.qza \
-	--o-conditional-ranks ranks.qza
 ```
 
-More information can found under `qiime rhapsody --help`
+Then you can run mmvec
+```
+qiime rhapsody mmvec \
+	--i-microbes otus.qza \
+	--i-metabolites ms.qza \
+	--output-dir results
+```
+It is worth your time to investigate the logs that are deposited using Tensorboard.
+Tensorboard can be run via
+```
+tensorboard --logdir .
+```
+And the results, if working properly will look something like this
+![tensorboard](https://github.com/biocore/rhapsody/raw/master/images/summary.png "Tensorboard")
+
+You may need to tinker with the parameters to get readable tensorflow results, namely `--p-summary-interval`,
+`--epochs` and `--batch-size`.  Both `--p-epochs` and `--p-batch-size` contribute to determining how long the algorithm will run, namely
+
+**Number of iterations = `--p-epoch #` multiplied by the `--p-batch-size` parameter**
+
+A description of these two graphs is outlined in the FAQs below.
+
+
+Then you can run
+
+```
+qiime emperor biplot \
+	--i-biplot results/conditional_biplot.qza \
+	--m-sample-metadata-file data/metabolite-metadata.txt \
+	--m-feature-metadata-file data/microbe-metadata.txt \
+	--o-visualization emperor.qzv --verbose
+
+```
+
+More information behind the parameters can found under `qiime rhapsody --help`
