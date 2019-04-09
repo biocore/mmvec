@@ -64,15 +64,23 @@ def mmvec(microbes: biom.Table,
             (model.Vbias.reshape(1, -1),
              np.ones((1, model.V.shape[1])), V)
         )
-        microbe_embed = U_
-        metabolite_embed = np.hstack((np.zeros((V_.shape[0], 1)), V_))
 
-        pc_ids = ['PC%d' % i for i in range(U_.shape[1])]
+        microbe_embed = model.U
+        metabolite_embed = np.hstack((np.zeros((V.shape[0], 1)), V)).T
+
+        # make sure that the entries are row centered
+        # only if the shape is greater than 1 (otherwise that will just
+        # be subtracted out to zero.)
+        if microbe_embed.shape[1] > 1:
+            microbe_embed -= microbe_embed.mean(axis=1).reshape(-1, 1)
+            metabolite_embed -= metabolite_embed.mean(axis=1).reshape(-1, 1)
+
+        pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
         samples = pd.DataFrame(
             microbe_embed, columns=pc_ids,
             index=train_microbes_df.columns)
         features = pd.DataFrame(
-            metabolite_embed.T, columns=pc_ids,
+            metabolite_embed, columns=pc_ids,
             index=train_metabolites_df.columns)
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
@@ -83,6 +91,7 @@ def mmvec(microbes: biom.Table,
             samples=samples, features=features,
             proportion_explained=proportion_explained)
 
+        # TODO: need to make this more numerically stable.
         ranks = pd.DataFrame(
             clr(clr_inv(np.hstack(
                 (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),

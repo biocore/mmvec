@@ -14,7 +14,7 @@ from setuptools import setup
 
 
 classes = """
-    Development Status :: 3 - Alpha
+    Development Status :: 3 - gAlpha
     License :: OSI Approved :: BSD License
     Topic :: Software Development :: Libraries
     Topic :: Scientific/Engineering
