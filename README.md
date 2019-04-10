@@ -108,14 +108,14 @@ More information behind the parameters can found under `qiime rhapsody --help`
 
 4. More model diagnostics : In addition, it will record more cross validation statistics, which can enable you to investigate which microbes have the lowest cross validation error.  There are two files that are generated **if --ranks-file is specified** (there are scenarios where you can blow memory if you compute all of the ranks, which is why this is an optional parameter).  `model_results.csv` contains some cross validation results relevant to the global model fit.  There are 6 statistics reported, namely
 
-   ..* TP, FP, FN, TN : True positive, False positive, False negatives and True negatives on holdout samples using `--top-k` as a threshold to evaluate the top most abundant metabolites.  This primarily tests to see how well the microbes can predict which metabolites are the most abundant for a given sample.
+   - TP, FP, FN, TN : True positive, False positive, False negatives and True negatives on holdout samples using `--top-k` as a threshold to evaluate the top most abundant metabolites.  This primarily tests to see how well the microbes can predict which metabolites are the most abundant for a given sample.
 
     Precition, Recall : Precision and recall statistics estimated from the TP, FP, FN and TN computed.
-   ..* F1 score: Harmonic average of precision and recall.  See [wikipedia](https://en.wikipedia.org/wiki/F1_score) for more details
+   - F1 score: Harmonic average of precision and recall.  See [wikipedia](https://en.wikipedia.org/wiki/F1_score) for more details
 
-   ..* meanRK: The average Spearman rank correlation across all microbes.  This measures how well on average each microbe can predict the metabolite ranks.
+   - meanRK: The average Spearman rank correlation across all microbes.  This measures how well on average each microbe can predict the metabolite ranks.
 
-   ... `otu_cv_results.csv` provides a more detailed breakdown of the cross-validation results for each microbe for each sample using the same statistics as discussed above.
+   - `otu_cv_results.csv` provides a more detailed breakdown of the cross-validation results for each microbe for each sample using the same statistics as discussed above.
 
 **Q** : You mentioned that you can use GPUs.  How can you do that??
 
