@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from skbio import OrdinationResults
+from skbio.stats.composition import clr, clr_inv
 from qiime2.plugin import Metadata
 from rhapsody.multimodal import MMvec
 from rhapsody.util import split_tables
@@ -91,11 +92,9 @@ def mmvec(microbes: biom.Table,
             proportion_explained=proportion_explained)
 
         ranks = pd.DataFrame(
-            np.hstack((np.zeros((model.U.shape[0], 1)), U_ @ V_)),
+            clr(clr_inv(np.hstack(
+                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
             index=train_microbes_df.columns,
             columns=train_metabolites_df.columns)
-
-        # shift the reference from the first microbe to the average microbe
-        ranks = ranks - ranks.mean(axis=1)
 
         return ranks, biplot

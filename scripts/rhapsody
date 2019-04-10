@@ -169,17 +169,6 @@ def mmvec(microbe_file, metabolite_file,
              np.ones((1, model.V.shape[1])), V)
         )
 
-<<<<<<< HEAD
-        ranks = pd.DataFrame(
-            np.zeros((model.U.shape[0], 1)), U_ @ V_,
-            index=train_microbes_df.columns,
-            columns=train_metabolites_df.columns)
-
-        # shift the reference from the first microbe to the average microbe
-        ranks = ranks - ranks.mean(axis=1)
-
-=======
->>>>>>> dd8c0bf7efef831d77434299cfab39922dbe21ae
         np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
         np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)
         np.savetxt(os.path.join(summary_dir, 'Ubias.txt'), model.Ubias)
@@ -191,6 +180,9 @@ def mmvec(microbe_file, metabolite_file,
                     (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
                 index=train_microbes_df.columns,
                 columns=train_metabolites_df.columns)
+
+            # shift the reference from the first microbe to the average microbe
+            ranks = ranks - ranks.mean(axis=1)
 
             params, rank_stats = cross_validation(
                 model, test_microbes_df, test_metabolites_df, top_N=top_k)
