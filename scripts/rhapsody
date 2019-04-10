@@ -181,6 +181,9 @@ def mmvec(microbe_file, metabolite_file,
                 index=train_microbes_df.columns,
                 columns=train_metabolites_df.columns)
 
+            # shift the reference from the first microbe to the average microbe
+            ranks = ranks - ranks.mean(axis=1)
+
             params, rank_stats = cross_validation(
                 model, test_microbes_df, test_metabolites_df, top_N=top_k)
 
