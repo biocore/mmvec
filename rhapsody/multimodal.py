@@ -36,11 +36,6 @@ class MMvec(object):
             suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
             save_path = "_".join([basename, suffix])
 
-        self.learning_rate = learning_rate
-        self.beta_1 = beta_1
-        self.beta_2 = beta_2
-        self.batch_size = batch_size
-        self.clipnorm = clipnorm
         self.p = p
         self.u_mean = u_mean
         self.u_scale = u_scale

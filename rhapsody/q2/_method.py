@@ -24,6 +24,9 @@ def mmvec(microbes: biom.Table,
           learning_rate: float = 0.001,
           summary_interval: int = 60) -> (pd.DataFrame, OrdinationResults):
 
+    if metadata is not None:
+        metadata = metadata.to_dataframe()
+
     # Note: there are a couple of biom -> pandas conversions taking
     # place here.  This is currently done on purpose, since we
     # haven't figured out how to handle sparse matrix multiplication

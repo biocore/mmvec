@@ -17,7 +17,7 @@ To get started you can run a quick example as follows.  This will generate
 microbe-metabolite conditional probabilities that are accurate up to rank.
 
 ```
-rhapsody autoencoder \
+rhapsody mmvec \
 	--otu-file data/otu.biom \
 	--metabolite-file data/ms.biom \
 	--summary-dir summary \
@@ -56,7 +56,7 @@ qiime tools import \
 	--output-path ms.qza \
 	--type FeatureTable[Frequency]
 
-qiime rhapsody autoencoder \
+qiime rhapsody mmvec \
 	--i-microbes otu.qza \
 	--i-metabolites ms.qza \
 	--o-conditional-ranks ranks.qza
