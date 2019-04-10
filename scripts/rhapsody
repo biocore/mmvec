@@ -62,7 +62,7 @@ def rhapsody():
               default=1.)
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
-              default=True)
+              default=False)
 @click.option('--top-k',
               help=('Number of top hits to compare for cross-validation.'),
               default=50)
@@ -91,9 +91,9 @@ def rhapsody():
 def mmvec(microbe_file, metabolite_file,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
-          epochs, batch_size, latent_dim,
+         epochs, batch_size, latent_dim,
           input_prior, output_prior, arm_the_gpu, top_k,
-          learning_rate, beta1, beta2, clipnorm, threads,
+          learning_rate, beta1, beta2, clipnorm,
           checkpoint_interval, summary_interval,
           summary_dir, ranks_file):
 
