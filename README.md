@@ -44,8 +44,8 @@ pip install git+https://github.com/biocore/rhapsody.git
 qiime dev refresh-cache
 ```
 
-This should allow your q2 environment to recognize rhapsody.  Before running the To test run
-the qiime2 plugin, run the following commands
+This should allow your q2 environment to recognize rhapsody. Before we test
+the qiime2 plugin, run the following commands to import an example dataset
 
 ```
 qiime tools import \
