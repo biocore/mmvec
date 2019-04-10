@@ -16,7 +16,7 @@ class MMvec(object):
     def __init__(self, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
                  batch_size=50, latent_dim=3, dropout_rate=0.5,
                  learning_rate=0.1, beta_1=0.9, beta_2=0.95,
-                 clipnorm=10., save_path=None):
+                 clipnorm=10., device_name='/cpu:0', save_path=None):
         """ Build a tensorflow model for microbe-metabolite vectors
 
         Returns
@@ -24,9 +24,13 @@ class MMvec(object):
         loss : tf.Tensor
            The log loss of the model.
 
+        Notes
+        -----
+        To enable a GPU, set the device to '/device:GPU:x'
+        where x is 0 or greater
         """
         p = latent_dim
-
+        self.device_name = device_name
         if save_path is None:
             basename = "logdir"
             suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
@@ -70,125 +74,138 @@ class MMvec(object):
         self.d2 = trainY.shape[1]
         self.cv_size = len(testX.data)
 
-        X_ph = tf.SparseTensor(
-            indices=np.array([trainX.row,  trainX.col]).T,
-            values=trainX.data,
-            dense_shape=trainX.shape)
-        Y_ph = tf.constant(trainY, dtype=tf.float32)
+        # keep the multinomial sampling on the cpu
+        # https://github.com/tensorflow/tensorflow/issues/18058
+        with tf.device('/cpu:0'):
+            X_ph = tf.SparseTensor(
+                indices=np.array([trainX.row,  trainX.col]).T,
+                values=trainX.data,
+                dense_shape=trainX.shape)
+            Y_ph = tf.constant(trainY, dtype=tf.float32)
 
-        X_holdout = tf.SparseTensor(
-            indices=np.array([testX.row,  testX.col]).T,
-            values=testX.data,
-            dense_shape=testX.shape)
-        Y_holdout = tf.constant(testY, dtype=tf.float32)
+            X_holdout = tf.SparseTensor(
+                indices=np.array([testX.row,  testX.col]).T,
+                values=testX.data,
+                dense_shape=testX.shape)
+            Y_holdout = tf.constant(testY, dtype=tf.float32)
 
-        total_count = tf.reduce_sum(Y_ph, axis=1)
-        batch_ids = tf.multinomial(tf.log(tf.reshape(X_ph.values, [1, -1])),
-                                   self.batch_size)
-        batch_ids = tf.squeeze(batch_ids)
-        X_samples = tf.gather(X_ph.indices, 0, axis=1)
-        X_obs = tf.gather(X_ph.indices, 1, axis=1)
-        sample_ids = tf.gather(X_samples, batch_ids)
+            total_count = tf.reduce_sum(Y_ph, axis=1)
+            batch_ids = tf.multinomial(
+                tf.log(tf.reshape(X_ph.values, [1, -1])),
+                self.batch_size)
+            batch_ids = tf.squeeze(batch_ids)
+            X_samples = tf.gather(X_ph.indices, 0, axis=1)
+            X_obs = tf.gather(X_ph.indices, 1, axis=1)
+            sample_ids = tf.gather(X_samples, batch_ids)
 
-        Y_batch = tf.gather(Y_ph, sample_ids)
-        X_batch = tf.gather(X_obs, batch_ids)
+            Y_batch = tf.gather(Y_ph, sample_ids)
+            X_batch = tf.gather(X_obs, batch_ids)
 
-        self.qUmain = tf.Variable(
-            tf.random_normal([self.d1, self.p]), name='qU')
-        self.qUbias = tf.Variable(
-            tf.random_normal([self.d1, 1]), name='qUbias')
-        self.qVmain = tf.Variable(
-            tf.random_normal([self.p, self.d2-1]), name='qV')
-        self.qVbias = tf.Variable(
-            tf.random_normal([1, self.d2-1]), name='qVbias')
+        with tf.device(self.device_name):
+            self.qUmain = tf.Variable(
+                tf.random_normal([self.d1, self.p]), name='qU')
+            self.qUbias = tf.Variable(
+                tf.random_normal([self.d1, 1]), name='qUbias')
+            self.qVmain = tf.Variable(
+                tf.random_normal([self.p, self.d2-1]), name='qV')
+            self.qVbias = tf.Variable(
+                tf.random_normal([1, self.d2-1]), name='qVbias')
 
-        qU = tf.concat(
-            [tf.ones([self.d1, 1]), self.qUbias, self.qUmain], axis=1)
-        qV = tf.concat(
-            [self.qVbias, tf.ones([1, self.d2-1]), self.qVmain], axis=0)
+            qU = tf.concat(
+                [tf.ones([self.d1, 1]), self.qUbias, self.qUmain], axis=1)
+            qV = tf.concat(
+                [self.qVbias, tf.ones([1, self.d2-1]), self.qVmain], axis=0)
 
-        # regression coefficents distribution
-        Umain = Normal(loc=tf.zeros([self.d1, self.p]) + self.u_mean,
-                       scale=tf.ones([self.d1, self.p]) * self.u_scale,
-                       name='U')
-        Ubias = Normal(loc=tf.zeros([self.d1, 1]) + self.u_mean,
-                       scale=tf.ones([self.d1, 1]) * self.u_scale,
-                       name='biasU')
+            # regression coefficents distribution
+            Umain = Normal(loc=tf.zeros([self.d1, self.p]) + self.u_mean,
+                           scale=tf.ones([self.d1, self.p]) * self.u_scale,
+                           name='U')
+            Ubias = Normal(loc=tf.zeros([self.d1, 1]) + self.u_mean,
+                           scale=tf.ones([self.d1, 1]) * self.u_scale,
+                           name='biasU')
 
-        Vmain = Normal(loc=tf.zeros([self.p, self.d2-1]) + self.v_mean,
-                       scale=tf.ones([self.p, self.d2-1]) * self.v_scale,
-                       name='V')
-        Vbias = Normal(loc=tf.zeros([1, self.d2-1]) + self.v_mean,
-                       scale=tf.ones([1, self.d2-1]) * self.v_scale,
-                       name='biasV')
+            Vmain = Normal(loc=tf.zeros([self.p, self.d2-1]) + self.v_mean,
+                           scale=tf.ones([self.p, self.d2-1]) * self.v_scale,
+                           name='V')
+            Vbias = Normal(loc=tf.zeros([1, self.d2-1]) + self.v_mean,
+                           scale=tf.ones([1, self.d2-1]) * self.v_scale,
+                           name='biasV')
 
-        du = tf.gather(qU, X_batch, axis=0, name='du')
-        dv = tf.concat([tf.zeros([self.batch_size, 1]),
-                        du @ qV], axis=1, name='dv')
+            du = tf.gather(qU, X_batch, axis=0, name='du')
+            dv = tf.concat([tf.zeros([self.batch_size, 1]),
+                            du @ qV], axis=1, name='dv')
 
-        tc = tf.gather(total_count, sample_ids)
-        Y = Multinomial(total_count=tc, logits=dv, name='Y')
-        num_samples = trainX.shape[0]
-        norm = num_samples / self.batch_size
-        logprob_vmain = tf.reduce_sum(
-            Vmain.log_prob(self.qVmain), name='logprob_vmain')
-        logprob_vbias = tf.reduce_sum(
-            Vbias.log_prob(self.qVbias), name='logprob_vbias')
-        logprob_umain = tf.reduce_sum(
-            Umain.log_prob(self.qUmain), name='logprob_umain')
-        logprob_ubias = tf.reduce_sum(
-            Ubias.log_prob(self.qUbias), name='logprob_ubias')
-        logprob_y = tf.reduce_sum(Y.log_prob(Y_batch), name='logprob_y')
-        self.log_loss = - (
-            logprob_y * norm +
-            logprob_umain + logprob_ubias +
-            logprob_vmain + logprob_vbias
-        )
-
-        # cross validation
-        with tf.name_scope('accuracy'):
-            cv_batch_ids = tf.multinomial(
-                tf.log(tf.reshape(X_holdout.values, [1, -1])),
-                self.cv_size)
-            cv_batch_ids = tf.squeeze(cv_batch_ids)
-            X_cv_samples = tf.gather(X_holdout.indices, 0, axis=1)
-            X_cv = tf.gather(X_holdout.indices, 1, axis=1)
-            cv_sample_ids = tf.gather(X_cv_samples, cv_batch_ids)
-
-            Y_cvbatch = tf.gather(Y_holdout, cv_sample_ids)
-            X_cvbatch = tf.gather(X_cv, cv_batch_ids)
-            holdout_count = tf.reduce_sum(Y_cvbatch, axis=1)
-            cv_du = tf.gather(qU, X_cvbatch, axis=0, name='cv_du')
-            pred = tf.reshape(
-                holdout_count, [-1, 1]) * tf.nn.softmax(
-                    tf.concat([tf.zeros([
-                        self.cv_size, 1]),
-                               cv_du @ qV], axis=1, name='pred')
-                )
-
-            self.cv = tf.reduce_mean(
-                tf.squeeze(tf.abs(pred - Y_cvbatch))
+            tc = tf.gather(total_count, sample_ids)
+            Y = Multinomial(total_count=tc, logits=dv, name='Y')
+            num_samples = trainX.shape[0]
+            norm = num_samples / self.batch_size
+            logprob_vmain = tf.reduce_sum(
+                Vmain.log_prob(self.qVmain), name='logprob_vmain')
+            logprob_vbias = tf.reduce_sum(
+                Vbias.log_prob(self.qVbias), name='logprob_vbias')
+            logprob_umain = tf.reduce_sum(
+                Umain.log_prob(self.qUmain), name='logprob_umain')
+            logprob_ubias = tf.reduce_sum(
+                Ubias.log_prob(self.qUbias), name='logprob_ubias')
+            logprob_y = tf.reduce_sum(Y.log_prob(Y_batch), name='logprob_y')
+            self.log_loss = - (
+                logprob_y * norm +
+                logprob_umain + logprob_ubias +
+                logprob_vmain + logprob_vbias
             )
 
-        tf.summary.scalar('logloss', self.log_loss)
-        tf.summary.scalar('cv_rmse', self.cv)
-        tf.summary.histogram('qUmain', self.qUmain)
-        tf.summary.histogram('qVmain', self.qVmain)
-        tf.summary.histogram('qUbias', self.qUbias)
-        tf.summary.histogram('qVbias', self.qVbias)
-        self.merged = tf.summary.merge_all()
+        # keep the multinomial sampling on the cpu
+        # https://github.com/tensorflow/tensorflow/issues/18058
+        with tf.device('/cpu:0'):
+            # cross validation
+            with tf.name_scope('accuracy'):
+                cv_batch_ids = tf.multinomial(
+                    tf.log(tf.reshape(X_holdout.values, [1, -1])),
+                    self.cv_size)
+                cv_batch_ids = tf.squeeze(cv_batch_ids)
+                X_cv_samples = tf.gather(X_holdout.indices, 0, axis=1)
+                X_cv = tf.gather(X_holdout.indices, 1, axis=1)
+                cv_sample_ids = tf.gather(X_cv_samples, cv_batch_ids)
 
-        self.writer = tf.summary.FileWriter(self.save_path, self.session.graph)
-        with tf.name_scope('optimize'):
-            optimizer = tf.train.AdamOptimizer(
-                self.learning_rate, beta1=self.beta_1, beta2=self.beta_2)
+                Y_cvbatch = tf.gather(Y_holdout, cv_sample_ids)
+                X_cvbatch = tf.gather(X_cv, cv_batch_ids)
+                holdout_count = tf.reduce_sum(Y_cvbatch, axis=1)
+                cv_du = tf.gather(qU, X_cvbatch, axis=0, name='cv_du')
+                pred = tf.reshape(
+                    holdout_count, [-1, 1]) * tf.nn.softmax(
+                        tf.concat([tf.zeros([
+                            self.cv_size, 1]),
+                                   cv_du @ qV], axis=1, name='pred')
+                    )
 
-            gradients, self.variables = zip(
-                *optimizer.compute_gradients(self.log_loss))
-            self.gradients, _ = tf.clip_by_global_norm(
-                gradients, self.clipnorm)
-            self.train = optimizer.apply_gradients(
-                zip(self.gradients, self.variables))
+                self.cv = tf.reduce_mean(
+                    tf.squeeze(tf.abs(pred - Y_cvbatch))
+                )
+
+        # keep all summaries on the cpu
+        with tf.device('/cpu:0'):
+            tf.summary.scalar('logloss', self.log_loss)
+            tf.summary.scalar('cv_rmse', self.cv)
+            tf.summary.histogram('qUmain', self.qUmain)
+            tf.summary.histogram('qVmain', self.qVmain)
+            tf.summary.histogram('qUbias', self.qUbias)
+            tf.summary.histogram('qVbias', self.qVbias)
+            self.merged = tf.summary.merge_all()
+
+            self.writer = tf.summary.FileWriter(
+                self.save_path, self.session.graph)
+
+        with tf.device(self.device_name):
+            with tf.name_scope('optimize'):
+                optimizer = tf.train.AdamOptimizer(
+                    self.learning_rate, beta1=self.beta_1, beta2=self.beta_2)
+
+                gradients, self.variables = zip(
+                    *optimizer.compute_gradients(self.log_loss))
+                self.gradients, _ = tf.clip_by_global_norm(
+                    gradients, self.clipnorm)
+                self.train = optimizer.apply_gradients(
+                    zip(self.gradients, self.variables))
 
         tf.global_variables_initializer().run()
 
