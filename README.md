@@ -72,7 +72,7 @@ Tensorboard can be run via
 tensorboard --logdir .
 ```
 And the results, if working properly will look something like this
-![tensorboard](https://github.com/biocore/rhapsody/raw/master/img/summary.png "Tensorboard")
+![tensorboard](https://github.com/biocore/rhapsody/raw/master/img/tensorboard.png "Tensorboard")
 
 You may need to tinker with the parameters to get readable tensorflow results, namely `--p-summary-interval`,
 `--epochs` and `--batch-size`.  Both `--p-epochs` and `--p-batch-size` contribute to determining how long the algorithm will run, namely
