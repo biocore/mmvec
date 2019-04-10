@@ -97,6 +97,7 @@ More information behind the parameters can found under `qiime rhapsody --help`
 # FAQs
 
 **Q**: Looks like there are two different commands, a standalone script and a qiime2 interface.  Which one should I use?!?
+
 **A**:  It'll depend on how deep in the weeds you'll want to get.  For most intents and purposes, the qiime2 interface will most practical analyses.  There are 3 major reasons why the standalone scripts are more preferable to the qiime2 interface, namely
 
 1. Customized acceleration : If you want to bring down your runtime from a few days to a few hours, you may need to compile Tensorflow to handle hardware specific instructions (i.e. GPUs / SIMD instructions).  It probably is possible to enable GPU compatiability within a conda environment with some effort, but since conda packages binaries, SIMD instructions will not work out of the box.
@@ -113,12 +114,15 @@ More information behind the parameters can found under `qiime rhapsody --help`
    ... `otu_cv_results.csv` provides a more detailed breakdown of the cross-validation results for each microbe for each sample using the same statistics as discussed above.
 
 **Q** : You mentioned that you can use GPUs.  How can you do that??
+
 **A** : This can be done by running `pip install tensorflow-gpu` in your environment.  See details [here](https://www.tensorflow.org/install/gpu).
 
 **Q** : Neural networks scare me - don't they overfit the crap out of your data?
+
 **A** : Here, we are using shallow neural networks (so only two layers).  This falls under the same regime as PCA and SVD.  But just as you can overfit PCA/SVD, you can also overfit mmvec.  Which is why we have Tensorboard enabled for diagnostics. You can visualize the `cv_rmse` to gauge if there is overfitting -- if your run is strictly decreasing, then that is a sign that you are probably not overfitting.  But this is not necessarily indicative that you have reach the optimal -- you want to check to see if `logloss` has reached a plateau as shown above.
 
 **Q** : I'm confused, what is Tensorboard?
+
 **A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the songbird environment (regression) and cd into the folder you are running the script above from. Then run:
 
 ```
@@ -155,6 +159,7 @@ You can also compare multiple runs with different parameters to see which run pe
 
 
 **Q** : What sort of parameters should I focus on when picking a good model?
+
 **A** : There are 3 different parameters to focus on, `input_prior`, `output_prior` and `latent_dim`
 
 The `--input_prior`  and `--output_prior` options specifies the width of the prior distribution of the coefficients, where the `--input_prior` is typically specific to microbes and the `--output_prior` is specific to metabolites.
@@ -173,5 +178,9 @@ Another parameter worth thinking about is `--latent_dim`, which controls the num
 
 **Number of iterations = `epoch #` multiplied by the ( Total # of microbial reads / `batch-size` parameter)**
 
+This also depends on if your program will converge. The `learning-rate` specifies the resolution (smaller step size = smaller resolution, but may take longer to converge). You will need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
+
 If you are running this on a CPU, 16 cores, a run that reaches convergence should take about 1 day.
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch_size` parameter maybe required -- instead of having a small `batch_size` < 100, you'll want to bump up the `batch_size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
+
+Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vasquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)) and Julia Gauglitz for their README contributions.
