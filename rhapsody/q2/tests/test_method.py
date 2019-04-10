@@ -54,10 +54,10 @@ class TestMMvec(unittest.TestCase):
         # make sure the biplot is of the correct dimensions
         npt.assert_allclose(
             res_biplot.samples.shape,
-            np.array([self.microbes.shape[0], latent_dim+2]))
+            np.array([self.microbes.shape[0], latent_dim]))
         npt.assert_allclose(
             res_biplot.features.shape,
-            np.array([self.metabolites.shape[0], latent_dim+2]))
+            np.array([self.metabolites.shape[0], latent_dim]))
 
 
 if __name__ == "__main__":

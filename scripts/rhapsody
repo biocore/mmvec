@@ -176,10 +176,12 @@ def mmvec(microbe_file, metabolite_file,
 
         if ranks_file is not None:
             ranks = pd.DataFrame(
-                clr(softmax(np.hstack(
-                    (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
+                np.zeros((model.U.shape[0], 1)), U_ @ V_,
                 index=train_microbes_df.columns,
                 columns=train_metabolites_df.columns)
+    
+            # shift the reference from the first microbe to the average microbe
+            ranks = ranks - ranks.mean(axis=1)
 
             params, rank_stats = cross_validation(
                 model, test_microbes_df, test_metabolites_df, top_N=top_k)
