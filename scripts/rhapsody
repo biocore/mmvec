@@ -15,7 +15,7 @@ from scipy.sparse import coo_matrix
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
 import datetime
-from rhapsody.multimodal import Autoencoder, cross_validation
+from rhapsody.multimodal import MMvec, cross_validation
 from rhapsody.util import onehot, rank_hits, random_multimodal, split_tables
 
 
@@ -60,6 +60,9 @@ def rhapsody():
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
               default=1.)
+@click.option('--arm-the-gpu', is_flag=True,
+              help=('Enables GPU support'),
+              default=False)
 @click.option('--top-k',
               help=('Number of top hits to compare for cross-validation.'),
               default=50)
@@ -75,9 +78,6 @@ def rhapsody():
 @click.option('--clipnorm',
               help=('Gradient clipping size.'),
               default=10.)
-@click.option('--threads',
-              help=('Number of threads to utilize.'),
-              default=64)
 @click.option('--checkpoint-interval',
               help=('Number of seconds before a storing a summary.'),
               default=1000)
@@ -86,16 +86,16 @@ def rhapsody():
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
-@click.option('--ranks-file',
+@click.option('--ranks-file', default=None,
               help='Ranks file containing microbe-metabolite rankings.')
-def autoencoder(microbe_file, metabolite_file,
-                metadata_file, training_column,
-                num_testing_examples, min_feature_count,
-                epochs, batch_size, latent_dim,
-                input_prior, output_prior, top_k,
-                learning_rate, beta1, beta2, clipnorm, threads,
-                checkpoint_interval, summary_interval,
-                summary_dir, ranks_file):
+def mmvec(microbe_file, metabolite_file,
+          metadata_file, training_column,
+          num_testing_examples, min_feature_count,
+         epochs, batch_size, latent_dim,
+          input_prior, output_prior, arm_the_gpu, top_k,
+          learning_rate, beta1, beta2, clipnorm,
+          checkpoint_interval, summary_interval,
+          summary_dir, ranks_file):
 
     microbes = load_table(microbe_file)
     metabolites = load_table(metabolite_file)
@@ -134,16 +134,22 @@ def autoencoder(microbe_file, metabolite_file,
     train_microbes_coo = coo_matrix(train_microbes_df.values)
     test_microbes_coo = coo_matrix(test_microbes_df.values)
 
+    if arm_the_gpu:
+        # pick out the first GPU
+        device_name='/device:GPU:0'
+    else:
+        device_name='/cpu:0'
+
     config = tf.ConfigProto()
-    config.intra_op_parallelism_threads = threads
-    config.inter_op_parallelism_threads = threads
     with tf.Graph().as_default(), tf.Session(config=config) as session:
-        model = Autoencoder(
+        model = MMvec(
             latent_dim=latent_dim,
             u_scale=input_prior, v_scale=output_prior,
             learning_rate = learning_rate,
             beta_1=beta1, beta_2=beta2,
+            device_name=device_name,
             clipnorm=clipnorm, save_path=sname)
+
         model(session,
               train_microbes_coo, train_metabolites_df.values,
               test_microbes_coo, test_metabolites_df.values)
@@ -163,56 +169,24 @@ def autoencoder(microbe_file, metabolite_file,
              np.ones((1, model.V.shape[1])), V)
         )
 
-        ranks = pd.DataFrame(
-            clr(softmax(np.hstack(
-                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-            index=train_microbes_df.columns,
-            columns=train_metabolites_df.columns)
-
         np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
         np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)
         np.savetxt(os.path.join(summary_dir, 'Ubias.txt'), model.Ubias)
         np.savetxt(os.path.join(summary_dir, 'Vbias.txt'), model.Vbias)
 
-        params, rank_stats = cross_validation(
-            model, test_microbes_df, test_metabolites_df, top_N=top_k)
+        if ranks_file is not None:
+            ranks = pd.DataFrame(
+                clr(softmax(np.hstack(
+                    (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
+                index=train_microbes_df.columns,
+                columns=train_metabolites_df.columns)
 
-        params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
-        rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
-        ranks.to_csv(ranks_file)
+            params, rank_stats = cross_validation(
+                model, test_microbes_df, test_metabolites_df, top_N=top_k)
 
-
-@rhapsody.command()
-@click.option('--ranks-file',
-              help='Ranks file containing microbe-metabolite rankings')
-@click.option('--k-nearest-neighbors',
-              help=('Number of nearest neighbors.'),
-              default=3)
-@click.option('--node-metadata',
-              help='Node metadata for cytoscape.')
-@click.option('--edge-metadata',
-              help='Edge metadata for cytoscape.')
-@click.option('--axis', default=0,
-              help='Direction to draw edges. '
-              'axis=0 guarantees that each column will have at least k edges'
-              'axis=1 guarantees that each row will have at least k edges')
-def network(ranks_file, k_nearest_neighbors, node_metadata, edge_metadata, axis):
-    ranks = pd.read_csv(ranks_file, index_col=0).T
-    if axis == 0:
-        edges = rank_hits(ranks, k_nearest_neighbors)
-    else:
-        edges = rank_hits(ranks.T, k_nearest_neighbors)
-    edges['edge_type'] = 'co_occur'
-    src = list(edges['src'].value_counts().index)
-    dest = list(edges['dest'].value_counts().index)
-    edges = edges.set_index(['src'])
-    edges[['edge_type', 'dest']].to_csv(edge_metadata, sep='\t', header=False)
-
-    nodes = pd.DataFrame(columns=['id', 'node_type'])
-    nodes['id'] = list(src) + list(dest)
-    nodes['node_type'] = ['src'] * len(src) + ['dest'] * len(dest)
-    nodes = nodes.set_index('id')
-    nodes.to_csv(node_metadata, sep='\t')
+            params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
+            rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
+            ranks.to_csv(ranks_file)
 
 
 if __name__ == '__main__':
