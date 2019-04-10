@@ -110,7 +110,7 @@ More information behind the parameters can found under `qiime rhapsody --help`
 
    - TP, FP, FN, TN : True positive, False positive, False negatives and True negatives on holdout samples using `--top-k` as a threshold to evaluate the top most abundant metabolites.  This primarily tests to see how well the microbes can predict which metabolites are the most abundant for a given sample.
 
-    Precition, Recall : Precision and recall statistics estimated from the TP, FP, FN and TN computed.
+    Precision, Recall : Precision and recall statistics estimated from the TP, FP, FN and TN computed.
    - F1 score: Harmonic average of precision and recall.  See [wikipedia](https://en.wikipedia.org/wiki/F1_score) for more details
 
    - meanRK: The average Spearman rank correlation across all microbes.  This measures how well on average each microbe can predict the metabolite ranks.
