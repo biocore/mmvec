@@ -66,6 +66,12 @@ qiime rhapsody mmvec \
 	--i-metabolites ms.qza \
 	--output-dir results
 ```
+In the results, there are two files, namely `results/conditional_biplot.qza` and `results/conditionals.qza`. The conditional biplot is a biplot representation the
+conditional probability matrix so that you can visualize these microbe-metabolite interactions in an exploratory manner.  This can be directly visualized in
+Emperor as shown below.  We also have the estimated conditional probability matrix given in `results/conditionals.qza`,
+which an be unzip to yield a tab-delimited table via `unzip results/conditionals`. Each row can be ranked,
+so the top most occurring metabolites for a given microbe can be obtained by identifying the highest co-occurrence probabilities for each microbe.
+
 It is worth your time to investigate the logs (labeled under `logdir**`) that are deposited using Tensorboard.
 The actual logfiles within this directory are labeled `events.out.tfevents.*` : more discussion on this later.
 
@@ -81,7 +87,7 @@ You may need to tinker with the parameters to get readable tensorflow results, n
 A description of these two graphs is outlined in the FAQs below.
 
 
-Then you can run
+Then you can run the following to generate a emperor biplot.
 
 ```
 qiime emperor biplot \
@@ -91,6 +97,10 @@ qiime emperor biplot \
 	--o-visualization emperor.qzv
 
 ```
+
+Here, the samples are metabolites and the arrows are microbes.  The distance between points is given by the Aitchison distance between metabolites (which is equivalent to Lovell's
+[proportionality](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004075)).  The distance between arrow tips is the Aitchison distance between microbes.
+
 
 More information behind the parameters can found under `qiime rhapsody --help`
 
