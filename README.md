@@ -12,8 +12,8 @@ If you are getting errors, it is likely because you have garbage channels under 
 
 # Getting started
 
-To get started you can run a quick example as follows.  This will generate
-microbe-metabolite conditional probabilities that are accurate up to rank.
+To get started you can run a quick example as follows.  This will learn microbe-metabolite vectors (mmvec)
+which can be used to estimate microbe-metabolite conditional probabilities that are accurate up to rank.
 
 ```
 rhapsody mmvec \
