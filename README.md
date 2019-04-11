@@ -131,7 +131,7 @@ More information behind the parameters can found under `qiime rhapsody --help`
 
 **A** : This can be done by running `pip install tensorflow-gpu` in your environment.  See details [here](https://www.tensorflow.org/install/gpu).
 
-At the moment, these capabilities are only available for the standalone CLI due to complications of installation.
+At the moment, these capabilities are only available for the standalone CLI due to complications of installation.  See the `--arm-the-gpu` option in the standalone interface.
 
 **Q** : Neural networks scare me - don't they overfit the crap out of your data?
 
