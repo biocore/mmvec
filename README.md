@@ -131,6 +131,8 @@ More information behind the parameters can found under `qiime rhapsody --help`
 
 **A** : This can be done by running `pip install tensorflow-gpu` in your environment.  See details [here](https://www.tensorflow.org/install/gpu).
 
+At the moment, these capabilities are only available for the standalone CLI due to complications of installation.
+
 **Q** : Neural networks scare me - don't they overfit the crap out of your data?
 
 **A** : Here, we are using shallow neural networks (so only two layers).  This falls under the same regime as PCA and SVD.  But just as you can overfit PCA/SVD, you can also overfit mmvec.  Which is why we have Tensorboard enabled for diagnostics. You can visualize the `cv_rmse` to gauge if there is overfitting -- if your run is strictly decreasing, then that is a sign that you are probably not overfitting.  But this is not necessarily indicative that you have reach the optimal -- you want to check to see if `logloss` has reached a plateau as shown above.
