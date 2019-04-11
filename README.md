@@ -98,7 +98,7 @@ More information behind the parameters can found under `qiime rhapsody --help`
 
 **Q**: Looks like there are two different commands, a standalone script and a qiime2 interface.  Which one should I use?!?
 
-**A**:  It'll depend on how deep in the weeds you'll want to get.  For most intents and purposes, the qiime2 interface will most practical analyses.  There are 3 major reasons why the standalone scripts are more preferable to the qiime2 interface, namely
+**A**:  It'll depend on how deep in the weeds you'll want to get.  For most intents and purposes, the qiime2 interface will more practical for most analyses.  There are 4 major reasons why the standalone scripts are more preferable to the qiime2 interface, namely
 
 1. Customized acceleration : If you want to bring down your runtime from a few days to a few hours, you may need to compile Tensorflow to handle hardware specific instructions (i.e. GPUs / SIMD instructions).  It probably is possible to enable GPU compatiability within a conda environment with some effort, but since conda packages binaries, SIMD instructions will not work out of the box.
 
@@ -127,7 +127,7 @@ More information behind the parameters can found under `qiime rhapsody --help`
 
 **Q** : I'm confused, what is Tensorboard?
 
-**A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the songbird environment (regression) and cd into the folder you are running the script above from. Then run:
+**A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the rhapsody environment and cd into the folder you are running the script above from. Then run:
 
 ```
 tensorboard --logdir .
@@ -141,14 +141,14 @@ TensorBoard 1.9.0 at http://Lisas-MacBook-Pro-2.local:6006 (Press CTRL+C to quit
 Open the website (highlighted in red) in a browser. (Hint; if that doesn’t work try putting only the port number (here it is 6006), adding localhost, localhost:6006). Leave this tab alone. Now any rhapsody output directories that you add to the folder that tensorflow is running in will be added to the webpage.
 
 
-If working properly will look something like this
+If working properly, it will look something like this
 ![tensorboard](https://github.com/biocore/rhapsody/raw/master/img/tensorboard.png "Tensorboard")
 
 FIRST graph in Tensorflow; 'Prediction accuracy'. Labelled `cv_rmse`
 
 This is a graph of the prediction accuracy of the model; the model will try to guess the metabolite intensitiy values for the testing samples that were set aside in the script above, using only the microbe counts in the testing samples. Then it looks at the real values and sees how close it was.
 
-The second graph is the `likelihood` - if your `likelihood` values are plateaued, that is a sign that you have reachconverged and reached a local minima.
+The second graph is the `likelihood` - if your `likelihood` values are plateaued, that is a sign that you have converged and reached at a local minima.
 
 The x-axis is the number of iterations (meaning times the model is training across the entire dataset). Every time you iterate across the training samples, you also run the test samples and the averaged results are being plotted on the y-axis.
 
@@ -157,7 +157,7 @@ The y-axis is the average number of counts off for each feature. The model is pr
 
 You can also compare multiple runs with different parameters to see which run performed the best.  If you are doing this, be sure to look at the `training_column` example make the testing samples consistent across runs.
 
-**Q** : What's up with the --training-column argument?
+**Q** : What's up with the `--training-column` argument?
 
 **A** : That is used for cross-validation if you have a specific reproducibility question that you are interested in answering. It can also make it easier to compare cross validation results across runs. If this is specified, only samples labeled "Train" under this column will be used for building the model and samples labeled "Test" will be used for cross validation. In other words the model will attempt to predict the microbe abundances for the "Test" samples. The resulting prediction accuracy is used to evaluate the generalizability of the model in order to determine if the model is overfitting or not. If this argument is not specified, then 10 random samples will be chosen for the test dataset. If you want to specify more random samples to allocate for cross-validation, the `num-random-test-examples` argument can be specified.
 
@@ -169,7 +169,7 @@ You can also compare multiple runs with different parameters to see which run pe
 The `--input_prior`  and `--output_prior` options specifies the width of the prior distribution of the coefficients, where the `--input_prior` is typically specific to microbes and the `--output_prior` is specific to metabolites.
 For a prior of 1, this means 99% of entries in the embeddings (typically given in the `U.txt` and `V.txt` files are within -3 and +3 (log fold change). The higher differential-prior is, the more parameters can have bigger changes, so you want to keep this relatively small. If you see overfitting (accuracy and fit increasing over iterations in tensorboard) you may consider reducing the `--input_prior` and `--output_prior` in order to reduce the parameter space.
 
-Another parameter worth thinking about is `--latent_dim`, which controls the number of dimensions used to approximate the conditional probability matrix.  This also specifies the dimensions of the microbe/metabolite embeddings `U.txt` and `V.txt`.  The most dimensions this has, the more accurate the embeddings can be -- but the higher the chance of overfitting there is.  The rule of thumb to follow is in order to fit these models, you need at least 10 times as many samples as there are latent dimensions (this is following a similar rule of thumb for fitting straight lines).  So if you have 100 samples, you should definitely not have a latent dimension of more than 10.  Furthermore, you can still overfit certain microbes and metabolites.  For example, you are fitting a model with those 100 samples and just 1 latent dimension, you can still easily overfit microbes and metabolites that appear in less than 10 samples -- so even fitting models with just 1 latent dimension will require some microbes and metabolites that appear in less than 10 samples to be filtered out.
+Another parameter worth thinking about is `--latent_dim`, which controls the number of dimensions used to approximate the conditional probability matrix.  This also specifies the dimensions of the microbe/metabolite embeddings `U.txt` and `V.txt`.  The more dimensions this has, the more accurate the embeddings can be -- but the higher the chance of overfitting there is.  The rule of thumb to follow is in order to fit these models, you need at least 10 times as many samples as there are latent dimensions (this is following a similar rule of thumb for fitting straight lines).  So if you have 100 samples, you should definitely not have a latent dimension of more than 10.  Furthermore, you can still overfit certain microbes and metabolites.  For example, you are fitting a model with those 100 samples and just 1 latent dimension, you can still easily overfit microbes and metabolites that appear in less than 10 samples -- so even fitting models with just 1 latent dimension will require some microbes and metabolites that appear in less than 10 samples to be filtered out.
 
 
 **Q** : What does a good model fit look like??
@@ -187,4 +187,4 @@ This also depends on if your program will converge. The `learning-rate` specifie
 If you are running this on a CPU, 16 cores, a run that reaches convergence should take about 1 day.
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch_size` parameter maybe required -- instead of having a small `batch_size` < 100, you'll want to bump up the `batch_size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
 
-Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vasquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)) and Julia Gauglitz for their README contributions.
+Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)) and Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) for their README contributions.
