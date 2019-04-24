@@ -5,7 +5,7 @@ Neural networks for estimating microbe-metabolite co-occurence probabilities.
 ```
 conda create -n rhapsody python=3.5 tensorflow numpy scipy pandas scikit-bio tqdm pip biom-format h5py -c conda-forge
 conda activate rhapsody
-pip install git+https://github.com/mortonjt/rhapsody.git
+pip install rhapsody
 ```
 
 If you are getting errors, it is likely because you have garbage channels under your .condarc.  Make sure to delete your .condarc -- you shouldn't need it.
