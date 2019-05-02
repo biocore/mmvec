@@ -11,7 +11,6 @@ from rhapsody.multimodal import MMvec
 from rhapsody.util import random_multimodal
 
 
-
 class TestMMvec(unittest.TestCase):
     def setUp(self):
         # build small simulation
@@ -46,7 +45,8 @@ class TestMMvec(unittest.TestCase):
 
         model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=k)
         model.fit(csr_matrix(self.trainX.values), self.trainY.values,
-                  device='cuda', learning_rate=1e-3, beta1=0.9, beta2=0.95)
+                  device='cpu', learning_rate=1e-3, mc_samples=5,
+                  beta1=0.8, beta2=0.9)
 
         U = model.embeddings.weight.detach().numpy()
         Ub = model.bias.weight.detach().numpy()

@@ -97,27 +97,28 @@ class MMvec(nn.Module):
         return - torch.mean(kld + likelihood)
 
     def fit(self, trainX, trainY, epochs=1000, batch_size=100, device='cpu',
-            learning_rate=1e-3, beta1=0.8, beta2=0.9):
+            learning_rate=1e-3, mc_samples=5, beta1=0.8, beta2=0.9):
+
         optimizer = optim.Adam(self.parameters(), betas=(beta1, beta2),
                                lr=learning_rate)
         self.train()
-        num_samples = trainX.shape[0]
         train_loss = 0
         losses = []
+        num_samples = trainX.shape[0]
         iterations = epochs * trainX.nnz // batch_size
-        print(iterations)
         for i in tqdm(range(0, iterations)):
-            inp, out = get_batch(trainX, trainY, i % num_samples, batch_size)
-
-            inp = inp.to(device)
-            out = out.to(device)
             optimizer.zero_grad()
-            pred = self.forward(inp)
-            loss = self.loss(pred, out)
-            loss.backward()
-            train_loss += loss.item()
-            losses.append(loss.item())
+            inp, out = get_batch(trainX, trainY, i % num_samples, batch_size)
+            inp = inp.to(device)
+            mean_loss = torch.zeros(mc_samples)
+            for j in range(mc_samples):
+                pred = self.forward(inp)
+                loss = self.loss(pred, out)
+                mean_loss[j] = loss
+            mean_loss = torch.mean(mean_loss)
+            mean_loss.backward()
+            train_loss += mean_loss.item()
+            losses.append(mean_loss.item())
             optimizer.step()
 
         return losses
-
