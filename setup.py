@@ -56,8 +56,8 @@ setup(name='rhapsody',
           'scikit-bio >= 0.5.1',
       ],
       classifiers=classifiers,
-      entry_points={
-          'qiime2.plugins': ['q2-rhapsody=rhapsody.q2.plugin_setup:plugin']
-      },
+      #entry_points={
+      #    'qiime2.plugins': ['q2-rhapsody=rhapsody.q2.plugin_setup:plugin']
+      #},
       package_data={},
       zip_safe=False)

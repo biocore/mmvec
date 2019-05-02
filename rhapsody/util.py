@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 import pandas as pd
 from sklearn.utils import check_random_state
@@ -236,3 +237,15 @@ def rank_hits(ranks, k, pos=True):
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
     edges['rank'] = edges['rank'].astype(np.float64)
     return edges
+
+
+def get_batch(X, Y, i, batch_size):
+    n = len(X.data)
+
+    row = X.getrow(i)
+    cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
+                      for i in range(len(row.indptr)-1)])
+    feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i+1]]
+                       for i in range(len(row.indptr)-1)])
+    inp = np.random.choice(feats, p=cnts/np.sum(cnts), size=batch_size)
+    return torch.from_numpy(inp).long(), torch.from_numpy(Y[i]).float()
