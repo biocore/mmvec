@@ -45,8 +45,8 @@ class MMvec(nn.Module):
         self.logstdVb = Variable(torch.randn(1, num_metabolites-1, device=device).float(),
                                  requires_grad=True)
 
-    def forward(self, inputs):
-        """ Predicts output abundances """
+    def encode(self, inputs):
+        """ Transforms inputs into lower dimensional space"""
         embeds = self.reparameterize(
             self.embeddings(inputs),
             self.logstdU(inputs)
@@ -55,6 +55,12 @@ class MMvec(nn.Module):
             self.bias(inputs),
             self.logstdUb(inputs)
         )
+        return embeds, biases
+
+    def forward(self, inputs):
+        """ Predicts output abundances """
+
+        embeds, biases = self.encode(inputs)
 
         V = self.reparameterize(self.muV, self.logstdV)
         Vb = self.reparameterize(self.muVb, self.logstdVb)
