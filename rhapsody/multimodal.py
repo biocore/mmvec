@@ -126,8 +126,8 @@ class MMvec(nn.Module):
 
         optimizer = optim.Adam(self.parameters(), betas=(beta1, beta2),
                                lr=learning_rate)
-        #scheduler = torch.optim.lr_scheduler.StepLR(
-        #    optimizer, step_size=step_size, gamma=gamma)
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=step_size, gamma=gamma)
 
 
         best_loss = np.inf
@@ -136,7 +136,7 @@ class MMvec(nn.Module):
         for ep in tqdm(range(0, epochs)):
 
             self.train()
-            #scheduler.step()
+            scheduler.step()
             for i in range(0, num_samples, self.batch_size):
                 optimizer.zero_grad()
 
@@ -160,7 +160,5 @@ class MMvec(nn.Module):
                     best_self = copy.deepcopy(self)
                     best_loss = ml
                 optimizer.step()
-
-            #print('epoch:', ep, 'loss:', ml, 'lr:', scheduler.get_lr())
 
         return best_self, losses
