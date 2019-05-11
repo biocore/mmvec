@@ -4,6 +4,7 @@ import copy
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
+from tensorboardX import SummaryWriter
 from skbio.stats.composition import clr_inv as softmax
 from scipy.stats import spearmanr
 import datetime
@@ -21,13 +22,19 @@ from torch.distributions.multinomial import Multinomial
 class MMvec(nn.Module):
     def __init__(self, num_microbes, num_metabolites, latent_dim,
                  batch_size=10, subsample_size=100,
-                 device='cpu'):
+                 device='cpu', save_path=None):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
         self.num_metabolites = num_metabolites
         self.device = device
         self.batch_size = batch_size
         self.subsample_size = subsample_size
+
+        if save_path is None:
+            basename = "logdir"
+            suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+            save_path = "_".join([basename, suffix])
+        self.save_path = save_path
 
         # input layer parameter (for the microbes)
         self.embeddings = nn.Embedding(num_microbes, latent_dim).to(device)
@@ -59,7 +66,6 @@ class MMvec(nn.Module):
 
     def forward(self, inputs):
         """ Predicts output abundances """
-
         embeds, biases = self.encode(inputs)
 
         V = self.reparameterize(self.muV, self.logstdV)
@@ -86,6 +92,19 @@ class MMvec(nn.Module):
         # https://arxiv.org/abs/1312.6114
         return 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
+    def cross_validation(self, inp, out):
+        """ Computes cross-validation scores on holdout train/test set.
+
+        Here, the mean absolute error is computed, which can be interpreted
+        as the average number of counts that were incorrectly predicted.
+        """
+        logprobs = self.forward(inp)
+        n = torch.sum(out, 1)
+        pred = n * torch.nn.softmax(logprobs, 1)
+        # computes mean absolute error.
+        mae = torch.mean(torch.abs(out - pred))
+        return mae
+
     def loss(self, pred, obs):
         """ Computes the loss function to be minimized. """
         d1 = self.divergence(self.embeddings.weight, self.logstdU.weight)
@@ -97,17 +116,22 @@ class MMvec(nn.Module):
         likelihood = Multinomial(logits=pred).log_prob(obs)
         return - torch.mean(kld + likelihood)
 
-    def fit(self, trainX, trainY, epochs=1000,
-            learning_rate=1e-3, mc_samples=5,
-            beta1=0.8, beta2=0.9, gamma=0.1, step_size=1):
+    def fit(self, trainX, trainY, testX, testY,
+            epochs=1000, learning_rate=1e-3, mc_samples=5,
+            beta1=0.8, beta2=0.9, gamma=0.1, step_size=1,
+            summary_interval=10, checkpoint_interval=10):
         """ Train the actual model
 
         Parameters
         ----------
         trainX : scipy.sparse.csr
-            Input data (samples x features)
+            Input training data (samples x features)
         trainY : np.array
-            Output data (samples x features)
+            Output training data (samples x features)
+        testX : scipy.sparse.csr
+            Input testing data (samples x features)
+        testY : np.array
+            Output testing data (samples x features)
         epochs : int
             Number of training iterations over the entire dataset
         batch_size : int
@@ -120,24 +144,29 @@ class MMvec(nn.Module):
             Percentage decrease of the learning rate per scheduler step.
         step_size: int
             Number of epochs before the scheduler step is incremented.
+        summary_interval : int
+            The number of seconds until a summary is written.
+        checkpoint_interval : int
+            The number of seconds until a checkpoint is saved.
         """
+        last_checkpoint_time = 0
+        last_summary_time = 0
+        best_loss = np.inf
 
         num_samples = trainY.shape[0]
-
         optimizer = optim.Adam(self.parameters(), betas=(beta1, beta2),
                                lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer, step_size=step_size, gamma=gamma)
 
+        writer = SummaryWriter(self.save_path)
 
-        best_loss = np.inf
-
-        losses = []
         for ep in tqdm(range(0, epochs)):
 
             self.train()
             scheduler.step()
             for i in range(0, num_samples, self.batch_size):
+                now = time.time()
                 optimizer.zero_grad()
 
                 inp, out = get_batch(trainX, trainY, i % num_samples,
@@ -154,11 +183,32 @@ class MMvec(nn.Module):
                 mean_loss = torch.mean(mean_loss)
                 mean_loss.backward()
                 ml = mean_loss.item()
-                losses.append(ml)
+
                 # remember the best model
                 if ml < best_loss:
                     best_self = copy.deepcopy(self)
                     best_loss = ml
+                # save summary
+                if now - last_summary_time > summary_interval:
+                    cv_mae = self.cross_validation(testX, testY)
+                    iteration = i + ep*num_samples
+                    writer.add_scalar('elbo', mean_loss, iteration)
+                    writer.add_scalar('cv_mae', cv_mae, iteration)
+                    writer.add_embedding(
+                        self.embeddings,
+                        global_step=iteration)
+                    # note that these are in alr coordinates
+                    writer.add_embedding(
+                        self.muV,
+                        global_step=iteration, tag='muV')
+                    last_summary_time = now
+
+                # checkpoint model
+                now = time.time()
+                if now - last_checkpoint_time > checkpoint_interval:
+                    torch.save(self.state_dict(), self.save_path)
+                    last_checkpoint_time = now
+
                 optimizer.step()
 
-        return best_self, losses
+        return best_self

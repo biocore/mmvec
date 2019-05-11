@@ -137,6 +137,19 @@ def split_tables(otu_table, metabolite_table,
 
     Returns
     -------
+    train_microbes : pd.DataFrame
+       Training set of microbes
+    test_microbes : pd.DataFrame
+       Testing set of microbes
+    train_metabolites : pd.DataFrame
+       Training set of metabolites
+    test_metabolites : pd.DataFrame
+       Testing set of metabolites
+
+    Notes
+    -----
+    There is an inefficient conversion from a sparse matrix to a
+    dense matrix.  This may become a bottleneck later.
     """
     microbes_df = otu_table.to_dataframe().T
     metabolites_df = metabolite_table.to_dataframe().T
@@ -279,3 +292,22 @@ def get_batch(X, Y, i, subsample_size, batch_size):
     Xs = np.hstack(Xs)
     Ys = np.repeat(np.vstack(Ys), subsample_size, axis=0)
     return torch.from_numpy(Xs).long(), torch.from_numpy(Ys).float()
+
+
+def format_params(mu, std, colnames, rownames,
+                  embed_name, index_name='feature_id'):
+    mudf = pd.DataFrame(mu, columns=colnames, index=rownames)
+    mudf = mudf.reset_index()
+    mudf = mudf.rename(columns={'index': 'feature_id'})
+    mudf = pd.melt(mudf, id_vars=['feature_id'],
+                   var_name='axis', value_name='mean')
+
+    stddf = pd.DataFrame(std, columns=colnames, index=rownames)
+    stddf = stddf.reset_index()
+    stddf = stddf.rename(columns={'index': 'feature_id'})
+    stddf = pd.melt(stddf, id_vars=['feature_id'],
+                    var_name='axis', value_name='stddev')
+    df = pd.merge(mudf, stddf, on=['feature_id', 'axis'])
+    df['embed_type'] = embed_name
+
+    return df[['feature_id', 'axis', 'embed_type', 'mean', 'stddev']]
