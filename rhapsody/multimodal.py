@@ -100,7 +100,9 @@ class MMvec(nn.Module):
         """
         logprobs = self.forward(inp)
         n = torch.sum(out, 1)
-        pred = n * torch.nn.softmax(logprobs, 1)
+        probs = torch.nn.functional.softmax(logprobs, 1)
+        pred = n.view(-1, 1) * probs
+
         # computes mean absolute error.
         mae = torch.mean(torch.abs(out - pred))
         return mae
@@ -190,23 +192,28 @@ class MMvec(nn.Module):
                     best_loss = ml
                 # save summary
                 if now - last_summary_time > summary_interval:
-                    cv_mae = self.cross_validation(testX, testY)
+                    test_in, test_out = get_batch(testX, testY, i % num_samples,
+                                         self.subsample_size, self.batch_size)
+                    cv_mae = self.cross_validation(test_in, test_out)
                     iteration = i + ep*num_samples
                     writer.add_scalar('elbo', mean_loss, iteration)
                     writer.add_scalar('cv_mae', cv_mae, iteration)
                     writer.add_embedding(
-                        self.embeddings,
+                        self.embeddings.weight.detach(),
                         global_step=iteration)
                     # note that these are in alr coordinates
                     writer.add_embedding(
-                        self.muV,
+                        self.muV.detach(),
                         global_step=iteration, tag='muV')
                     last_summary_time = now
 
                 # checkpoint model
                 now = time.time()
                 if now - last_checkpoint_time > checkpoint_interval:
-                    torch.save(self.state_dict(), self.save_path)
+                    suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+                    torch.save(self.state_dict(),
+                               os.path.join(self.save_path,
+                                            'checkpoint_' + suffix))
                     last_checkpoint_time = now
 
                 optimizer.step()

@@ -44,15 +44,12 @@ class TestMMvec(unittest.TestCase):
         model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=k,
                       batch_size=50, subsample_size=100,
                       device='cpu')
-        fitted_model, losses = model.fit(
+        fitted_model = model.fit(
             csr_matrix(self.trainX.values), self.trainY.values,
             csr_matrix(self.testX.values), self.testY.values,
             epochs=20,
             learning_rate=1e-1, mc_samples=5,
             beta1=0.9, beta2=0.95, step_size=10)
-
-        # just test to see if the loss has decreased
-        self.assertLess(np.mean(losses[-50:]), np.mean(losses[:50]))
 
 
 if __name__ == "__main__":

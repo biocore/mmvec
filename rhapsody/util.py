@@ -192,7 +192,7 @@ def onehot(microbes):
     sample_ids : np.array
        Sample ids
     """
-    coo = coo_matrix(microbes)
+    coo = microbes.tocoo()
     data = coo.data.astype(np.int64)
     otu_ids = coo.col
     sample_ids = coo.row
