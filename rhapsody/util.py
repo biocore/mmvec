@@ -259,9 +259,9 @@ def get_batch(X, Y, i, subsample_size, batch_size):
     Parameters
     ----------
     X : scipy.sparse.csr_matrix
-        Input sparse matrix of abundances
+        Input sparse matrix of abundances (samples x features)
     Y : np.array
-        Output dense matrix of abundances
+        Output dense matrix of abundances (samples x features)
     i : int
         Sample index
     subsample_size : int

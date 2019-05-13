@@ -181,6 +181,10 @@ class MMvec(nn.Module):
             The number of seconds until a summary is written.
         checkpoint_interval : int
             The number of seconds until a checkpoint is saved.
+
+        Returns
+        -------
+        self
         """
         last_checkpoint_time = 0
         last_summary_time = 0
@@ -193,7 +197,6 @@ class MMvec(nn.Module):
             optimizer, step_size=step_size, gamma=gamma)
 
         writer = SummaryWriter(self.save_path)
-        losses, cv = [], []
 
         for ep in tqdm(range(0, epochs)):
 
@@ -215,7 +218,7 @@ class MMvec(nn.Module):
                     loss = self.loss(inp, out)
                     loss.backward()
                     ml = loss.item()
-                    losses.append(ml)
+
 
                     # remember the best model
                     if ml < best_loss:
@@ -226,7 +229,6 @@ class MMvec(nn.Module):
                         test_in, test_out = get_batch(testX, testY, i % num_samples,
                                              self.subsample_size, self.batch_size)
                         cv_mae = self.cross_validation(test_in, test_out)
-                        cv.append(cv_mae.item())
                         iteration = i + ep*num_samples
                         writer.add_scalar('elbo', loss, iteration)
                         writer.add_scalar('cv_mae', cv_mae, iteration)
@@ -250,4 +252,4 @@ class MMvec(nn.Module):
 
                     optimizer.step()
 
-        return best_self, losses, cv
+        return best_self

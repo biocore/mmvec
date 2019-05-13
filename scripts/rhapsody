@@ -155,7 +155,7 @@ def seq2seq(exog_features, endog_features,
     model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=latent_dim,
                   batch_size=batch_size, subsample_size=subsample_size,
                   device=device_name)
-    fitted_model, losses = model.fit(
+    fitted_model = model.fit(
         trainX, trainY, testX, testY,
         epochs=epochs, gamma=decay_rate,
         learning_rate=learning_rate, mc_samples=mc_samples,
