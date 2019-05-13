@@ -49,7 +49,7 @@ def rhapsody():
 @click.option('--batch-size',
               help='Number of samples to analyze per iteration.', default=10)
 @click.option('--subsample-size',
-              help='Number of sequences to analyze per sample.', default=10)
+              help='Number of sequences to analyze per sample.', default=100)
 @click.option('--mc-samples',
               help='Number of Monte Carlo samples to estimate gradient steps.',
               default=5)
@@ -86,8 +86,8 @@ def rhapsody():
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
-@click.option('--params-file', default=None,
-              help=('Parameter file containing microbe-metabolite '
+@click.option('--model-output', default=None,
+              help=('Model parameter file containing microbe-metabolite '
                     'interaction parameters.'))
 def seq2seq(input_seq_counts, output_seq_counts,
             metadata_file, training_column,
@@ -96,7 +96,7 @@ def seq2seq(input_seq_counts, output_seq_counts,
             latent_dim, arm_the_gpu, learning_rate,
             decay_rate, step_size, beta1, beta2, seed,
             checkpoint_interval, summary_interval,
-            summary_dir, params_file):
+            summary_dir, model_output):
 
     # set random seed if specified
     if seed is not None:
@@ -193,7 +193,7 @@ def seq2seq(input_seq_counts, output_seq_counts,
             format_params(mu_vb, std_vb, ['bias'], alr_ms_ids, 'metabolite')
         ), axis=0)
 
-    df.to_csv(params_file)
+    df.to_csv(model_output)
 
 
 if __name__ == '__main__':
