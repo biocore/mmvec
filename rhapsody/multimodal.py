@@ -21,7 +21,7 @@ from torch.distributions.multinomial import Multinomial
 
 class MMvec(nn.Module):
     def __init__(self, num_microbes, num_metabolites, latent_dim,
-                 batch_size=10, subsample_size=100,
+                 batch_size=10, subsample_size=100, mc_samples=10,
                  device='cpu', save_path=None):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
@@ -29,6 +29,7 @@ class MMvec(nn.Module):
         self.device = device
         self.batch_size = batch_size
         self.subsample_size = subsample_size
+        self.mc_samples = mc_samples
 
         if save_path is None:
             basename = "logdir"
@@ -107,16 +108,21 @@ class MMvec(nn.Module):
         mae = torch.mean(torch.abs(out - pred))
         return mae
 
-    def loss(self, pred, obs):
+    def loss(self, inp, obs):
         """ Computes the loss function to be minimized. """
+        mean_like = torch.zeros(self.mc_samples, device=self.device)
         d1 = self.divergence(self.embeddings.weight, self.logstdU.weight)
         d2 = self.divergence(self.bias.weight, self.logstdUb.weight)
         d3 = self.divergence(self.muV, self.logstdV)
         d4 = self.divergence(self.muVb, self.logstdVb)
-        kld = d1 + d2 + d3 + d4
-        total = torch.sum(obs)
-        likelihood = Multinomial(logits=pred).log_prob(obs)
-        return - torch.mean(kld + likelihood)
+        for i in range(self.mc_samples):
+            pred = self.forward(inp)
+            kld = d1 + d2 + d3 + d4
+            likelihood = Multinomial(logits=pred).log_prob(obs)
+            mean_like[i] = - torch.mean(kld + likelihood)
+
+        elbo = torch.mean(mean_like)
+        return elbo
 
     def fit(self, trainX, trainY, testX, testY,
             epochs=1000, learning_rate=1e-3, mc_samples=5,
@@ -162,6 +168,7 @@ class MMvec(nn.Module):
             optimizer, step_size=step_size, gamma=gamma)
 
         writer = SummaryWriter(self.save_path)
+        losses, cv = [], []
 
         for ep in tqdm(range(0, epochs)):
 
@@ -175,16 +182,10 @@ class MMvec(nn.Module):
                                      self.subsample_size, self.batch_size)
                 inp = inp.to(device=self.device)
                 out = out.to(device=self.device)
-                mean_loss = torch.zeros(mc_samples, device=self.device)
-                # allow for MC sampling
-                for j in range(mc_samples):
-                    pred = self.forward(inp)
-                    loss = self.loss(pred, out)
-                    mean_loss[j] = loss
-
-                mean_loss = torch.mean(mean_loss)
-                mean_loss.backward()
-                ml = mean_loss.item()
+                loss = self.loss(inp, out)
+                loss.backward()
+                ml = loss.item()
+                losses.append(ml)
 
                 # remember the best model
                 if ml < best_loss:
@@ -195,8 +196,9 @@ class MMvec(nn.Module):
                     test_in, test_out = get_batch(testX, testY, i % num_samples,
                                          self.subsample_size, self.batch_size)
                     cv_mae = self.cross_validation(test_in, test_out)
+                    cv.append(cv_mae.item())
                     iteration = i + ep*num_samples
-                    writer.add_scalar('elbo', mean_loss, iteration)
+                    writer.add_scalar('elbo', loss, iteration)
                     writer.add_scalar('cv_mae', cv_mae, iteration)
                     writer.add_embedding(
                         self.embeddings.weight.detach(),
@@ -218,4 +220,4 @@ class MMvec(nn.Module):
 
                 optimizer.step()
 
-        return best_self
+        return best_self, losses, cv

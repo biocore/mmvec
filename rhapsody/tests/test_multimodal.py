@@ -39,17 +39,23 @@ class TestMMvec(unittest.TestCase):
 
         n, d1 = self.trainX.shape
         n, d2 = self.trainY.shape
-        k = self.latent_dim
+        latent_dim = self.latent_dim
 
-        model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=k,
-                      batch_size=50, subsample_size=100,
+        model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=latent_dim,
+                      batch_size=10, subsample_size=300,
                       device='cpu')
-        fitted_model = model.fit(
+        model, losses, cv = model.fit(
             csr_matrix(self.trainX.values), self.trainY.values,
             csr_matrix(self.testX.values), self.testY.values,
-            epochs=20,
-            learning_rate=1e-1, mc_samples=5,
-            beta1=0.9, beta2=0.95, step_size=10)
+            epochs=10, gamma=0.1,
+            learning_rate=1, mc_samples=5,
+            beta1=0.9, beta2=0.95, step_size=1)
+
+        # Just check to see if the loss / cross validation accuracy decreased
+        # since the object is non-convex, the results will be different for
+        # every random initialization.
+        self.assertGreater(losses[0], losses[-1])
+        self.assertGreater(cv[0], cv[-1])
 
 
 if __name__ == "__main__":
