@@ -22,6 +22,7 @@ from torch.distributions.multinomial import Multinomial
 class MMvec(nn.Module):
     def __init__(self, num_microbes, num_metabolites, latent_dim,
                  batch_size=10, subsample_size=100, mc_samples=10,
+                 gain=1,
                  device='cpu', save_path=None):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
@@ -37,20 +38,28 @@ class MMvec(nn.Module):
         self.save_path = save_path
 
         # input layer parameter (for the microbes)
+        w = torch.empty(num_microbes, latent_dim, device=device)
+        b = torch.empty(num_microbes, 1, device=device)
+        torch.nn.init.xavier_uniform_(w, gain=gain)
+        torch.nn.init.xavier_uniform_(b, gain=gain)
         self.embeddings = nn.Embedding(num_microbes, latent_dim).to(device)
         self.bias = nn.Embedding(num_microbes, 1).to(device)
         self.logstdU = nn.Embedding(num_microbes, latent_dim).to(device)
         self.logstdUb = nn.Embedding(num_microbes, 1).to(device)
+        self.embeddings.weight = nn.Parameter(w)
+        self.embeddings.logstdU = nn.Parameter(b)
 
         # output layer parameters (for the metabolites)
-        self.muV = Variable(torch.randn(latent_dim, num_metabolites-1, device=device).float(),
-                            requires_grad=True)
-        self.muVb = Variable(torch.randn(1, num_metabolites-1, device=device).float(),
-                             requires_grad=True)
-        self.logstdV = Variable(torch.randn(latent_dim, num_metabolites-1, device=device).float(),
-                                requires_grad=True)
-        self.logstdVb = Variable(torch.randn(1, num_metabolites-1, device=device).float(),
-                                 requires_grad=True)
+        w_ = torch.empty(latent_dim, num_metabolites-1, device=device)
+        b_ = torch.empty(1, num_metabolites-1, device=device)
+        torch.nn.init.xavier_uniform_(w_, gain=gain)
+        torch.nn.init.xavier_uniform_(b_, gain=gain)
+
+        self.muV = Variable(w_.float(), requires_grad=True)
+        self.muVb = Variable(b_.float(), requires_grad=True)
+        self.logstdV = Variable(w_.float(), requires_grad=True)
+        self.logstdVb = Variable(b_.float(), requires_grad=True)
+
         self._gradU = False
 
     def alternate(self):
