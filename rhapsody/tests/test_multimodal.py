@@ -16,7 +16,7 @@ class TestMMvec(unittest.TestCase):
         # build small simulation
         self.latent_dim = 2
         res = random_multimodal(
-            num_microbes=8, num_metabolites=8, num_samples=150,
+            num_microbes=20, num_metabolites=20, num_samples=100,
             latent_dim=self.latent_dim, sigmaQ=2, sigmaU=1, sigmaV=1,
             microbe_total=100, metabolite_total=1000, seed=1
         )
@@ -42,7 +42,7 @@ class TestMMvec(unittest.TestCase):
         latent_dim = self.latent_dim
 
         model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=latent_dim,
-                      batch_size=10, subsample_size=300,
+                      batch_size=5, subsample_size=100,
                       device='cpu')
         model, losses, cv = model.fit(
             csr_matrix(self.trainX.values), self.trainY.values,
@@ -56,6 +56,21 @@ class TestMMvec(unittest.TestCase):
         # every random initialization.
         self.assertGreater(losses[0], losses[-1])
         self.assertGreater(cv[0], cv[-1])
+
+        # Loose checks on the weight matrices to make sure
+        # that we aren't learning complete garbage
+        u = model.embeddings.weight.detach().numpy()
+        v = model.muV.detach().numpy()
+
+        ubias = model.bias.weight.detach().numpy()
+        vbias = model.muVb.detach().numpy()
+        res = spearmanr(pdist(self.U), pdist(u))
+        self.assertGreater(res.correlation, 0.2)
+        self.assertLess(res.pvalue, 0.01)
+
+        res = spearmanr(pdist(self.V.T), pdist(v.T))
+        self.assertGreater(res.correlation, 0.2)
+        self.assertLess(res.pvalue, 0.01)
 
 
 if __name__ == "__main__":

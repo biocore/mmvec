@@ -51,6 +51,32 @@ class MMvec(nn.Module):
                                 requires_grad=True)
         self.logstdVb = Variable(torch.randn(1, num_metabolites-1, device=device).float(),
                                  requires_grad=True)
+        self._gradU = False
+
+    def alternate(self):
+        if self._gradU:
+            self.embeddings.requires_grad = True
+            self.bias.requires_grad = True
+            self.logstdU.requires_grad = True
+            self.logstdUb.requires_grad = True
+
+            self.muV.requires_grad = False
+            self.muVb.requires_grad = False
+            self.logstdV.requires_grad = False
+            self.logstdVb.requires_grad = False
+
+        else:
+            self.embeddings.requires_grad = False
+            self.bias.requires_grad = False
+            self.logstdU.requires_grad = False
+            self.logstdUb.requires_grad = False
+
+            self.muV.requires_grad = True
+            self.muVb.requires_grad = True
+            self.logstdV.requires_grad = True
+            self.logstdVb.requires_grad = True
+
+        self._gradU = not self._gradU
 
     def encode(self, inputs):
         """ Transforms inputs into lower dimensional space"""
@@ -173,50 +199,55 @@ class MMvec(nn.Module):
 
             self.train()
             scheduler.step()
-            for i in range(0, num_samples, self.batch_size):
-                now = time.time()
-                optimizer.zero_grad()
+            # 2 rounds so that both weights can be iterated
+            # We need alternating minimization, because
+            # this object function is biconvex
+            for _ in range(2):
+                self.alternate()
+                for i in range(0, num_samples, self.batch_size):
+                    now = time.time()
+                    optimizer.zero_grad()
 
-                inp, out = get_batch(trainX, trainY, i % num_samples,
-                                     self.subsample_size, self.batch_size)
-                inp = inp.to(device=self.device)
-                out = out.to(device=self.device)
-                loss = self.loss(inp, out)
-                loss.backward()
-                ml = loss.item()
-                losses.append(ml)
-
-                # remember the best model
-                if ml < best_loss:
-                    best_self = copy.deepcopy(self)
-                    best_loss = ml
-                # save summary
-                if now - last_summary_time > summary_interval:
-                    test_in, test_out = get_batch(testX, testY, i % num_samples,
+                    inp, out = get_batch(trainX, trainY, i % num_samples,
                                          self.subsample_size, self.batch_size)
-                    cv_mae = self.cross_validation(test_in, test_out)
-                    cv.append(cv_mae.item())
-                    iteration = i + ep*num_samples
-                    writer.add_scalar('elbo', loss, iteration)
-                    writer.add_scalar('cv_mae', cv_mae, iteration)
-                    writer.add_embedding(
-                        self.embeddings.weight.detach(),
-                        global_step=iteration)
-                    # note that these are in alr coordinates
-                    writer.add_embedding(
-                        self.muV.detach(),
-                        global_step=iteration, tag='muV')
-                    last_summary_time = now
+                    inp = inp.to(device=self.device)
+                    out = out.to(device=self.device)
+                    loss = self.loss(inp, out)
+                    loss.backward()
+                    ml = loss.item()
+                    losses.append(ml)
 
-                # checkpoint model
-                now = time.time()
-                if now - last_checkpoint_time > checkpoint_interval:
-                    suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
-                    torch.save(self.state_dict(),
-                               os.path.join(self.save_path,
-                                            'checkpoint_' + suffix))
-                    last_checkpoint_time = now
+                    # remember the best model
+                    if ml < best_loss:
+                        best_self = copy.deepcopy(self)
+                        best_loss = ml
+                    # save summary
+                    if now - last_summary_time > summary_interval:
+                        test_in, test_out = get_batch(testX, testY, i % num_samples,
+                                             self.subsample_size, self.batch_size)
+                        cv_mae = self.cross_validation(test_in, test_out)
+                        cv.append(cv_mae.item())
+                        iteration = i + ep*num_samples
+                        writer.add_scalar('elbo', loss, iteration)
+                        writer.add_scalar('cv_mae', cv_mae, iteration)
+                        writer.add_embedding(
+                            self.embeddings.weight.detach(),
+                            global_step=iteration)
+                        # note that these are in alr coordinates
+                        writer.add_embedding(
+                            self.muV.detach(),
+                            global_step=iteration, tag='muV')
+                        last_summary_time = now
 
-                optimizer.step()
+                    # checkpoint model
+                    now = time.time()
+                    if now - last_checkpoint_time > checkpoint_interval:
+                        suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+                        torch.save(self.state_dict(),
+                                   os.path.join(self.save_path,
+                                                'checkpoint_' + suffix))
+                        last_checkpoint_time = now
+
+                    optimizer.step()
 
         return best_self, losses, cv
