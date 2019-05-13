@@ -259,9 +259,9 @@ def get_batch(X, Y, i, subsample_size, batch_size):
     Parameters
     ----------
     X : scipy.sparse.csr_matrix
-        Input sparse matrix of abundances
+        Input sparse matrix of abundances (samples x features)
     Y : np.array
-        Output dense matrix of abundances
+        Output dense matrix of abundances (samples x features)
     i : int
         Sample index
     subsample_size : int
@@ -279,7 +279,7 @@ def get_batch(X, Y, i, subsample_size, batch_size):
     Xs = []
     Ys = []
     for n in range(batch_size):
-        k = (i + n) % Y.shape[1]
+        k = (i + n) % Y.shape[0]
         row = X.getrow(k)
         cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
                           for i in range(len(row.indptr)-1)])
