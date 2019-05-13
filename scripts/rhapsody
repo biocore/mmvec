@@ -180,7 +180,7 @@ def seq2seq(exog_features, endog_features,
 
     otu_ids = list(map(lambda x: 'clr(%s)' % x,
                        list(train_microbes_df.columns)))
-    ms_ids = list(train_metabolite_df.columns)
+    ms_ids = list(train_metabolites_df.columns)
     pc_ids = ['PC%d' % i for i in range(len(u.shape[1]))]
     alr_ms_ids = ['log(%s:%s)' % (ms_ids[i], ms_ids[0])
                   for i in range(1, len(ms_ids))]
