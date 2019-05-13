@@ -188,7 +188,7 @@ def seq2seq(exog_features, endog_features,
     df = pd.concat(
         (
             format_params(mu_u, std_u, pc_ids, otu_ids, 'microbe'),
-            format_params(mu_v, std_v, pc_ids, alr_ms_ids, 'metabolite'),
+            format_params(mu_v.T, std_v.T, pc_ids, alr_ms_ids, 'metabolite'),
             format_params(mu_ub, std_ub, ['bias'], otu_ids, 'microbe'),
             format_params(mu_vb, std_vb, ['bias'], alr_ms_ids, 'metabolite')
         ), axis=0)
