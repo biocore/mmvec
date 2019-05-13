@@ -30,7 +30,6 @@ class MMvec(nn.Module):
         self.batch_size = batch_size
         self.subsample_size = subsample_size
         self.mc_samples = mc_samples
-
         if save_path is None:
             basename = "logdir"
             suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")

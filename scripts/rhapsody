@@ -25,9 +25,9 @@ def rhapsody():
 
 
 @rhapsody.command()
-@click.option('--input-seq-counts',
+@click.option('--exog-features',
               help='Input sequence counts to use for prediction.')
-@click.option('--output-seq-counts',
+@click.option('--endog-features',
               help=('Output sequence abundances to predict '
                     'from input sequence counts.'))
 @click.option('--metadata-file', default=None,
@@ -89,7 +89,7 @@ def rhapsody():
 @click.option('--model-output', default=None,
               help=('Model parameter file containing microbe-metabolite '
                     'interaction parameters.'))
-def seq2seq(input_seq_counts, output_seq_counts,
+def seq2seq(exog_features, endog_features
             metadata_file, training_column,
             num_testing_examples, min_feature_count,
             epochs, batch_size, subsample_size, mc_samples,
@@ -97,7 +97,7 @@ def seq2seq(input_seq_counts, output_seq_counts,
             decay_rate, step_size, beta1, beta2, seed,
             checkpoint_interval, summary_interval,
             summary_dir, model_output):
-
+    input_seq_counts, output_seq_counts = exog_features, endog_features
     # set random seed if specified
     if seed is not None:
         np.random.seed(seed)
@@ -138,13 +138,13 @@ def seq2seq(input_seq_counts, output_seq_counts,
 
     sname = os.path.join(summary_dir, sname)
 
-    n, d1 = microbes.shape
-    n, d2 = metabolites.shape
-
     trainX = csr_matrix(train_microbes_df.values)
     testX = csr_matrix(test_microbes_df.values)
     trainY = train_metabolites_df.values
     testY = test_metabolites_df.values
+
+    n, d1 = trainX.shape
+    n, d2 = trainY.shape
 
     if arm_the_gpu:
         # pick out the first GPU
