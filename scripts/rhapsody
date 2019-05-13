@@ -89,7 +89,7 @@ def rhapsody():
 @click.option('--model-output', default=None,
               help=('Model parameter file containing microbe-metabolite '
                     'interaction parameters.'))
-def seq2seq(exog_features, endog_features
+def seq2seq(exog_features, endog_features,
             metadata_file, training_column,
             num_testing_examples, min_feature_count,
             epochs, batch_size, subsample_size, mc_samples,
