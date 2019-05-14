@@ -164,10 +164,10 @@ def seq2seq(exog_features, endog_features,
         checkpoint_interval=checkpoint_interval)
 
     # now extract the model weights and save them to disk
-    mu_u = fitted_model.embeddings.weight.detach().numpy()
-    mu_ub = fitted_model.bias.weight.detach().numpy().reshape(-1, 1)
-    mu_v = fitted_model.muV.detach().numpy()
-    mu_vb = fitted_model.muVb.detach().numpy().reshape(-1, 1)
+    mu_u = fitted_model.embeddings.weight.detach().cpu().numpy()
+    mu_ub = fitted_model.bias.weight.detach().cpu().numpy().reshape(-1, 1)
+    mu_v = fitted_model.muV.detach().cpu().numpy()
+    mu_vb = fitted_model.muVb.detach().cpu().numpy().reshape(-1, 1)
 
     std_u = np.exp(fitted_model.logstdU.weight.detach().numpy())
     std_ub = np.exp(

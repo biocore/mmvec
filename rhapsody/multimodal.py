@@ -22,8 +22,7 @@ from torch.distributions.multinomial import Multinomial
 class MMvec(nn.Module):
     def __init__(self, num_microbes, num_metabolites, latent_dim,
                  batch_size=10, subsample_size=100, mc_samples=10,
-                 gain=1,
-                 device='cpu', save_path=None):
+                 gain=1, device='cpu', save_path=None):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
         self.num_metabolites = num_metabolites
@@ -237,6 +236,8 @@ class MMvec(nn.Module):
                     if now - last_summary_time > summary_interval:
                         test_in, test_out = get_batch(testX, testY, i % num_samples,
                                              self.subsample_size, self.batch_size)
+                        test_in = test_in.to(device=self.device)
+                        test_out = test_out.to(device=self.device)
                         cv_mae = self.cross_validation(test_in, test_out)
                         iteration = i + ep*num_samples
                         writer.add_scalar('elbo', loss, iteration)
