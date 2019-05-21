@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import pandas as pd
 import numbers
+from scipy.sparse import coo_matrix
 
 
 def check_random_state(seed):
@@ -84,6 +85,9 @@ def split_tables(otu_table, metabolite_table,
         sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
     else:
+        if len(set(metadata[training_column]) & {'Train', 'Test'}) == 0:
+            raise ValueError("Training column must only specify `Train` and `Test`"
+                             "values")
         idx = metadata.loc[metadata[training_column] != 'Train'].index
         sample_ids = set(idx)
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
@@ -111,7 +115,7 @@ def onehot(microbes):
     sample_ids : np.array
        Sample ids
     """
-    coo = microbes.tocoo()
+    coo = coo_matrix(microbes)
     data = coo.data.astype(np.int64)
     otu_ids = coo.col
     sample_ids = coo.row
