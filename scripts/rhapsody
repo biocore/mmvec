@@ -135,10 +135,11 @@ def mmvec(microbe_file, metabolite_file,
     microbe_total = np.sum(train_microbes_df.values)
     model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                   microbe_total=microbe_total, latent_dim=latent_dim,
-                  batch_size=batch_size, subsample_size=subsample_size,
-                  save_path=sname
+                  batch_size=batch_size, subsample_size=subsample_size
     )
-    model.to(device=device_name)
+    # if device_name=='cuda':
+    model = model.to(device=device_name)
+
     fitted_model = train_cooccurrence(
         model,
         trainX, trainY, testX, testY,
@@ -146,7 +147,7 @@ def mmvec(microbe_file, metabolite_file,
         beta1=beta1, beta2=beta2,
         summary_interval=summary_interval,
         checkpoint_interval=checkpoint_interval,
-        device=device_name)
+        device=device_name, save_path=sname)
 
     # now extract the model weights and save them to disk
     def extract(x):
