@@ -28,6 +28,9 @@ classifiers = [s.strip() for s in classes.split('\n') if s]
 
 description = ('Microbe-metabolite interactions through neural networks')
 
+with open('README.md') as f:
+    long_description = f.read()
+
 # version parsing from __init__ pulled from Flask's setup.py
 # https://github.com/mitsuhiko/flask/blob/master/setup.py
 _version_re = re.compile(r'__version__\s+=\s+(.*)')
@@ -40,7 +43,7 @@ setup(name='rhapsody',
       version=version,
       license='BSD-3-Clause',
       description=description,
-      long_description=description,
+      long_description=long_description,
       author="gneiss development team",
       author_email="jamietmorton@gmail.com",
       maintainer="gneiss development team",
@@ -56,8 +59,8 @@ setup(name='rhapsody',
           'scikit-bio >= 0.5.1',
       ],
       classifiers=classifiers,
-      #entry_points={
-      #    'qiime2.plugins': ['q2-rhapsody=rhapsody.q2.plugin_setup:plugin']
-      #},
+      entry_points={
+          'qiime2.plugins': ['q2-rhapsody=rhapsody.q2.plugin_setup:plugin']
+      },
       package_data={},
       zip_safe=False)
