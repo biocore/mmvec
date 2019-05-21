@@ -1,111 +1,32 @@
 import numpy as np
 import pandas as pd
-from sklearn.utils import check_random_state
 from skbio.stats.composition import ilr_inv
 from skbio.stats.composition import clr_inv as softmax
 from scipy.sparse import coo_matrix
 
 
-def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
-                      latent_dim=3, low=-1, high=1,
-                      microbe_total=10, metabolite_total=100,
-                      uB=0, sigmaB=2, sigmaQ=0.1,
-                      uU=0, sigmaU=1, uV=0, sigmaV=1,
-                      seed=0):
-    """
+def check_random_state(seed):
+    """Turn seed into a np.random.RandomState instance
     Parameters
     ----------
-    num_microbes : int
-       Number of microbial species to simulate
-    num_metabolites : int
-       Number of molecules to simulate
-    num_samples : int
-       Number of samples to generate
-    latent_dim :
-       Number of latent dimensions
-    low : float
-       Lower bound of gradient
-    high : float
-       Upper bound of gradient
-    microbe_total : int
-       Total number of microbial species
-    metabolite_total : int
-       Total number of metabolite species
-    uB : float
-       Mean of regression coefficient distribution
-    sigmaB : float
-       Standard deviation of regression coefficient distribution
-    sigmaQ : float
-       Standard deviation of error distribution
-    uU : float
-       Mean of microbial input projection coefficient distribution
-    sigmaU : float
-       Standard deviation of microbial input projection
-       coefficient distribution
-    uV : float
-       Mean of metabolite output projection coefficient distribution
-    sigmaV : float
-       Standard deviation of metabolite output projection
-       coefficient distribution
-    seed : float
-       Random seed
+    seed : None | int | instance of RandomState
+        If seed is None, return the RandomState singleton used by np.random.
+        If seed is an int, return a new RandomState instance seeded with seed.
+        If seed is already a RandomState instance, return it.
+        Otherwise raise ValueError.
 
-    Returns
-    -------
-    microbe_counts : pd.DataFrame
-       Count table of microbial counts
-    metabolite_counts : pd.DataFrame
-       Count table of metabolite counts
+    Note 
+    ----
+    This is directly from sklearn
     """
-    state = check_random_state(seed)
-    # only have two coefficients
-    beta = state.normal(uB, sigmaB, size=(2, num_microbes))
-
-    X = np.vstack((np.ones(num_samples),
-                   np.linspace(low, high, num_samples))).T
-    microbes = ilr_inv(state.multivariate_normal(
-        mean=np.zeros(num_microbes-1), cov=np.diag([sigmaQ]*(num_microbes-1)),
-        size=num_samples)
-    )
-    Umain = state.normal(
-        uU, sigmaU, size=(num_microbes, latent_dim))
-    Vmain = state.normal(
-        uV, sigmaV, size=(latent_dim, num_metabolites-1))
-
-    Ubias = state.normal(
-        uU, sigmaU, size=(num_microbes, 1))
-    Vbias = state.normal(
-        uV, sigmaV, size=(1, num_metabolites-1))
-
-    U_ = np.hstack(
-        (np.ones((num_microbes, 1)), Ubias, Umain))
-    V_ = np.vstack(
-        (Vbias, np.ones((1, num_metabolites-1)), Vmain))
-
-    phi = np.hstack((np.zeros((num_microbes, 1)), U_ @ V_))
-    probs = softmax(phi)
-    microbe_counts = np.zeros((num_samples, num_microbes))
-    metabolite_counts = np.zeros((num_samples, num_metabolites))
-    n1 = microbe_total
-    n2 = metabolite_total // microbe_total
-    for n in range(num_samples):
-        otu = state.multinomial(n1, microbes[n, :])
-        for i in range(num_microbes):
-            ms = state.multinomial(otu[i] * n2, probs[i, :])
-            metabolite_counts[n, :] += ms
-        microbe_counts[n, :] += otu
-
-    otu_ids = ['OTU_%d' % d for d in range(microbe_counts.shape[1])]
-    ms_ids = ['metabolite_%d' % d for d in range(metabolite_counts.shape[1])]
-    sample_ids = ['sample_%d' % d for d in range(metabolite_counts.shape[0])]
-
-    microbe_counts = pd.DataFrame(
-        microbe_counts, index=sample_ids, columns=otu_ids)
-    metabolite_counts = pd.DataFrame(
-        metabolite_counts, index=sample_ids, columns=ms_ids)
-
-    return (microbe_counts, metabolite_counts, X, beta,
-            Umain, Ubias, Vmain, Vbias)
+    if seed is None or seed is np.random:
+        return np.random.mtrand._rand
+    if isinstance(seed, (numbers.Integral, np.integer)):
+        return np.random.RandomState(seed)
+    if isinstance(seed, np.random.RandomState):
+        return seed
+    raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
+                     ' instance' % seed)
 
 
 def split_tables(otu_table, metabolite_table,
