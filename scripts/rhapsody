@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 import os
 import time
-from tqdm import tqdm
+import click
+import datetime
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
+from decimal import Decimal
 from biom import load_table, Table
 from biom.util import biom_open
 from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
-import matplotlib.pyplot as plt
 from scipy.stats import entropy, spearmanr
-import click
-from scipy.sparse import coo_matrix
-import tensorflow as tf
-from tensorflow.contrib.distributions import Multinomial, Normal
-import datetime
-from rhapsody.multimodal import MMvec, cross_validation
-from rhapsody.util import onehot, rank_hits, random_multimodal, split_tables
+from scipy.sparse import csr_matrix
+
+from rhapsody.mmvec import MMvec
+from rhapsody.util import split_tables, format_params
+from rhapsody.train import train_cooccurrence
 
 
 @click.group()
@@ -25,10 +25,12 @@ def rhapsody():
 
 
 @rhapsody.command()
+
 @click.option('--microbe-file',
               help='Input microbial abundances')
 @click.option('--metabolite-file',
               help='Input metabolite abundances')
+
 @click.option('--metadata-file', default=None,
               help='Input sample metadata file')
 @click.option('--training-column',
@@ -43,31 +45,21 @@ def rhapsody():
                     'in order to not filter out'),
               default=10)
 @click.option('--epochs',
-              help='Number of epochs to train', default=10)
-@click.option('--batch_size',
-              help='Size of mini-batch', default=32)
-@click.option('--latent_dim',
+              help=('Number of epochs to train, one epoch represents the '
+                    'number of samples to process an entire dataset.'), default=10)
+@click.option('--batch-size',
+              help='Number of samples to analyze per iteration.', default=10)
+@click.option('--subsample-size',
+              help='Number of sequences to analyze per sample.', default=100)
+@click.option('--latent-dim',
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
               default=3)
-@click.option('--input_prior',
-              help=('Width of normal prior for input embedding.  '
-                    'Smaller values will regularize parameters towards zero. '
-                    'Values must be greater than 0.'),
-              default=1.)
-@click.option('--output_prior',
-              help=('Width of normal prior for input embedding.  '
-                    'Smaller values will regularize parameters towards zero. '
-                    'Values must be greater than 0.'),
-              default=1.)
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
               default=False)
-@click.option('--top-k',
-              help=('Number of top hits to compare for cross-validation.'),
-              default=50)
 @click.option('--learning-rate',
-              help=('Gradient descent decay rate.'),
+              help=('Gradient descent learning rate.'),
               default=1e-1)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
@@ -75,27 +67,25 @@ def rhapsody():
 @click.option('--beta2',
               help=('Gradient decay rate for second Adam momentum estimates'),
               default=0.95)
-@click.option('--clipnorm',
-              help=('Gradient clipping size.'),
-              default=10.)
 @click.option('--checkpoint-interval',
-              help=('Number of seconds before a storing a summary.'),
+              help=('Number of seconds before a storing a checkpoint.'),
               default=1000)
 @click.option('--summary-interval',
               help=('Number of seconds before a storing a summary.'),
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
-@click.option('--ranks-file', default=None,
-              help='Ranks file containing microbe-metabolite rankings.')
+@click.option('--model-output', default=None,
+              help=('Model parameter file containing microbe-metabolite '
+                    'interaction parameters.'))
 def mmvec(microbe_file, metabolite_file,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
-         epochs, batch_size, latent_dim,
-          input_prior, output_prior, arm_the_gpu, top_k,
-          learning_rate, beta1, beta2, clipnorm,
+          epochs, batch_size, subsample_size,
+          latent_dim, arm_the_gpu,
+          learning_rate, beta1, beta2,
           checkpoint_interval, summary_interval,
-          summary_dir, ranks_file):
+          summary_dir, model_output):
 
     microbes = load_table(microbe_file)
     metabolites = load_table(metabolite_file)
@@ -120,76 +110,73 @@ def mmvec(microbe_file, metabolite_file,
 
     params = []
 
-    sname = 'latent_dim_' + str(latent_dim) + \
-           '_input_prior_%.2f' % input_prior + \
-           '_output_prior_%.2f' % output_prior + \
-           '_beta1_%.2f' % beta1 + \
-           '_beta2_%.2f' % beta2
+    sname = '_'.join(['log_PC(%d)' % latent_dim,
+                      'samp(%d)' % batch_size,
+                      'sub(%d)' % subsample_size,
+                      'lr(%s)' % "{:.2E}".format(Decimal(learning_rate)),
+                      'beta1(%.2f)' % beta1,
+                      'beta2(%.2f)' % beta2])
 
     sname = os.path.join(summary_dir, sname)
 
-    n, d1 = microbes.shape
-    n, d2 = metabolites.shape
+    trainX = csr_matrix(train_microbes_df.values)
+    testX = csr_matrix(test_microbes_df.values)
+    trainY = train_metabolites_df.values
+    testY = test_metabolites_df.values
 
-    train_microbes_coo = coo_matrix(train_microbes_df.values)
-    test_microbes_coo = coo_matrix(test_microbes_df.values)
+    n, d1 = trainX.shape
+    n, d2 = trainY.shape
 
     if arm_the_gpu:
         # pick out the first GPU
-        device_name='/device:GPU:0'
+        device_name='cuda'
     else:
-        device_name='/cpu:0'
+        device_name='cpu'
+    microbe_total = np.sum(train_microbes_df.values)
+    model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
+                  microbe_total=microbe_total, latent_dim=latent_dim,
+                  batch_size=batch_size, subsample_size=subsample_size,
+                  save_path=sname
+    )
+    model.to(device=device_name)
+    fitted_model = train_cooccurrence(
+        model,
+        trainX, trainY, testX, testY,
+        epochs=epochs, learning_rate=learning_rate,
+        beta1=beta1, beta2=beta2,
+        summary_interval=summary_interval,
+        checkpoint_interval=checkpoint_interval,
+        device=device_name)
 
-    config = tf.ConfigProto()
-    with tf.Graph().as_default(), tf.Session(config=config) as session:
-        model = MMvec(
-            latent_dim=latent_dim,
-            u_scale=input_prior, v_scale=output_prior,
-            learning_rate = learning_rate,
-            beta_1=beta1, beta_2=beta2,
-            device_name=device_name,
-            clipnorm=clipnorm, save_path=sname)
+    # now extract the model weights and save them to disk
+    def extract(x):
+        return x.detach().cpu().numpy()
+    mu_u = extract(fitted_model.encoder.embedding.weight)
+    mu_ub = extract(fitted_model.encoder.bias.weight).reshape(-1, 1)
+    mu_v = extract(fitted_model.decoder.mean.weight)
+    mu_vb = extract(fitted_model.decoder.mean.bias).reshape(-1, 1)
+    std_u = np.exp(0.5 * extract(fitted_model.encoder.embedding_var.weight))
+    std_ub = np.exp(0.5 *
+        extract(fitted_model.encoder.bias_var.weight)
+    ).reshape(-1, 1)
+    std_v = np.exp(0.5 * extract(fitted_model.decoder.var.weight))
+    std_vb = np.exp(0.5 * extract(fitted_model.decoder.var.bias)).reshape(-1, 1)
 
-        model(session,
-              train_microbes_coo, train_metabolites_df.values,
-              test_microbes_coo, test_metabolites_df.values)
+    otu_ids = list(map(lambda x: 'clr(%s)' % x,
+                       list(train_microbes_df.columns)))
+    ms_ids = list(map(lambda x: 'clr(%s)' % x,
+                      list(train_metabolites_df.columns)))
+    pc_ids = ['PC%d' % i for i in range(mu_u.shape[1])]
 
-        loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval,
-                             checkpoint_interval=checkpoint_interval)
+    df = pd.concat(
+        (
+            format_params(mu_u, std_u, pc_ids, otu_ids, 'microbe'),
+            format_params(mu_v, std_v, pc_ids, ms_ids, 'metabolite'),
+            format_params(mu_ub, std_ub, ['bias'], otu_ids, 'microbe'),
+            format_params(mu_vb, std_vb, ['bias'], ms_ids, 'metabolite')
+        ), axis=0)
 
-        U, V = model.U, model.V
-        d1 = U.shape[0]
-
-        U_ = np.hstack(
-            (np.ones((model.U.shape[0], 1)),
-             model.Ubias.reshape(-1, 1), U)
-        )
-        V_ = np.vstack(
-            (model.Vbias.reshape(1, -1),
-             np.ones((1, model.V.shape[1])), V)
-        )
-
-        np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
-        np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)
-        np.savetxt(os.path.join(summary_dir, 'Ubias.txt'), model.Ubias)
-        np.savetxt(os.path.join(summary_dir, 'Vbias.txt'), model.Vbias)
-
-        if ranks_file is not None:
-            ranks = pd.DataFrame(
-                clr(softmax(np.hstack(
-                    (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-                index=train_microbes_df.columns,
-                columns=train_metabolites_df.columns)
-
-            # shift the reference from the first microbe to the average microbe
-            ranks = ranks - ranks.mean(axis=1)
-
-            params, rank_stats = cross_validation(
-                model, test_microbes_df, test_metabolites_df, top_N=top_k)
-
-            params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
-            rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
-            ranks.to_csv(ranks_file)
+    df.to_csv(model_output)
 
 
 if __name__ == '__main__':
