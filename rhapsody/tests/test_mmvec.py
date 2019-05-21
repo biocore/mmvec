@@ -3,7 +3,6 @@ import torch
 import copy
 
 import numpy as np
-import numpy.testing as npt
 from rhapsody.mmvec import MMvec
 from rhapsody.sim import random_bimodal
 from scipy.spatial.distance import pdist
@@ -17,20 +16,20 @@ class TestMMvec(unittest.TestCase):
 
         self.num_microbes = 100
         self.num_metabolites = 20
-        self.num_samples=100
-        self.latent_dim=5
+        self.num_samples = 100
+        self.latent_dim = 5
         self.means = (-3, 3)
-        self.microbe_total=300
-        self.metabolite_total=900
-        self.uB=0
-        self.sigmaB=1
-        self.sigmaQ=2
-        self.uU=0
-        self.sigmaU=0.01
-        self.uV=0
-        self.sigmaV=0.01
+        self.microbe_total = 300
+        self.metabolite_total = 900
+        self.uB = 0
+        self.sigmaB = 1
+        self.sigmaQ = 2
+        self.uU = 0
+        self.sigmaU = 0.01
+        self.uV = 0
+        self.sigmaV = 0.01
         self.s = 0.2
-        self.seed=1
+        self.seed = 1
         self.eUun = 0.2
         self.eVun = 0.2
         res = random_bimodal(num_microbes=self.num_microbes,
@@ -49,22 +48,24 @@ class TestMMvec(unittest.TestCase):
          self.eUmain, self.eVmain, self.eUbias, self.eVbias) = res
 
         # fit parameters
-        self.epochs=100
-        self.mc_samples=1
-        self.beta1=0.8
-        self.beta2=0.9
-        self.batch_size=10
-        self.subsample_size=500
+        self.epochs = 100
+        self.mc_samples = 1
+        self.beta1 = 0.8
+        self.beta2 = 0.9
+        self.batch_size = 10
+        self.subsample_size = 500
         self.learning_rate = 1e-1
 
     def test_mmvec_loss(self):
         # test to see if errors have been decreased
         torch.manual_seed(0)
         microbe_read_total = self.microbe_counts.sum()
-        model = MMvec(self.num_samples, self.num_microbes, self.num_metabolites,
-                      microbe_read_total, self.latent_dim, 1,
-                      self.subsample_size)
-        res = model.fit(csr_matrix(self.microbe_counts), self.metabolite_counts, epochs=1)
+        model = MMvec(
+            self.num_samples, self.num_microbes, self.num_metabolites,
+            microbe_read_total, self.latent_dim, 1,
+            self.subsample_size)
+        res = model.fit(csr_matrix(self.microbe_counts),
+                        self.metabolite_counts, epochs=1)
         losses, klds, likes, errs = res
         self.assertGreater(np.mean(losses[:3]), np.mean(losses[:-3]))
         self.assertLess(np.mean(likes[:3]), np.mean(likes[:-3]))
@@ -75,12 +76,14 @@ class TestMMvec(unittest.TestCase):
         # test to see if the parameters have all been trained
         torch.manual_seed(0)
         microbe_read_total = self.microbe_counts.sum()
-        model = MMvec(self.num_samples, self.num_microbes, self.num_metabolites,
-                      microbe_read_total, self.latent_dim, self.batch_size,
-                      self.subsample_size)
+        model = MMvec(
+            self.num_samples, self.num_microbes, self.num_metabolites,
+            microbe_read_total, self.latent_dim, self.batch_size,
+            self.subsample_size)
         before_model = copy.deepcopy(model)
 
-        model.fit(csr_matrix(self.microbe_counts), self.metabolite_counts, epochs=1)
+        model.fit(csr_matrix(self.microbe_counts),
+                  self.metabolite_counts, epochs=1)
         after_model = copy.deepcopy(model)
 
         before_u = np.array(before_model.encoder.embedding.weight.detach())
@@ -98,17 +101,18 @@ class TestMMvec(unittest.TestCase):
         self.assertFalse(np.allclose(before_ubias, after_ubias))
         self.assertFalse(np.allclose(before_vbias, after_vbias))
 
-
     def test_mmvec_fit(self):
         # test to see if the parameters from the model are actually legit
         torch.manual_seed(0)
         np.random.seed(0)
 
         microbe_read_total = self.microbe_counts.sum()
-        model = MMvec(self.num_samples, self.num_microbes, self.num_metabolites,
-                      microbe_read_total, self.latent_dim, self.batch_size,
-                      self.subsample_size)
-        model.fit(csr_matrix(self.microbe_counts), self.metabolite_counts, epochs=25,
+        model = MMvec(
+            self.num_samples, self.num_microbes, self.num_metabolites,
+            microbe_read_total, self.latent_dim, self.batch_size,
+            self.subsample_size)
+        model.fit(csr_matrix(self.microbe_counts),
+                  self.metabolite_counts, epochs=25,
                   beta1=self.beta1, beta2=self.beta2)
         u = np.array(model.encoder.embedding.weight.detach())
         v = np.array(model.decoder.mean.weight.detach())

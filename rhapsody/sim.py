@@ -1,5 +1,6 @@
 import numpy as np
-from skbio.stats.composition import clr_inv
+import pandas as pd
+from skbio.stats.composition import clr_inv, ilr_inv
 from rhapsody.util import check_random_state
 
 
@@ -33,7 +34,7 @@ def random_bimodal(num_microbes=20, num_metabolites=100, num_samples=100,
                    latent_dim=3, means=(-3, 3),
                    microbe_total=10, metabolite_total=100,
                    uU=0, sigmaU=1, uV=0, sigmaV=1,
-                   eps = 0.2, seed=0):
+                   eps=0.2, seed=0):
     """ Generates two random matrices that are conditionally linked
 
     Parameters
@@ -84,25 +85,18 @@ def random_bimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     eUmain = bimodal(num_microbes, latent_dim, means=means)[0]
     eVmain = bimodal(num_metabolites, latent_dim, means=means)[0].T
     # center around zero
-    eUmain =  - eUmain.mean(axis=0) + eUmain - eUmain.mean(axis=1).reshape(-1, 1)
-    eVmain =  - eVmain.mean(axis=0) + eVmain - eVmain.mean(axis=1).reshape(-1, 1)
+    eUmain = - eUmain.mean(axis=0) + eUmain - \
+        eUmain.mean(axis=1).reshape(-1, 1)
+    eVmain = - eVmain.mean(axis=0) + eVmain - \
+        eVmain.mean(axis=1).reshape(-1, 1)
 
     eUbias = state.normal(
         uU, sigmaU, size=(num_microbes, 1))
     eVbias = state.normal(
         uV, sigmaV, size=(1, num_metabolites))
 
-    # TODO: force eUmain and eVmain to be centered?
-    U_ = np.hstack(
-        (np.ones((num_microbes, 1)), eUbias, eUmain))
-    V_ = np.vstack(
-        (eVbias, np.ones((1, num_metabolites)), eVmain))
-
-    phi = U_ @ V_
-
     microbe_counts = np.zeros((num_samples, num_microbes))
     metabolite_counts = np.zeros((num_samples, num_metabolites))
-    n1 = microbe_total
     n2 = metabolite_total // microbe_total
     for n in range(num_samples):
         u = state.normal(eUmain, eps)
@@ -114,11 +108,10 @@ def random_bimodal(num_microbes=20, num_metabolites=100, num_samples=100,
         v_ = np.vstack(
             (vbias, np.ones((1, num_metabolites)), v))
         probs = clr_inv(u_ @ v_)
-        otu = state.multinomial(n1, microbes[n, :])
         for _ in range(microbe_total):
             i = state.choice(np.arange(num_microbes), p=microbes[n, :])
             metabolite_counts[n, :] += state.multinomial(n2, probs[i, :])
-        microbe_counts[n, :]+= state.multinomial(microbe_total, microbes[n])
+        microbe_counts[n, :] += state.multinomial(microbe_total, microbes[n])
     return microbe_counts, metabolite_counts, eUmain, eVmain, eUbias, eVbias
 
 

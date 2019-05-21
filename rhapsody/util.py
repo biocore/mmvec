@@ -1,9 +1,6 @@
 import torch
 import numpy as np
 import pandas as pd
-from skbio.stats.composition import ilr_inv
-from skbio.stats.composition import clr_inv as softmax
-from scipy.sparse import coo_matrix
 import numbers
 
 
@@ -172,7 +169,6 @@ def rank_hits(ranks, k, pos=True):
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
     edges['rank'] = edges['rank'].astype(np.float64)
     return edges
-
 
 
 def get_batch(X, Y, i, subsample_size, batch_size):

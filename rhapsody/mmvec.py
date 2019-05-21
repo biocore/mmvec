@@ -1,6 +1,4 @@
-import numpy as np
 from tqdm import tqdm
-from abc import ABC, abstractmethod
 from rhapsody.batch import get_batch
 from rhapsody.layers import GaussianEmbedding, GaussianDecoder
 
@@ -12,8 +10,9 @@ from torch.distributions.multinomial import Multinomial
 
 
 class MMvec(nn.Module):
-    def __init__(self, num_samples, num_microbes, num_metabolites, microbe_total,
-                 latent_dim, batch_size=10, subsample_size=100, mc_samples=10,
+    def __init__(self, num_samples, num_microbes, num_metabolites,
+                 microbe_total, latent_dim, batch_size=10,
+                 subsample_size=100, mc_samples=10,
                  device='cpu'):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
@@ -24,15 +23,16 @@ class MMvec(nn.Module):
         self.subsample_size = subsample_size
         self.mc_samples = mc_samples
         self.microbe_total = microbe_total
-        # TODO: enable max norm in embedding to account for scale identifiability
-        self.encoder = GaussianEmbedding(in_features=num_microbes, out_features=latent_dim)
-        self.decoder = GaussianDecoder(in_features=latent_dim, out_features=num_metabolites)
+        # TODO: enable max norm in embedding to account for
+        # scale identifiability
+        self.encoder = GaussianEmbedding(in_features=num_microbes,
+                                         out_features=latent_dim)
+        self.decoder = GaussianDecoder(in_features=latent_dim,
+                                       out_features=num_metabolites)
 
     def forward(self, x):
         code = self.encoder(x)
         log_probs = self.decoder(code)
-        #zeros = torch.zeros(self.batch_size * self.subsample_size, 1)
-        #log_probs = torch.cat((zeros, alrs), dim=1)
         return log_probs
 
     def loss(self, pred, obs):
@@ -43,8 +43,8 @@ class MMvec(nn.Module):
         elbo = kld + likelihood
         return -elbo, kld, likelihood
 
-    def fit(self, trainX, trainY, epochs=10, learning_rate=0.1, beta1=0.9, beta2=0.99):
-        best_loss = np.inf
+    def fit(self, trainX, trainY, epochs=10, learning_rate=0.1,
+            beta1=0.9, beta2=0.99):
         losses = []
         klds = []
         likes = []
@@ -64,7 +64,8 @@ class MMvec(nn.Module):
                 pred = self.forward(inp)
                 loss, kld, like = self.loss(pred, out)
                 metabolite_total = torch.sum(out, 1).view(-1, 1)
-                err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
+                err = torch.mean(
+                    torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
                 loss.backward()
 
                 errs.append(err.item())

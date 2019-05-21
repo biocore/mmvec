@@ -1,17 +1,11 @@
 import torch
-from torch.autograd import Variable
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.distributions.multinomial import Multinomial
-from torch.nn.utils import clip_grad_norm
 
 
 class GaussianLayer(torch.nn.Module):
     def __init__(self):
         """
-        In the constructor we instantiate two nn.Linear modules and assign them as
-        member variables.
+        In the constructor we instantiate two nn.Linear modules and
+        assign them as member variables.
         """
         super(GaussianLayer, self).__init__()
 
@@ -25,11 +19,12 @@ class GaussianLayer(torch.nn.Module):
     def _divergence(self, mu, logvar):
         return 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
+
 class GaussianEmbedding(GaussianLayer):
     def __init__(self, in_features, out_features):
         """
-        In the constructor we instantiate two nn.Linear modules and assign them as
-        member variables.
+        In the constructor we instantiate two nn.Linear modules
+        and assign them as member variables.
         """
         super(GaussianEmbedding, self).__init__()
         self.embedding = torch.nn.Embedding(in_features, out_features)
@@ -48,9 +43,9 @@ class GaussianEmbedding(GaussianLayer):
 
     def forward(self, x):
         """
-        In the forward function we accept a Tensor of input data and we must return
-        a Tensor of output data. We can use Modules defined in the constructor as
-        well as arbitrary operators on Tensors.
+        In the forward function we accept a Tensor of input data and
+        we must return a Tensor of output data. We can use Modules defined
+        in the constructor as well as arbitrary operators on Tensors.
         """
         embeds = self.reparameterize(
             self.embedding(x),
@@ -67,8 +62,8 @@ class GaussianEmbedding(GaussianLayer):
 class GaussianDecoder(GaussianLayer):
     def __init__(self, in_features, out_features):
         """
-        In the constructor we instantiate two nn.Linear modules and assign them as
-        member variables.
+        In the constructor we instantiate two nn.Linear modules and
+        assign them as member variables.
         """
         super(GaussianDecoder, self).__init__()
         self.mean = torch.nn.Linear(in_features, out_features)
@@ -87,9 +82,9 @@ class GaussianDecoder(GaussianLayer):
 
     def forward(self, x):
         """
-        In the forward function we accept a Tensor of input data and we must return
-        a Tensor of output data. We can use Modules defined in the constructor as
-        well as arbitrary operators on Tensors.
+        In the forward function we accept a Tensor of input data and we
+        must return a Tensor of output data. We can use Modules defined in
+        the constructor as well as arbitrary operators on Tensors.
         """
         pred = self.reparameterize(
             self.mean(x),

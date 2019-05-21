@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 from biom import Table
-from rhapsody.util import (onehot, rank_hits,split_tables)
+from rhapsody.util import (onehot, rank_hits, split_tables)
 from rhapsody.util import random_multimodal
 from skbio.util import get_data_path
 import numpy.testing as npt
