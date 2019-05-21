@@ -4,6 +4,7 @@ import pandas as pd
 from skbio.stats.composition import ilr_inv
 from skbio.stats.composition import clr_inv as softmax
 from scipy.sparse import coo_matrix
+import numbers
 
 
 def check_random_state(seed):
@@ -16,7 +17,7 @@ def check_random_state(seed):
         If seed is already a RandomState instance, return it.
         Otherwise raise ValueError.
 
-    Note 
+    Note
     ----
     This is directly from sklearn
     """

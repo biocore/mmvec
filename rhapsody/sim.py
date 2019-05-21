@@ -1,11 +1,11 @@
 import numpy as np
 from skbio.stats.composition import clr_inv
-from rhapsody.util import check_random_seed
+from rhapsody.util import check_random_state
 
 
 def bimodal(num_x, num_y, means=(-1, 1), sigma=0.1, seed=None):
     """ Creates a bimodal matrix distribution.
-    
+
     num_x : int
         Number of rows in the resulting matrix
     num_y : int
@@ -20,7 +20,7 @@ def bimodal(num_x, num_y, means=(-1, 1), sigma=0.1, seed=None):
     Q : np.array
         The matrix of abundances.
     """
-    state = check_random_seed(seed)
+    state = check_random_state(seed)
     beta = state.normal(0, 1, size=(2, num_y))
     beta = np.sort(beta, axis=1)
     x = np.linspace(means[0], means[1], num_x)
@@ -31,7 +31,7 @@ def bimodal(num_x, num_y, means=(-1, 1), sigma=0.1, seed=None):
 
 def random_bimodal(num_microbes=20, num_metabolites=100, num_samples=100,
                    latent_dim=3, means=(-3, 3),
-                   microbe_total=10, metabolite_total=100,                   
+                   microbe_total=10, metabolite_total=100,
                    uU=0, sigmaU=1, uV=0, sigmaV=1,
                    eps = 0.2, seed=0):
     """ Generates two random matrices that are conditionally linked
@@ -77,29 +77,29 @@ def random_bimodal(num_microbes=20, num_metabolites=100, num_samples=100,
        Count table of metabolite counts
     """
 
-    state = np.random.RandomState(seed)
+    state = check_random_state(seed)
     microbes = bimodal(num_samples, num_microbes, means=means)[0]
     microbes = clr_inv(microbes)
-    
+
     eUmain = bimodal(num_microbes, latent_dim, means=means)[0]
     eVmain = bimodal(num_metabolites, latent_dim, means=means)[0].T
-    
+    # center around zero
     eUmain =  - eUmain.mean(axis=0) + eUmain - eUmain.mean(axis=1).reshape(-1, 1)
     eVmain =  - eVmain.mean(axis=0) + eVmain - eVmain.mean(axis=1).reshape(-1, 1)
-    
+
     eUbias = state.normal(
         uU, sigmaU, size=(num_microbes, 1))
     eVbias = state.normal(
         uV, sigmaV, size=(1, num_metabolites))
-    
+
     # TODO: force eUmain and eVmain to be centered?
     U_ = np.hstack(
         (np.ones((num_microbes, 1)), eUbias, eUmain))
     V_ = np.vstack(
         (eVbias, np.ones((1, num_metabolites)), eVmain))
-    
+
     phi = U_ @ V_
-    
+
     microbe_counts = np.zeros((num_samples, num_microbes))
     metabolite_counts = np.zeros((num_samples, num_metabolites))
     n1 = microbe_total
@@ -113,9 +113,9 @@ def random_bimodal(num_microbes=20, num_metabolites=100, num_samples=100,
             (np.ones((num_microbes, 1)), ubias, u))
         v_ = np.vstack(
             (vbias, np.ones((1, num_metabolites)), v))
-        probs = softmax(u_ @ v_)
+        probs = clr_inv(u_ @ v_)
         otu = state.multinomial(n1, microbes[n, :])
-        for _ in range(microbe_total):        
+        for _ in range(microbe_total):
             i = state.choice(np.arange(num_microbes), p=microbes[n, :])
             metabolite_counts[n, :] += state.multinomial(n2, probs[i, :])
         microbe_counts[n, :]+= state.multinomial(microbe_total, microbes[n])
@@ -200,7 +200,7 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
         (Vbias, np.ones((1, num_metabolites-1)), Vmain))
 
     phi = np.hstack((np.zeros((num_microbes, 1)), U_ @ V_))
-    probs = softmax(phi)
+    probs = clr_inv(phi)
     microbe_counts = np.zeros((num_samples, num_microbes))
     metabolite_counts = np.zeros((num_samples, num_metabolites))
     n1 = microbe_total

@@ -1,8 +1,10 @@
 import numpy as np
+import torch
 
-      
+
 def get_batch(X, Y, i, subsample_size, batch_size):
     """ Retrieves minibatch
+
     Parameters
     ----------
     X : scipy.sparse.csr_matrix
