@@ -105,7 +105,8 @@ class TestMMvec(unittest.TestCase):
         # test to see if the parameters from the model are actually legit
         torch.manual_seed(0)
         np.random.seed(0)
-
+        # note that pytorch's random seed seems to be having problems
+        # so we will do a very lenient test on the outputs.
         microbe_read_total = self.microbe_counts.sum()
         model = MMvec(
             self.num_samples, self.num_microbes, self.num_metabolites,
@@ -120,9 +121,11 @@ class TestMMvec(unittest.TestCase):
         vbias = np.array(model.decoder.mean.bias.detach())
         # test to see if the U distances are correct
         r, p = spearmanr(pdist(self.eUmain), pdist(u))
+        self.assertGreater(r, 0)
         self.assertLess(p, 0.001)
         # test to see if the V distances are correct
         r, p = spearmanr(pdist(self.eVmain.T), pdist(v))
+        self.assertGreater(r, 0)
         self.assertLess(p, 0.001)
         # test to see if the ranks correct
         exp = np.hstack(
@@ -136,6 +139,7 @@ class TestMMvec(unittest.TestCase):
             (vbias.reshape(-1, 1), np.ones((v.shape[0], 1)), v)
         ).T
         r, p = spearmanr(exp.ravel(), res.ravel())
+        self.assertGreater(r, 0)
         self.assertLess(p, 0.001)
 
 
