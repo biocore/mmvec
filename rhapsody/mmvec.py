@@ -13,13 +13,11 @@ from torch.distributions.multinomial import Multinomial
 class MMvec(nn.Module):
     def __init__(self, num_samples, num_microbes, num_metabolites,
                  microbe_total, latent_dim, batch_size=10,
-                 subsample_size=100, save_path=None,
-                 device='cpu'):
+                 subsample_size=100):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
         self.num_metabolites = num_metabolites
         self.num_samples = num_samples
-        self.device = device
         self.batch_size = batch_size
         self.subsample_size = subsample_size
         self.microbe_total = microbe_total
@@ -27,12 +25,6 @@ class MMvec(nn.Module):
                                          out_features=latent_dim)
         self.decoder = GaussianDecoder(in_features=latent_dim,
                                        out_features=num_metabolites)
-        self.device = device
-        if save_path is None:
-            basename = "logdir"
-            suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
-            save_path = "_".join([basename, suffix])
-        self.save_path = save_path
 
     def forward(self, x):
         code = self.encoder(x)

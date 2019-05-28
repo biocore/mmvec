@@ -15,7 +15,8 @@ from torch.distributions.multinomial import Multinomial
 
 def train_cooccurrence(model, trainX, trainY, testX, testY,
                        epochs=10, learning_rate=0.1, beta1=0.9, beta2=0.99,
-                       summary_interval=5, checkpoint_interval=60, device='cpu'):
+                       summary_interval=5, checkpoint_interval=60, device='cpu',
+                       save_path=None):
     """ Trains a co-occurrence model to predict Y from X.
 
     Parameters
@@ -48,12 +49,17 @@ def train_cooccurrence(model, trainX, trainY, testX, testY,
     Eventually, this will need to be refactored to include the DataLoader class
     Also, we may want to make the save directory a parameter in this method.
     """
+    if save_path is None:
+        basename = "logdir"
+        suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+        save_path = "_".join([basename, suffix])
+
     last_checkpoint_time = 0
     last_summary_time = 0
     num_samples = trainY.shape[0]
     optimizer = optim.Adam(model.parameters(), betas=(beta1, beta2),
                            lr=learning_rate)
-    writer = SummaryWriter(model.save_path)
+    writer = SummaryWriter(save_path)
     for ep in tqdm(range(0, epochs)):
 
         model.train()
@@ -63,7 +69,8 @@ def train_cooccurrence(model, trainX, trainY, testX, testY,
 
             inp, out = get_batch(trainX, trainY, i % model.num_samples,
                                  model.subsample_size, model.batch_size)
-
+            inp = inp.to(device)
+            out = out.to(device)
             pred = model.forward(inp)
             loss, kld, like, err = model.loss(pred, out)
             loss.backward()
@@ -97,7 +104,7 @@ def train_cooccurrence(model, trainX, trainY, testX, testY,
             if now - last_checkpoint_time > checkpoint_interval:
                 suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
                 torch.save(model.state_dict(),
-                           os.path.join(model.save_path,
+                           os.path.join(save_path,
                                         'checkpoint_' + suffix))
                 last_checkpoint_time = now
 
