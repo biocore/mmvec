@@ -162,10 +162,8 @@ def mmvec(microbe_file, metabolite_file,
     std_v = np.exp(0.5 * extract(fitted_model.decoder.var.weight))
     std_vb = np.exp(0.5 * extract(fitted_model.decoder.var.bias)).reshape(-1, 1)
 
-    otu_ids = list(map(lambda x: 'clr(%s)' % x,
-                       list(train_microbes_df.columns)))
-    ms_ids = list(map(lambda x: 'clr(%s)' % x,
-                      list(train_metabolites_df.columns)))
+    otu_ids = list(train_microbes_df.columns)
+    ms_ids = list(train_metabolites_df.columns)
     pc_ids = ['PC%d' % i for i in range(mu_u.shape[1])]
 
     df = pd.concat(

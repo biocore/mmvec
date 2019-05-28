@@ -46,6 +46,7 @@ def train_cooccurrence(model, trainX, trainY, testX, testY,
     TODO
     ----
     Eventually, this will need to be refactored to include the DataLoader class
+    Also, we may want to make the save directory a parameter in this method.
     """
     last_checkpoint_time = 0
     last_summary_time = 0
