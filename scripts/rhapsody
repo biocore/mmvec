@@ -11,6 +11,7 @@ from biom import load_table, Table
 from biom.util import biom_open
 from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
+from skbio import OrdinationResults
 from scipy.stats import entropy, spearmanr
 from scipy.sparse import csr_matrix
 
@@ -78,6 +79,9 @@ def rhapsody():
 @click.option('--model-output', default=None,
               help=('Model parameter file containing microbe-metabolite '
                     'interaction parameters.'))
+@click.option('--ordination-output', default=None,
+              help=('Ordination output to visualize the microbe-metabolite '
+                    'embeddings. '))
 def mmvec(microbe_file, metabolite_file,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
@@ -85,7 +89,7 @@ def mmvec(microbe_file, metabolite_file,
           latent_dim, arm_the_gpu,
           learning_rate, beta1, beta2,
           checkpoint_interval, summary_interval,
-          summary_dir, model_output):
+          summary_dir, model_output, ordination_output):
 
     microbes = load_table(microbe_file)
     metabolites = load_table(metabolite_file)
@@ -167,15 +171,38 @@ def mmvec(microbe_file, metabolite_file,
     ms_ids = list(train_metabolites_df.columns)
     pc_ids = ['PC%d' % i for i in range(mu_u.shape[1])]
 
+    Uparam = format_params(mu_u, std_u, pc_ids, otu_ids, 'microbe')
+    Vparam = format_params(mu_v, std_v, pc_ids, ms_ids, 'metabolite')
     df = pd.concat(
         (
-            format_params(mu_u, std_u, pc_ids, otu_ids, 'microbe'),
-            format_params(mu_v, std_v, pc_ids, ms_ids, 'metabolite'),
+            Uparam, Vparam,
             format_params(mu_ub, std_ub, ['bias'], otu_ids, 'microbe'),
             format_params(mu_vb, std_vb, ['bias'], ms_ids, 'metabolite')
         ), axis=0)
 
     df.to_csv(model_output)
+
+    # extract the model parameters and save to biplot
+    U = pd.pivot(Uparam, index='feature_id', columns='axis', values='mean')
+    V = pd.pivot(Vparam, index='feature_id', columns='axis', values='mean')
+
+    def _center(x):
+        hmean = x.mean(axis=0)
+        y = (x - hmean)
+        y = y - y.mean(axis=1).values.reshape(-1, 1)
+        return y
+
+    U = _center(U[pc_ids])
+    V = _center(V[pc_ids])
+
+    s = np.linalg.svd(U.values)[1]
+    eigvals = pd.Series(s**2, index=pc_ids)
+
+    res = OrdinationResults('MultiomicsBiplot', 'Multiomics Biplot',
+                            samples=U, features=V,
+                            eigvals = eigvals,
+                            proportion_explained = eigvals / eigvals.sum())
+    res.write(ordination_output)
 
 
 if __name__ == '__main__':
