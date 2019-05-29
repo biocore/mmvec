@@ -56,3 +56,45 @@ class MMvec(nn.Module):
         # computes mean absolute error.
         mae = torch.mean(torch.abs(out - pred))
         return mae
+
+    def load(self, model_file):
+        """ Initializes weights based on model parameters file. """
+
+        params = pd.read_table(model_file, index_col=0)
+        Uparam = params.loc[params.embed_type=='microbe']
+        Vparam = params.loc[params.embed_type=='metabolite']
+        Umean = pd.pivot(Uparam, index='feature_id',
+                         columns='axis', values='mean')
+        Vmean = pd.pivot(Vparam, index='feature_id',
+                         columns='axis', values='mean')
+        Ustd = pd.pivot(Uparam, index='feature_id',
+                        columns='axis', values='std')
+        Vstd = pd.pivot(Vparam, index='feature_id',
+                        columns='axis', values='std')
+
+        # Load encoder embedding
+        self.encoder.embedding.weight.copy(
+            torch.from_numpy(Umean.loc[Umean.axis!='bias'].values)
+        )
+        self.encoder.embedding.bias.copy(
+            torch.from_numpy(Umean.loc[Umean.axis=='bias'].values)
+        )
+        self.encoder.embedding_var.weight.copy(
+            torch.from_numpy(Ustd.loc[Ustd.axis!='bias'].values)
+        )
+        self.encoder.embedding_var.bias.copy(
+            torch.from_numpy(Ustd.loc[Ustd.axis=='bias'].values)
+        )
+        # Load decoder weights
+        self.decoder.mean.weight.copy(
+            torch.from_numpy(Vmean.loc[Vmean.axis!='bias'].values)
+        )
+        self.decoder.mean.bias.copy(
+            torch.from_numpy(Vmean.loc[Vmean.axis=='bias'].values)
+        )
+        self.decoder.var.weight.copy(
+            torch.from_numpy(Vstd.loc[Vstd.axis!='bias'].values)
+        )
+        self.decoder.var.bias.copy(
+            torch.from_numpy(Vstd.loc[Vstd.axis=='bias'].values)
+        )

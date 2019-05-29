@@ -138,6 +138,9 @@ class TestMMvec(unittest.TestCase):
         r, p = spearmanr(exp.ravel(), res.ravel())
         self.assertLess(p, 0.001)
 
+    def test_mmvec_load(self):
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()
