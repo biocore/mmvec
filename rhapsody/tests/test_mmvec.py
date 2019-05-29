@@ -1,13 +1,16 @@
 import unittest
 import torch
 import copy
-
+import glob
+import shutil
 import numpy as np
+import pandas as pd
 from rhapsody.mmvec import MMvec
 from rhapsody.sim import random_bimodal
 from scipy.spatial.distance import pdist
 from scipy.sparse import csr_matrix
 from scipy.stats import spearmanr
+from skbio.util import get_data_path
 
 
 class TestMMvec(unittest.TestCase):
@@ -56,6 +59,10 @@ class TestMMvec(unittest.TestCase):
         self.subsample_size = 500
         self.learning_rate = 1e-1
 
+    def tearDown(self):
+        for f in glob.glob("logdir*"):
+            shutil.rmtree(f)
+
     def test_mmvec_loss(self):
         # test to see if errors have been decreased
         torch.manual_seed(0)
@@ -64,8 +71,14 @@ class TestMMvec(unittest.TestCase):
             self.num_samples, self.num_microbes, self.num_metabolites,
             microbe_read_total, self.latent_dim, 1,
             self.subsample_size)
-        res = model.fit(csr_matrix(self.microbe_counts),
-                        self.metabolite_counts, epochs=1)
+        trainX = csr_matrix(self.microbe_counts)
+        trainY = self.metabolite_counts
+        testX = csr_matrix(self.microbe_counts)
+        testY = self.metabolite_counts
+        res = model.fit(trainX, trainY, testX, testY,
+                        epochs=self.epochs, learning_rate=self.learning_rate,
+                        beta1=self.beta1, beta2=self.beta2)
+
         losses, klds, likes, errs = res
         self.assertGreater(np.mean(losses[:3]), np.mean(losses[:-3]))
         self.assertLess(np.mean(likes[:3]), np.mean(likes[:-3]))
@@ -82,8 +95,14 @@ class TestMMvec(unittest.TestCase):
             self.subsample_size)
         before_model = copy.deepcopy(model)
 
-        model.fit(csr_matrix(self.microbe_counts),
-                  self.metabolite_counts, epochs=1)
+        trainX = csr_matrix(self.microbe_counts)
+        trainY = self.metabolite_counts
+        testX = csr_matrix(self.microbe_counts)
+        testY = self.metabolite_counts
+        model.fit(trainX, trainY, testX, testY,
+                  epochs=self.epochs, learning_rate=self.learning_rate,
+                  beta1=self.beta1, beta2=self.beta2)
+
         after_model = copy.deepcopy(model)
 
         before_u = np.array(before_model.encoder.embedding.weight.detach())
@@ -101,6 +120,7 @@ class TestMMvec(unittest.TestCase):
         self.assertFalse(np.allclose(before_ubias, after_ubias))
         self.assertFalse(np.allclose(before_vbias, after_vbias))
 
+    @unittest.skip("Sanity check fit.  Note that this is random.")
     def test_mmvec_fit(self):
         # test to see if the parameters from the model are actually legit
         torch.manual_seed(0)
@@ -111,9 +131,61 @@ class TestMMvec(unittest.TestCase):
             self.num_samples, self.num_microbes, self.num_metabolites,
             microbe_read_total, self.latent_dim, self.batch_size,
             self.subsample_size)
-        model.fit(csr_matrix(self.microbe_counts),
-                  self.metabolite_counts, epochs=25,
+        trainX = csr_matrix(self.microbe_counts)
+        trainY = self.metabolite_counts
+        testX = csr_matrix(self.microbe_counts)
+        testY = self.metabolite_counts
+        model.fit(trainX, trainY, testX, testY,
+                  epochs=self.epochs, learning_rate=self.learning_rate,
                   beta1=self.beta1, beta2=self.beta2)
+
+        u = np.array(model.encoder.embedding.weight.detach())
+        v = np.array(model.decoder.mean.weight.detach())
+        ubias = np.array(model.encoder.bias.weight.detach())
+        vbias = np.array(model.decoder.mean.bias.detach())
+        # test to see if the U distances are correct
+        r, p = spearmanr(pdist(self.eUmain), pdist(u))
+        self.assertLess(p, 0.001)
+        # test to see if the V distances are correct
+        r, p = spearmanr(pdist(self.eVmain.T), pdist(v))
+        self.assertLess(p, 0.001)
+        # test to see if the ranks correct
+        exp = np.hstack(
+            (np.ones((self.num_microbes, 1)), self.eUbias, self.eUmain)
+        ) @  np.vstack(
+            (self.eVbias, np.ones((1, self.num_metabolites)), self.eVmain)
+        )
+        res = np.hstack(
+            (np.ones((u.shape[0], 1)), ubias, u)
+        ) @ np.hstack(
+            (vbias.reshape(-1, 1), np.ones((v.shape[0], 1)), v)
+        ).T
+        r, p = spearmanr(exp.ravel(), res.ravel())
+        self.assertLess(p, 0.001)
+
+    @unittest.skip("Sanity check fit with gpu.  Note that this is random.")
+    def test_mmvec_fit_gpu(self):
+        # test to see if the parameters from the model are actually legit
+        torch.manual_seed(0)
+        np.random.seed(0)
+
+        microbe_read_total = self.microbe_counts.sum()
+        model = MMvec(
+            self.num_samples, self.num_microbes, self.num_metabolites,
+            microbe_read_total, self.latent_dim, self.batch_size,
+            self.subsample_size)
+
+        device_name = 'cuda'
+        model = model.to(device=device_name)
+        trainX = csr_matrix(self.microbe_counts)
+        trainY = self.metabolite_counts
+        testX = csr_matrix(self.microbe_counts)
+        testY = self.metabolite_counts
+        model.fit(trainX, trainY, testX, testY,
+                  epochs=self.epochs, learning_rate=self.learning_rate,
+                  beta1=self.beta1, beta2=self.beta2,
+                  device_name=device_name)
+
         u = np.array(model.encoder.embedding.weight.detach())
         v = np.array(model.decoder.mean.weight.detach())
         ubias = np.array(model.encoder.bias.weight.detach())
@@ -139,7 +211,33 @@ class TestMMvec(unittest.TestCase):
         self.assertLess(p, 0.001)
 
     def test_mmvec_load(self):
-        pass
+        torch.manual_seed(0)
+        np.random.seed(0)
+        fname = get_data_path('test_model.csv')
+        model, oids, mids = MMvec.load(fname)
+        u = pd.DataFrame(np.array(model.encoder.embedding.weight.detach()),
+                         index=oids)
+        uvar = pd.DataFrame(np.array(
+            model.encoder.embedding_var.weight.detach()),index=oids)
+        i=('TACGTAGGTGGCAAGCGTTGTCCGGATTTATTGGGCGTAAAGCGAGCGCAGGCGGTTCCTTAAGTCT'
+           'GATGTGAAAGCCCCCGGCTCAACCGGGGAGGGTCATTGGAAACTGGGGAACTTGAGTGCAGAAGAGG'
+           'AGAGTGGAATTCCATG')
+
+        self.assertAlmostEqual(u.loc[i, 0], -0.15767033,
+                               places=5)
+
+        self.assertAlmostEqual(uvar.loc[i, 0], np.log(0.021702994)*2,
+                               places=5)
+
+        v = pd.DataFrame(np.array(model.decoder.mean.weight.detach()),
+                         index=mids)
+        vvar = pd.DataFrame(np.array(model.decoder.var.weight.detach()),
+                            index=mids)
+        i = 'X438.3935mz599.3187'
+        self.assertAlmostEqual(v.loc[i, 2], 0.14048962,
+                               places=5)
+        self.assertAlmostEqual(vvar.loc[i, 2], np.log(0.98518753)*2,
+                               places=5)
 
 
 if __name__ == "__main__":
