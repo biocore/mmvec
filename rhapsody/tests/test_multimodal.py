@@ -74,5 +74,56 @@ class TestMMvec(unittest.TestCase):
             self.assertLess(model.cv.eval(), 500)
 
 
+class TestMMvecBenchmark(unittest.TestCase):
+    def setUp(self):
+        # build small simulation
+        res = random_multimodal(
+            num_microbes=100, num_metabolites=1000, num_samples=300,
+            latent_dim=2, sigmaQ=2,
+            microbe_total=5000, metabolite_total=10000, seed=1
+        )
+        (self.microbes, self.metabolites, self.X, self.B,
+         self.U, self.Ubias, self.V, self.Vbias) = res
+        num_train = 10
+        self.trainX = self.microbes.iloc[:-num_train]
+        self.testX = self.microbes.iloc[-num_train:]
+        self.trainY = self.metabolites.iloc[:-num_train]
+        self.testY = self.metabolites.iloc[-num_train:]
+
+    @unittest.skip("Only for benchmarking")
+    def test_gpu(self):
+        np.random.seed(1)
+        tf.reset_default_graph()
+        n, d1 = self.trainX.shape
+        n, d2 = self.trainY.shape
+
+        with tf.Graph().as_default(), tf.Session() as session:
+            set_random_seed(0)
+            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=2,
+                          batch_size=2000,
+                          device_name="/device:GPU:0")
+            model(session,
+                  coo_matrix(self.trainX.values), self.trainY.values,
+                  coo_matrix(self.testX.values), self.testY.values)
+            model.fit(epoch=10000)
+
+    @unittest.skip("Only for benchmarking")
+    def test_cpu(self):
+        print('CPU run')
+        np.random.seed(1)
+        tf.reset_default_graph()
+        n, d1 = self.trainX.shape
+        n, d2 = self.trainY.shape
+
+        with tf.Graph().as_default(), tf.Session() as session:
+            set_random_seed(0)
+            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=2,
+                          batch_size=2000)
+            model(session,
+                  coo_matrix(self.trainX.values), self.trainY.values,
+                  coo_matrix(self.testX.values), self.testY.values)
+            model.fit(epoch=10000)
+
+
 if __name__ == "__main__":
     unittest.main()

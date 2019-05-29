@@ -24,6 +24,9 @@ def mmvec(microbes: biom.Table,
           learning_rate: float = 0.001,
           summary_interval: int = 60) -> (pd.DataFrame, OrdinationResults):
 
+    if metadata is not None:
+        metadata = metadata.to_dataframe()
+
     # Note: there are a couple of biom -> pandas conversions taking
     # place here.  This is currently done on purpose, since we
     # haven't figured out how to handle sparse matrix multiplication
@@ -61,15 +64,23 @@ def mmvec(microbes: biom.Table,
             (model.Vbias.reshape(1, -1),
              np.ones((1, model.V.shape[1])), V)
         )
-        microbe_embed = U_
-        metabolite_embed = np.hstack((np.zeros((V_.shape[0], 1)), V_))
 
-        pc_ids = ['PC%d' % i for i in range(U_.shape[1])]
-        samples = pd.DataFrame(
+        microbe_embed = model.U
+        metabolite_embed = np.hstack((np.zeros((V.shape[0], 1)), V)).T
+
+        # make sure that the entries are row centered
+        # only if the shape is greater than 1 (otherwise that will just
+        # be subtracted out to zero.)
+        if microbe_embed.shape[1] > 1:
+            microbe_embed -= microbe_embed.mean(axis=1).reshape(-1, 1)
+            metabolite_embed -= metabolite_embed.mean(axis=1).reshape(-1, 1)
+
+        pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
+        features = pd.DataFrame(
             microbe_embed, columns=pc_ids,
             index=train_microbes_df.columns)
-        features = pd.DataFrame(
-            metabolite_embed.T, columns=pc_ids,
+        samples = pd.DataFrame(
+            metabolite_embed, columns=pc_ids,
             index=train_metabolites_df.columns)
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'

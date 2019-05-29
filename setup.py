@@ -10,11 +10,10 @@
 import re
 import ast
 from glob import glob
-from setuptools import setup
-
+from setuptools import find_packages, setup
 
 classes = """
-    Development Status :: 2 - Pre-Alpha
+    Development Status :: 3 - Alpha
     License :: OSI Approved :: BSD License
     Topic :: Software Development :: Libraries
     Topic :: Scientific/Engineering
@@ -49,7 +48,7 @@ setup(name='rhapsody',
       author_email="jamietmorton@gmail.com",
       maintainer="gneiss development team",
       maintainer_email="jamietmorton@gmail.com",
-      packages=['rhapsody'],
+      packages=find_packages(),
       scripts=glob('scripts/rhapsody'),
       install_requires=[
           'biom-format',
