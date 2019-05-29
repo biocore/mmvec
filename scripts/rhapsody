@@ -144,8 +144,7 @@ def mmvec(microbe_file, metabolite_file,
     # if device_name=='cuda':
     model = model.to(device=device_name)
 
-    fitted_model = train_cooccurrence(
-        model,
+    fitted_model = model.fit(
         trainX, trainY, testX, testY,
         epochs=epochs, learning_rate=learning_rate,
         beta1=beta1, beta2=beta2,
