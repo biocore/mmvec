@@ -112,7 +112,6 @@ def split_tables(otu_table, metabolite_table,
                  metadata=None, training_column=None, num_test=10,
                  min_samples=10):
     """ Splits otu and metabolite tables into training and testing datasets.
-
     Parameters
     ----------
     otu_table : biom.Table
@@ -133,7 +132,6 @@ def split_tables(otu_table, metabolite_table,
     min_samples : int
        The minimum number of samples a microbe needs to be observed in
        in order to not get filtered out
-
     Returns
     -------
     """
