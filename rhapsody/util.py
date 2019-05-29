@@ -162,8 +162,9 @@ def split_tables(otu_table, metabolite_table,
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
     else:
         if len(set(metadata[training_column]) & {'Train', 'Test'}) == 0:
-            raise ValueError("Training column must only specify `Train` and `Test`"
-                             "values")
+            raise ValueError(
+                "Training column must only specify `Train` and `Test` values"
+            )
         idx = metadata.loc[metadata[training_column] != 'Train'].index
         sample_ids = set(idx)
         sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
