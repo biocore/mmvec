@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 import pandas as pd
 from skbio.stats.composition import ilr_inv
@@ -57,6 +58,19 @@ def split_tables(otu_table, metabolite_table,
 
     Returns
     -------
+    train_microbes : pd.DataFrame
+       Training set of microbes
+    test_microbes : pd.DataFrame
+       Testing set of microbes
+    train_metabolites : pd.DataFrame
+       Training set of metabolites
+    test_metabolites : pd.DataFrame
+       Testing set of metabolites
+
+    Notes
+    -----
+    There is an inefficient conversion from a sparse matrix to a
+    dense matrix.  This may become a bottleneck later.
     """
     microbes_df = otu_table.to_dataframe().T
     metabolites_df = metabolite_table.to_dataframe().T
@@ -99,7 +113,7 @@ def onehot(microbes):
     sample_ids : np.array
        Sample ids
     """
-    coo = coo_matrix(microbes)
+    coo = microbes.tocoo()
     data = coo.data.astype(np.int64)
     otu_ids = coo.col
     sample_ids = coo.row
@@ -157,3 +171,64 @@ def rank_hits(ranks, k, pos=True):
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
     edges['rank'] = edges['rank'].astype(np.float64)
     return edges
+
+
+
+def get_batch(X, Y, i, subsample_size, batch_size):
+    """ Retrieves minibatch
+
+    Parameters
+    ----------
+    X : scipy.sparse.csr_matrix
+        Input sparse matrix of abundances (samples x features)
+    Y : np.array
+        Output dense matrix of abundances (samples x features)
+    i : int
+        Sample index
+    subsample_size : int
+        Number of sequences to randomly draw per iteration
+    batch_size : int
+        Number of samples to load per minibatch
+
+    TODO
+    ----
+    - It will be worth offloading this work to the torch.data.DataLoader class.
+      One advantage is that the GPU work can be done in parallel
+      to preparing the data for transfer.  This could yield at least
+      a 2x speedup.
+    """
+    Xs = []
+    Ys = []
+    for n in range(batch_size):
+        k = (i + n) % Y.shape[0]
+        row = X.getrow(k)
+        cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
+                          for i in range(len(row.indptr)-1)])
+        feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i+1]]
+                           for i in range(len(row.indptr)-1)])
+        inp = np.random.choice(feats, p=cnts/np.sum(cnts), size=subsample_size)
+        Xs.append(inp)
+        Ys.append(Y[k])
+
+    Xs = np.hstack(Xs)
+    Ys = np.repeat(np.vstack(Ys), subsample_size, axis=0)
+    return torch.from_numpy(Xs).long(), torch.from_numpy(Ys).float()
+
+
+def format_params(mu, std, colnames, rownames,
+                  embed_name, index_name='feature_id'):
+    mudf = pd.DataFrame(mu, columns=colnames, index=rownames)
+    mudf = mudf.reset_index()
+    mudf = mudf.rename(columns={'index': 'feature_id'})
+    mudf = pd.melt(mudf, id_vars=['feature_id'],
+                   var_name='axis', value_name='mean')
+
+    stddf = pd.DataFrame(std, columns=colnames, index=rownames)
+    stddf = stddf.reset_index()
+    stddf = stddf.rename(columns={'index': 'feature_id'})
+    stddf = pd.melt(stddf, id_vars=['feature_id'],
+                    var_name='axis', value_name='stddev')
+    df = pd.merge(mudf, stddf, on=['feature_id', 'axis'])
+    df['embed_type'] = embed_name
+
+    return df[['feature_id', 'axis', 'embed_type', 'mean', 'stddev']]

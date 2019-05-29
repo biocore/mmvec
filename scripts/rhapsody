@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import time
+from decimal import Decimal
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
@@ -11,12 +12,11 @@ from skbio.stats.composition import clr_inv as softmax
 import matplotlib.pyplot as plt
 from scipy.stats import entropy, spearmanr
 import click
-from scipy.sparse import coo_matrix
-import tensorflow as tf
-from tensorflow.contrib.distributions import Multinomial, Normal
+from scipy.sparse import csr_matrix
 import datetime
-from rhapsody.multimodal import MMvec, cross_validation
-from rhapsody.util import onehot, rank_hits, random_multimodal, split_tables
+from rhapsody.multimodal import MMvec
+from rhapsody.util import (onehot, rank_hits, random_multimodal,
+                           split_tables, format_params)
 
 
 @click.group()
@@ -25,10 +25,11 @@ def rhapsody():
 
 
 @rhapsody.command()
-@click.option('--microbe-file',
-              help='Input microbial abundances')
-@click.option('--metabolite-file',
-              help='Input metabolite abundances')
+@click.option('--exog-features',
+              help='Input sequence counts to use for prediction.')
+@click.option('--endog-features',
+              help=('Output sequence abundances to predict '
+                    'from input sequence counts.'))
 @click.option('--metadata-file', default=None,
               help='Input sample metadata file')
 @click.option('--training-column',
@@ -43,62 +44,68 @@ def rhapsody():
                     'in order to not filter out'),
               default=10)
 @click.option('--epochs',
-              help='Number of epochs to train', default=10)
-@click.option('--batch_size',
-              help='Size of mini-batch', default=32)
-@click.option('--latent_dim',
+              help=('Number of epochs to train, one epoch represents the '
+                    'number of samples to process an entire dataset.'), default=10)
+@click.option('--batch-size',
+              help='Number of samples to analyze per iteration.', default=10)
+@click.option('--subsample-size',
+              help='Number of sequences to analyze per sample.', default=100)
+@click.option('--mc-samples',
+              help='Number of Monte Carlo samples to estimate gradient steps.',
+              default=5)
+@click.option('--latent-dim',
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
               default=3)
-@click.option('--input_prior',
-              help=('Width of normal prior for input embedding.  '
-                    'Smaller values will regularize parameters towards zero. '
-                    'Values must be greater than 0.'),
-              default=1.)
-@click.option('--output_prior',
-              help=('Width of normal prior for input embedding.  '
-                    'Smaller values will regularize parameters towards zero. '
-                    'Values must be greater than 0.'),
-              default=1.)
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
               default=False)
-@click.option('--top-k',
-              help=('Number of top hits to compare for cross-validation.'),
-              default=50)
 @click.option('--learning-rate',
-              help=('Gradient descent decay rate.'),
+              help=('Gradient descent learning rate.'),
               default=1e-1)
+@click.option('--decay-rate',
+              help=('Gradient descent decay rate.'),
+              default=0.1)
+@click.option('--step-size',
+              help=('Number of epochs before learning rate is decremented.'),
+              default=1)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
               default=0.9)
 @click.option('--beta2',
               help=('Gradient decay rate for second Adam momentum estimates'),
               default=0.95)
-@click.option('--clipnorm',
-              help=('Gradient clipping size.'),
-              default=10.)
+@click.option('--seed',
+              help=('Random seed for the sake of reproducibility (optional).'),
+              default=None)
 @click.option('--checkpoint-interval',
-              help=('Number of seconds before a storing a summary.'),
+              help=('Number of seconds before a storing a checkpoint.'),
               default=1000)
 @click.option('--summary-interval',
               help=('Number of seconds before a storing a summary.'),
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
-@click.option('--ranks-file', default=None,
-              help='Ranks file containing microbe-metabolite rankings.')
-def mmvec(microbe_file, metabolite_file,
-          metadata_file, training_column,
-          num_testing_examples, min_feature_count,
-         epochs, batch_size, latent_dim,
-          input_prior, output_prior, arm_the_gpu, top_k,
-          learning_rate, beta1, beta2, clipnorm,
-          checkpoint_interval, summary_interval,
-          summary_dir, ranks_file):
+@click.option('--model-output', default=None,
+              help=('Model parameter file containing microbe-metabolite '
+                    'interaction parameters.'))
+def seq2seq(exog_features, endog_features,
+            metadata_file, training_column,
+            num_testing_examples, min_feature_count,
+            epochs, batch_size, subsample_size, mc_samples,
+            latent_dim, arm_the_gpu, learning_rate,
+            decay_rate, step_size, beta1, beta2, seed,
+            checkpoint_interval, summary_interval,
+            summary_dir, model_output):
+    input_seq_counts, output_seq_counts = exog_features, endog_features
+    # set random seed if specified
+    if seed is not None:
+        np.random.seed(seed)
+        torch.manual_seed(seed)
 
-    microbes = load_table(microbe_file)
-    metabolites = load_table(metabolite_file)
+    # TODO: rename from microbes/metabolites to something more general
+    microbes = load_table(input_seq_counts)
+    metabolites = load_table(output_seq_counts)
 
     if metadata_file is not None:
         metadata = pd.read_table(metadata_file, index_col=0)
@@ -120,76 +127,73 @@ def mmvec(microbe_file, metabolite_file,
 
     params = []
 
-    sname = 'latent_dim_' + str(latent_dim) + \
-           '_input_prior_%.2f' % input_prior + \
-           '_output_prior_%.2f' % output_prior + \
-           '_beta1_%.2f' % beta1 + \
-           '_beta2_%.2f' % beta2
+    sname = '_'.join(['log_PC(%d)' % latent_dim,
+                      'mc(%d)' % mc_samples,
+                      'samp(%d)' % batch_size,
+                      'sub(%d)' % subsample_size,
+                      'lr(%s)' % "{:.2E}".format(Decimal(learning_rate)),
+                      'decay(%s)' % "{:.2E}".format(Decimal(decay_rate)),
+                      'beta1(%.2f)' % beta1,
+                      'beta2(%.2f)' % beta2])
 
     sname = os.path.join(summary_dir, sname)
 
-    n, d1 = microbes.shape
-    n, d2 = metabolites.shape
+    trainX = csr_matrix(train_microbes_df.values)
+    testX = csr_matrix(test_microbes_df.values)
+    trainY = train_metabolites_df.values
+    testY = test_metabolites_df.values
 
-    train_microbes_coo = coo_matrix(train_microbes_df.values)
-    test_microbes_coo = coo_matrix(test_microbes_df.values)
+    n, d1 = trainX.shape
+    n, d2 = trainY.shape
 
     if arm_the_gpu:
         # pick out the first GPU
-        device_name='/device:GPU:0'
+        device_name='cuda'
     else:
-        device_name='/cpu:0'
+        device_name='cpu'
 
-    config = tf.ConfigProto()
-    with tf.Graph().as_default(), tf.Session(config=config) as session:
-        model = MMvec(
-            latent_dim=latent_dim,
-            u_scale=input_prior, v_scale=output_prior,
-            learning_rate = learning_rate,
-            beta_1=beta1, beta_2=beta2,
-            device_name=device_name,
-            clipnorm=clipnorm, save_path=sname)
+    model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=latent_dim,
+                  batch_size=batch_size, subsample_size=subsample_size,
+                  device=device_name)
+    fitted_model = model.fit(
+        trainX, trainY, testX, testY,
+        epochs=epochs, gamma=decay_rate,
+        learning_rate=learning_rate, mc_samples=mc_samples,
+        beta1=beta1, beta2=beta2, step_size=step_size,
+        summary_interval=summary_interval,
+        checkpoint_interval=checkpoint_interval)
 
-        model(session,
-              train_microbes_coo, train_metabolites_df.values,
-              test_microbes_coo, test_metabolites_df.values)
+    # now extract the model weights and save them to disk
+    mu_u = fitted_model.embeddings.weight.detach().cpu().numpy()
+    mu_ub = fitted_model.bias.weight.detach().cpu().numpy().reshape(-1, 1)
+    mu_v = fitted_model.muV.detach().cpu().numpy()
+    mu_vb = fitted_model.muVb.detach().cpu().numpy().reshape(-1, 1)
 
-        loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval,
-                             checkpoint_interval=checkpoint_interval)
+    std_u = np.exp(fitted_model.logstdU.weight.detach().numpy())
+    std_ub = np.exp(
+        fitted_model.logstdUb.weight.detach().numpy()
+    ).reshape(-1, 1)
+    std_v = np.exp(fitted_model.logstdV.detach().numpy())
+    std_vb = np.exp(
+        fitted_model.logstdVb.detach().numpy()
+    ).reshape(-1, 1)
 
-        U, V = model.U, model.V
-        d1 = U.shape[0]
+    otu_ids = list(map(lambda x: 'clr(%s)' % x,
+                       list(train_microbes_df.columns)))
+    ms_ids = list(train_metabolites_df.columns)
+    pc_ids = ['PC%d' % i for i in range(mu_u.shape[1])]
+    alr_ms_ids = ['log(%s:%s)' % (ms_ids[i], ms_ids[0])
+                  for i in range(1, len(ms_ids))]
 
-        U_ = np.hstack(
-            (np.ones((model.U.shape[0], 1)),
-             model.Ubias.reshape(-1, 1), U)
-        )
-        V_ = np.vstack(
-            (model.Vbias.reshape(1, -1),
-             np.ones((1, model.V.shape[1])), V)
-        )
+    df = pd.concat(
+        (
+            format_params(mu_u, std_u, pc_ids, otu_ids, 'microbe'),
+            format_params(mu_v.T, std_v.T, pc_ids, alr_ms_ids, 'metabolite'),
+            format_params(mu_ub, std_ub, ['bias'], otu_ids, 'microbe'),
+            format_params(mu_vb, std_vb, ['bias'], alr_ms_ids, 'metabolite')
+        ), axis=0)
 
-        np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
-        np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)
-        np.savetxt(os.path.join(summary_dir, 'Ubias.txt'), model.Ubias)
-        np.savetxt(os.path.join(summary_dir, 'Vbias.txt'), model.Vbias)
-
-        if ranks_file is not None:
-            ranks = pd.DataFrame(
-                clr(softmax(np.hstack(
-                    (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-                index=train_microbes_df.columns,
-                columns=train_metabolites_df.columns)
-
-            # shift the reference from the first microbe to the average microbe
-            ranks = ranks - ranks.mean(axis=1)
-
-            params, rank_stats = cross_validation(
-                model, test_microbes_df, test_metabolites_df, top_N=top_k)
-
-            params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
-            rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
-            ranks.to_csv(ranks_file)
+    df.to_csv(model_output)
 
 
 if __name__ == '__main__':
