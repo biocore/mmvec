@@ -15,20 +15,23 @@ from torch.distributions.multinomial import Multinomial
 
 
 class MMvec(nn.Module):
-    def __init__(self, num_samples, num_microbes, num_metabolites,
-                 microbe_total, latent_dim, batch_size=10,
+    def __init__(self, num_microbes, num_metabolites,
+                 latent_dim, batch_size=10,
                  subsample_size=100):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
         self.num_metabolites = num_metabolites
-        self.num_samples = num_samples
         self.batch_size = batch_size
         self.subsample_size = subsample_size
-        self.microbe_total = microbe_total
         self.encoder = GaussianEmbedding(in_features=num_microbes,
                                          out_features=latent_dim)
         self.decoder = GaussianDecoder(in_features=latent_dim,
                                        out_features=num_metabolites)
+
+        # these variables need to be loaded during the fit
+        self.num_samples = None
+        self.microbe_total = None
+
 
     def forward(self, x):
         code = self.encoder(x)
@@ -161,6 +164,10 @@ class MMvec(nn.Module):
 
         TODO: set the microbe_total and num_samples in this fit method
         """
+        #
+        self.num_samples = trainY.shape[0]
+        self.microbe_total = trainX.sum()
+
         if save_path is None:
             basename = "logdir"
             suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
@@ -193,14 +200,12 @@ class MMvec(nn.Module):
 
                 loss.backward()
                 optimizer.step()
-
                 # save summary
                 if now - last_summary_time > summary_interval:
                     test_in, test_out = get_batch(testX, testY, i % num_samples,
                                          self.subsample_size, self.batch_size)
                     test_in = test_in.to(device=device)
                     test_out = test_out.to(device=device)
-
                     cv_mae = self.validate(test_in, test_out)
                     iteration = i + ep*num_samples
                     writer.add_scalar('elbo', loss, iteration)
@@ -216,7 +221,9 @@ class MMvec(nn.Module):
                         self.decoder.mean.weight.detach(),
                         global_step=iteration, tag='V')
                     last_summary_time = now
-
+                    # clear out memory
+                    del test_in
+                    del test_out
                 # checkpoint self
                 now = time.time()
                 if now - last_checkpoint_time > checkpoint_interval:
@@ -226,6 +233,13 @@ class MMvec(nn.Module):
                                             'checkpoint_' + suffix))
                     last_checkpoint_time = now
 
+                # free variables
+                loss.detach()
+                kld.detach()
+                like.detach()
+                err.detach()
+                del inp
+                del out
                 optimizer.step()
 
         return losses, klds, likes, errs

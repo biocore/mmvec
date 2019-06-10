@@ -68,9 +68,8 @@ class TestMMvec(unittest.TestCase):
         torch.manual_seed(0)
         microbe_read_total = self.microbe_counts.sum()
         model = MMvec(
-            self.num_samples, self.num_microbes, self.num_metabolites,
-            microbe_read_total, self.latent_dim, 1,
-            self.subsample_size)
+            self.num_microbes, self.num_metabolites,
+            self.latent_dim, self.batch_size, self.subsample_size)
         trainX = csr_matrix(self.microbe_counts)
         trainY = self.metabolite_counts
         testX = csr_matrix(self.microbe_counts)
@@ -90,8 +89,8 @@ class TestMMvec(unittest.TestCase):
         torch.manual_seed(0)
         microbe_read_total = self.microbe_counts.sum()
         model = MMvec(
-            self.num_samples, self.num_microbes, self.num_metabolites,
-            microbe_read_total, self.latent_dim, self.batch_size,
+            self.num_microbes, self.num_metabolites,
+            self.latent_dim, self.batch_size,
             self.subsample_size)
         before_model = copy.deepcopy(model)
 
@@ -128,8 +127,8 @@ class TestMMvec(unittest.TestCase):
 
         microbe_read_total = self.microbe_counts.sum()
         model = MMvec(
-            self.num_samples, self.num_microbes, self.num_metabolites,
-            microbe_read_total, self.latent_dim, self.batch_size,
+            self.num_microbes, self.num_metabolites,
+            self.latent_dim, self.batch_size,
             self.subsample_size)
         trainX = csr_matrix(self.microbe_counts)
         trainY = self.metabolite_counts
@@ -171,8 +170,8 @@ class TestMMvec(unittest.TestCase):
 
         microbe_read_total = self.microbe_counts.sum()
         model = MMvec(
-            self.num_samples, self.num_microbes, self.num_metabolites,
-            microbe_read_total, self.latent_dim, self.batch_size,
+            self.num_microbes, self.num_metabolites,
+            self.latent_dim, self.batch_size,
             self.subsample_size)
 
         device_name = 'cuda'
