@@ -17,7 +17,6 @@ from scipy.sparse import csr_matrix
 
 from rhapsody.mmvec import MMvec
 from rhapsody.util import split_tables, format_params
-from rhapsody.train import train_cooccurrence
 
 
 @click.group()

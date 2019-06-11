@@ -186,13 +186,19 @@ class MMvec(nn.Module):
                 out = out.to(device)
                 pred = self.forward(inp)
                 loss, kld, like, err = self.loss(pred, out)
-                losses.append(loss.item())
-                klds.append(kld.item())
-                likes.append(like.item())
-                errs.append(err.item())
+                losses.append(float(loss.item()))
+                klds.append(float(kld.item()))
+                likes.append(float(like.item()))
+                errs.append(float(err.item()))
 
                 loss.backward()
                 optimizer.step()
+
+                # clear variables
+                loss.detach()
+                kld.detach()
+                like.detach()
+                err.detach()
 
                 # save summary
                 if now - last_summary_time > summary_interval:
@@ -216,6 +222,9 @@ class MMvec(nn.Module):
                         self.decoder.mean.weight.detach(),
                         global_step=iteration, tag='V')
                     last_summary_time = now
+                    # clear out variables
+                    del test_in
+                    del test_out
 
                 # checkpoint self
                 now = time.time()
@@ -225,7 +234,13 @@ class MMvec(nn.Module):
                                os.path.join(save_path,
                                             'checkpoint_' + suffix))
                     last_checkpoint_time = now
-
                 optimizer.step()
+
+                # clear out tensors ...
+                del inp
+                del out
+
+            # clear out cache per epoch
+            torch.cuda.empty_cache()
 
         return losses, klds, likes, errs
