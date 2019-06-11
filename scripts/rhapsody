@@ -136,14 +136,14 @@ def mmvec(microbe_file, metabolite_file,
     else:
         device_name='cpu'
     microbe_total = np.sum(train_microbes_df.values)
-    model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
-                  microbe_total=microbe_total, latent_dim=latent_dim,
+    model = MMvec(num_microbes=d1, num_metabolites=d2,
+                  latent_dim=latent_dim,
                   batch_size=batch_size, subsample_size=subsample_size
     )
     # if device_name=='cuda':
     model = model.to(device=device_name)
 
-    fitted_model = model.fit(
+    model.fit(
         trainX, trainY, testX, testY,
         epochs=epochs, learning_rate=learning_rate,
         beta1=beta1, beta2=beta2,
@@ -154,16 +154,18 @@ def mmvec(microbe_file, metabolite_file,
     # now extract the model weights and save them to disk
     def extract(x):
         return x.detach().cpu().numpy()
-    mu_u = extract(fitted_model.encoder.embedding.weight)
-    mu_ub = extract(fitted_model.encoder.bias.weight).reshape(-1, 1)
-    mu_v = extract(fitted_model.decoder.mean.weight)
-    mu_vb = extract(fitted_model.decoder.mean.bias).reshape(-1, 1)
-    std_u = np.exp(0.5 * extract(fitted_model.encoder.embedding_var.weight))
+
+
+    mu_u = extract(model.encoder.embedding.weight)
+    mu_ub = extract(model.encoder.bias.weight).reshape(-1, 1)
+    mu_v = extract(model.decoder.mean.weight)
+    mu_vb = extract(model.decoder.mean.bias).reshape(-1, 1)
+    std_u = np.exp(0.5 * extract(model.encoder.embedding_var.weight))
     std_ub = np.exp(0.5 *
-        extract(fitted_model.encoder.bias_var.weight)
+        extract(model.encoder.bias_var.weight)
     ).reshape(-1, 1)
-    std_v = np.exp(0.5 * extract(fitted_model.decoder.var.weight))
-    std_vb = np.exp(0.5 * extract(fitted_model.decoder.var.bias)).reshape(-1, 1)
+    std_v = np.exp(0.5 * extract(model.decoder.var.weight))
+    std_vb = np.exp(0.5 * extract(model.decoder.var.bias)).reshape(-1, 1)
 
     otu_ids = list(train_microbes_df.columns)
     ms_ids = list(train_metabolites_df.columns)
