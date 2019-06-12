@@ -215,8 +215,8 @@ class MMvec(nn.Module):
                     test_out = test_out.to(device=device)
                     cv_mae = self.validate(test_in, test_out)
                     iteration = i + ep*num_samples
-                    writer.add_scalar('elbo', loss, iteration)
-                    writer.add_scalar('KL_divergence', kld, iteration)
+                    writer.add_scalar('elbo', -loss, iteration)
+                    writer.add_scalar('KL_divergence', -kld, iteration)
                     writer.add_scalar('log_likelihood', like, iteration)
                     writer.add_scalar('cv_mean_count_err', cv_mae, iteration)
                     writer.add_scalar('train_mean_count_err', err, iteration)
