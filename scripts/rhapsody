@@ -60,13 +60,13 @@ def rhapsody():
               default=False)
 @click.option('--learning-rate',
               help=('Gradient descent learning rate.'),
-              default=1e-1)
+              default=1e-3)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
               default=0.9)
 @click.option('--beta2',
               help=('Gradient decay rate for second Adam momentum estimates'),
-              default=0.95)
+              default=0.99)
 @click.option('--checkpoint-interval',
               help=('Number of seconds before a storing a checkpoint.'),
               default=1000)
@@ -113,12 +113,12 @@ def mmvec(microbe_file, metabolite_file,
 
     params = []
 
-    sname = '_'.join(['log_PC(%d)' % latent_dim,
-                      'samp(%d)' % batch_size,
-                      'sub(%d)' % subsample_size,
-                      'lr(%s)' % "{:.2E}".format(Decimal(learning_rate)),
-                      'beta1(%.2f)' % beta1,
-                      'beta2(%.2f)' % beta2])
+    sname = '_'.join(['log_PC%d' % latent_dim,
+                      'samp%d' % batch_size,
+                      'sub%d' % subsample_size,
+                      'lr%s' % "{:.2E}".format(Decimal(learning_rate)),
+                      'betaA%.2f' % beta1,
+                      'betaB%.2f' % beta2])
 
     sname = os.path.join(summary_dir, sname)
 
