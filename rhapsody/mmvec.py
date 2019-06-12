@@ -220,13 +220,6 @@ class MMvec(nn.Module):
                     writer.add_scalar('log_likelihood', like, iteration)
                     writer.add_scalar('cv_mean_count_err', cv_mae, iteration)
                     writer.add_scalar('train_mean_count_err', err, iteration)
-                    writer.add_embedding(
-                        self.encoder.embedding.weight.detach(),
-                        global_step=iteration, tag='U')
-                    # note that these are in alr coordinates
-                    writer.add_embedding(
-                        self.decoder.mean.weight.detach(),
-                        global_step=iteration, tag='V')
                     last_summary_time = now
 
                     # clear out variables
