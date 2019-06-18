@@ -2,7 +2,10 @@ import glob
 import shutil
 import unittest
 import numpy as np
+import pandas as pd
+from biom import load_table
 from skbio.stats.composition import clr_inv as softmax
+from skbio.util import get_data_path
 from scipy.stats import spearmanr
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import pdist
@@ -72,6 +75,56 @@ class TestMMvec(unittest.TestCase):
 
             # sanity check cross validation
             self.assertLess(model.cv.eval(), 500)
+
+
+class TestMMvecSoilsBenchmark(unittest.TestCase):
+    def setUp(self):
+        self.microbes = load_table(get_data_path('soil_microbes.biom'))
+        self.metabolites = load_table(get_data_path('soil_metabolites.biom'))
+        X = self.microbes.to_dataframe().T
+        Y = self.metabolites.to_dataframe().T
+        X = X.loc[Y.index]
+        self.trainX = X.iloc[:-2]
+        self.trainY = Y.iloc[:-2]
+        self.testX = X.iloc[-2:]
+        self.testY = Y.iloc[-2:]
+
+    def tearDown(self):
+        # remove all log directories
+        for r in glob.glob("logdir*"):
+            shutil.rmtree(r)
+
+    def test_soils(self):
+        np.random.seed(1)
+        tf.reset_default_graph()
+        n, d1 = self.trainX.shape
+        n, d2 = self.trainY.shape
+
+        with tf.Graph().as_default(), tf.Session() as session:
+            set_random_seed(0)
+            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=1)
+            model(session,
+                  coo_matrix(self.trainX.values), self.trainY.values,
+                  coo_matrix(self.testX.values), self.testY.values)
+            model.fit(epoch=1000)
+
+            modelU = np.hstack(
+                (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
+            modelV = np.vstack(
+                (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
+
+            ranks = pd.DataFrame(np.hstack((np.zeros((d1, 1)), modelU @ modelV)),
+                                 index=self.microbes.ids(axis='observation'),
+                                 columns=self.metabolites.ids(axis='observation'))
+            ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
+            microcoleus_metabolites = [
+                '(3-methyladenine)', '7-methyladenine', '4-guanidinobutanoate', 'uracil',
+                'xanthine', 'hypoxanthine', '(N6-acetyl-lysine)', 'cytosine',
+                'N-acetylornithine', 'N-acetylornithine', 'succinate',
+                'adenosine', 'guanine', 'adenine']
+            mprobs = ranks.loc['rplo 1 (Cyanobacteria)']
+            self.assertEqual(np.sum(mprobs.loc[microcoleus_metabolites]>0),
+                             len(microcoleus_metabolites))
 
 
 class TestMMvecBenchmark(unittest.TestCase):
