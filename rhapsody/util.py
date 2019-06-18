@@ -254,6 +254,36 @@ def rank_hits(ranks, k, pos=True):
 
 def format_params(vals, colnames, rownames,
                   embed_name, index_name='feature_id'):
+    """ Reformats the model parameters in a readable format
+
+    Parameters
+    ----------
+    vals : np.array
+        Values of the model parameters
+    colnames : array_like of str
+        Column names corresponding to the features.
+        These typically correspond to PC axis names.
+    rownames : array_like of str
+        Row names corresponding to the features.
+        These typically correspond to microbe/metabolite names.
+    embed_name: str
+        Specifies which embedding is being formatted
+    index_name : str
+        Specifies the index name, since it'll be formatted
+        into a qiime2 Metadata format
+
+    Returns
+    -------
+    pd.DataFrame
+        feature_id : str
+            Feature names
+        axis : str
+            PC axis names
+        embed_type: str
+            Specifies which embedding is being formatted
+        values : float
+            Corresponding model parameters
+    """
     df = pd.DataFrame(vals, columns=colnames, index=rownames)
     df = df.reset_index()
     df = df.rename(columns={'index': 'feature_id'})
@@ -263,3 +293,19 @@ def format_params(vals, colnames, rownames,
     df['embed_type'] = embed_name
 
     return df[['feature_id', 'axis', 'embed_type', 'values']]
+
+def embeddings2ranks(embeddings):
+    """ Converts embeddings to ranks"""
+    microbes = embeddings.loc[embeddings.embed_type=='microbe']
+    metabolites = embeddings.loc[embeddings.embed_type=='metabolite']
+
+    U = microbes.pivot(index='feature_id', columns='axis', values='values')
+    V = metabolites.pivot(index='feature_id', columns='axis', values='values')
+    pc_ids = sorted(list(set(U.columns) - {'bias'}))
+    cols = pc_ids + ['bias']
+    U['ones'] = 1
+    V['ones'] = 1
+    ranks = U[pc_ids + ['ones', 'bias']] @ V[pc_ids + ['bias', 'ones']].T
+    # center each row
+    ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
+    return ranks

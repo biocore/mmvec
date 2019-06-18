@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 from biom import Table
 from rhapsody.util import (onehot, rank_hits,
-                           random_multimodal, split_tables)
+                           random_multimodal, split_tables,
+                           embeddings2ranks)
 from skbio.util import get_data_path
 import numpy.testing as npt
 import pandas.util.testing as pdt
@@ -47,6 +48,15 @@ class TestOnehot(unittest.TestCase):
         exp_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
         npt.assert_allclose(exp_ids, sample_ids)
         npt.assert_allclose(exp_otu_hits, otu_hits)
+
+
+class TestEmbeddingUtils(unittest.TestCase):
+    def test_embedding2ranks(self):
+        embeds = pd.read_table(get_data_path('embeddings.txt'), index_col=0)
+        ranks = embeddings2ranks(embeds)
+        means = ranks.mean(axis=1)
+        self.assertAlmostEqual(means.mean(), 0)
+        npt.assert_allclose(ranks.shape, np.array([45, 99]))
 
 
 class TestRankHits(unittest.TestCase):
