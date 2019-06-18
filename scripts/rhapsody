@@ -16,7 +16,7 @@ import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
 import datetime
 from rhapsody.multimodal import MMvec, cross_validation
-from rhapsody.util import onehot, rank_hits, random_multimodal, split_tables
+from rhapsody.util import split_tables, format_params
 
 
 @click.group()
@@ -44,18 +44,18 @@ def rhapsody():
               default=10)
 @click.option('--epochs',
               help='Number of epochs to train', default=10)
-@click.option('--batch_size',
+@click.option('--batch-size',
               help='Size of mini-batch', default=32)
-@click.option('--latent_dim',
+@click.option('--latent-dim',
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
               default=3)
-@click.option('--input_prior',
+@click.option('--input-prior',
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
               default=1.)
-@click.option('--output_prior',
+@click.option('--output-prior',
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
@@ -63,9 +63,6 @@ def rhapsody():
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
               default=False)
-@click.option('--top-k',
-              help=('Number of top hits to compare for cross-validation.'),
-              default=50)
 @click.option('--learning-rate',
               help=('Gradient descent decay rate.'),
               default=1e-1)
@@ -86,16 +83,16 @@ def rhapsody():
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
-@click.option('--ranks-file', default=None,
-              help='Ranks file containing microbe-metabolite rankings.')
+@click.option('--embeddings-file', default=None,
+              help='Path to save the embeddings learned from the model. ')
 def mmvec(microbe_file, metabolite_file,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
-         epochs, batch_size, latent_dim,
-          input_prior, output_prior, arm_the_gpu, top_k,
+          epochs, batch_size, latent_dim,
+          input_prior, output_prior, arm_the_gpu,
           learning_rate, beta1, beta2, clipnorm,
           checkpoint_interval, summary_interval,
-          summary_dir, ranks_file):
+          summary_dir, embeddings_file):
 
     microbes = load_table(microbe_file)
     metabolites = load_table(metabolite_file)
@@ -157,39 +154,21 @@ def mmvec(microbe_file, metabolite_file,
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval,
                              checkpoint_interval=checkpoint_interval)
 
-        U, V = model.U, model.V
-        d1 = U.shape[0]
+        pc_ids = list(range(latent_dim))
+        vdim = model.V.shape[0]
+        V = np.hstack((np.zeros((vdim, 1)), model.V))
+        V = V.T - V.mean(axis=1) # convert to clr coordinates
+        Vbias = np.hstack((np.zeros(1), model.Vbias.ravel()))
+        Uparam = format_params(model.U, pc_ids, microbe_ids, 'microbe')
+        Vparam = format_params(V, pc_ids, metabolite_ids, 'metabolite')
+        df = pd.concat(
+            (
+                Uparam, Vparam,
+                format_params(model.Ubias, ['bias'], microbe_ids, 'microbe'),
+                format_params(Vbias, ['bias'], metabolite_ids, 'metabolite')
+            ), axis=0)
 
-        U_ = np.hstack(
-            (np.ones((model.U.shape[0], 1)),
-             model.Ubias.reshape(-1, 1), U)
-        )
-        V_ = np.vstack(
-            (model.Vbias.reshape(1, -1),
-             np.ones((1, model.V.shape[1])), V)
-        )
-
-        np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
-        np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)
-        np.savetxt(os.path.join(summary_dir, 'Ubias.txt'), model.Ubias)
-        np.savetxt(os.path.join(summary_dir, 'Vbias.txt'), model.Vbias)
-
-        if ranks_file is not None:
-            ranks = pd.DataFrame(
-                clr(softmax(np.hstack(
-                    (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-                index=train_microbes_df.columns,
-                columns=train_metabolites_df.columns)
-
-            # shift the reference from the first microbe to the average microbe
-            ranks = ranks - ranks.mean(axis=1)
-
-            params, rank_stats = cross_validation(
-                model, test_microbes_df, test_metabolites_df, top_N=top_k)
-
-            params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
-            rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
-            ranks.to_csv(ranks_file)
+        df.to_csv(embeddings_file, sep='\t')
 
 
 if __name__ == '__main__':

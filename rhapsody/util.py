@@ -250,3 +250,16 @@ def rank_hits(ranks, k, pos=True):
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
     edges['rank'] = edges['rank'].astype(np.float64)
     return edges
+
+
+def format_params(vals, colnames, rownames,
+                  embed_name, index_name='feature_id'):
+    df = pd.DataFrame(vals, columns=colnames, index=rownames)
+    df = df.reset_index()
+    df = df.rename(columns={'index': 'feature_id'})
+    df = pd.melt(df, id_vars=['feature_id'],
+                 var_name='axis', value_name='values')
+
+    df['embed_type'] = embed_name
+
+    return df[['feature_id', 'axis', 'embed_type', 'values']]

@@ -209,6 +209,64 @@ class MMvec(object):
 
         tf.global_variables_initializer().run()
 
+
+    def ordination(self, microbe_ids, metabolite_ids):
+        """ Returns a biplot representation of the parameters"""
+        # TODO: note that this may not be correct, since we may have to
+        # sort through scale-identifiability and rotation identifiability
+        U = pd.pivot(Uparam, index='feature_id', columns='axis', values='mean')
+        V = pd.pivot(Vparam, index='feature_id', columns='axis', values='mean')
+
+        pc_ids = ['PC%d' % i for i in range(U.shape[1])]
+        U = pd.DataFrame(extract(self.encoder.embedding.weight),
+                         index=microbe_ids, columns=pc_ids)
+        V = pd.DataFrame(extract(self.decoder.mean.weight),
+                         index=metabolite_ids, columns=pc_ids)
+
+        def _center(x):
+            hmean = x.mean(axis=0)
+            y = (x - hmean)
+            y = y - y.mean(axis=1).values.reshape(-1, 1)
+            return y
+
+        U, V = _center(U), _center(V)
+        # TODO: We don't currently have a great way to get eigenvalues
+        # Maybe able to SVD the embeddings.  Benchmarks required
+        eigvals = pd.Series([1] * len(pc_ids), index=pc_ids)
+
+        res = OrdinationResults('MultiomicsBiplot', 'Multiomics Biplot',
+                                samples=U, features=V,
+                                eigvals = eigvals,
+                                proportion_explained = eigvals / eigvals.sum())
+        return res
+
+    def posterior(self, microbe_ids, metabolite_ids):
+        """ Returns a representation of the posterior distribution. """
+        mu_u = extract(self.encoder.embedding.weight)
+        mu_ub = extract(self.encoder.bias.weight).reshape(-1, 1)
+        mu_v = extract(self.decoder.mean.weight)
+        mu_vb = extract(self.decoder.mean.bias).reshape(-1, 1)
+        std_u = np.exp(0.5 * extract(self.encoder.embedding_var.weight))
+        std_ub = np.exp(0.5 *
+            extract(self.encoder.bias_var.weight)
+        ).reshape(-1, 1)
+        std_v = np.exp(0.5 * extract(self.decoder.var.weight))
+        std_vb = np.exp(0.5 * extract(self.decoder.var.bias)).reshape(-1, 1)
+
+        pc_ids = ['PC%d' % i for i in range(mu_u.shape[1])]
+        Uparam = format_params(mu_u, std_u, pc_ids,
+                               microbe_ids, 'microbe')
+        Vparam = format_params(mu_v, std_v, pc_ids,
+                               metabolite_ids, 'metabolite')
+        df = pd.concat(
+            (
+                Uparam, Vparam,
+                format_params(mu_ub, std_ub, ['bias'], otu_ids, 'microbe'),
+                format_params(mu_vb, std_vb, ['bias'], ms_ids, 'metabolite')
+            ), axis=0)
+        return df
+
+
     def fit(self, epoch=10, summary_interval=1000, checkpoint_interval=3600,
             testX=None, testY=None):
         """ Fits the model.

@@ -21,6 +21,12 @@ install:
   - pip install -e .
 script:
   - make all
+  # basic command to make sure that mmvec can still run
+  - rhapsody mmvec \
+      --microbe-file data/otus.biom \
+      --metabolite-file data/ms.biom \
+      --summary-dir test_summary \
+      --embeddings-file embeddings.txt
 notifications:
   webhooks:
     on_success: change
