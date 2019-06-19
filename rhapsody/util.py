@@ -309,3 +309,13 @@ def embeddings2ranks(embeddings):
     # center each row
     ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
     return ranks
+
+def alr2clr(x):
+    if x.ndim > 1:
+        y = np.hstack((np.zeros((x.shape[1], 1)), x))
+        y = y - y.mean(axis=1).reshape(-1, 1)
+    else:
+        y = np.hstack((np.zeros(1), x))
+        y = y - y.mean()
+
+    return y

@@ -14,7 +14,7 @@ from .util import onehot
 class MMvec(object):
 
     def __init__(self, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
-                 batch_size=50, latent_dim=3, dropout_rate=0.5,
+                 batch_size=50, latent_dim=3,
                  learning_rate=0.1, beta_1=0.9, beta_2=0.95,
                  clipnorm=10., device_name='/cpu:0', save_path=None):
         """ Build a tensorflow model for microbe-metabolite vectors
@@ -43,7 +43,7 @@ class MMvec(object):
         self.v_scale = v_scale
         self.batch_size = batch_size
         self.latent_dim = latent_dim
-        self.dropout_rate = dropout_rate
+
         self.learning_rate = learning_rate
         self.beta_1 = beta_1
         self.beta_2 = beta_2

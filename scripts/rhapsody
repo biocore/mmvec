@@ -157,8 +157,9 @@ def mmvec(microbe_file, metabolite_file,
         pc_ids = list(range(latent_dim))
         vdim = model.V.shape[0]
         V = np.hstack((np.zeros((vdim, 1)), model.V))
-        V = V.T - V.mean(axis=1) # convert to clr coordinates
+        V = V.T - V.mean(axis=1).reshape(1, -1) # convert to clr coordinates
         Vbias = np.hstack((np.zeros(1), model.Vbias.ravel()))
+        Vbias = Vbias - Vbias.mean()
         Uparam = format_params(model.U, pc_ids, microbe_ids, 'microbe')
         Vparam = format_params(V, pc_ids, metabolite_ids, 'metabolite')
         df = pd.concat(
