@@ -72,7 +72,7 @@ def mmvec(microbes: biom.Table,
             index=train_microbes_df.columns,
             columns=train_metabolites_df.columns)
 
-        u, s, v = svds(ranks)
+        u, s, v = svds(ranks, k=latent_dim)
 
         microbe_embed = u @ np.diag(s)
         metabolite_embed = v.T
