@@ -64,7 +64,6 @@ Then you can run mmvec
 qiime rhapsody mmvec \
 	--i-microbes otus_nt.qza \
 	--i-metabolites lcms_nt.qza \
-	--output-dir results
 	--o-conditionals ranks.qza \
 	--o-conditional-biplot biplot.qza
 ```
