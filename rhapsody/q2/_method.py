@@ -88,7 +88,7 @@ def mmvec(microbes: biom.Table,
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
         eigvals = pd.Series(s, index=pc_ids)
-        proportion_explained = pd.Series(s, index=pc_ids)
+        proportion_explained = pd.Series(s**2 / np.sum(s**2), index=pc_ids)
         biplot = OrdinationResults(
             short_method_name, long_method_name, eigvals,
             samples=samples, features=features,
