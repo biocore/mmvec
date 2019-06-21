@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/biocore/rhapsody.svg?branch=master)](https://travis-ci.org/biocore/rhapsody)
+
 # rhapsody
 Neural networks for estimating microbe-metabolite co-occurence probabilities.
 
