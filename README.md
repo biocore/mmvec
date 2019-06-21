@@ -5,12 +5,21 @@ Neural networks for estimating microbe-metabolite co-occurence probabilities.
 
 # Installation
 
-Rhapsody can be installed on conda-forge as follows
+Rhapsody can be installed via pypi as follows
 
 ```
-conda create -n rhapsody_env rhapsody -c conda-forge
+pip install rhapsody
 ```
 
+If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
+
+Rhapsody can also be installed via conda as follows
+
+```
+conda install rhapsody -c conda-forge
+```
+
+Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install rhapsody within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
 # Getting started
 
