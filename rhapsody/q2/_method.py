@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from skbio import OrdinationResults
-from skbio.stats.composition import clr, clr_inv
+from skbio.stats.composition import clr, clr_inv, centralize
 from qiime2.plugin import Metadata
 from rhapsody.multimodal import MMvec
 from rhapsody.util import split_tables
@@ -72,6 +72,7 @@ def mmvec(microbes: biom.Table,
             index=train_microbes_df.columns,
             columns=train_metabolites_df.columns)
 
+        ranks = ranks - ranks.mean(axis=0)
         u, s, v = svds(ranks, k=latent_dim)
 
         microbe_embed = u @ np.diag(s)
