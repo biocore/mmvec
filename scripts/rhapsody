@@ -179,8 +179,8 @@ def mmvec(microbe_file, metabolite_file,
         Vbias = np.hstack((np.zeros(1), model.Vbias.ravel()))
 
         # Save to an embeddings file
-        Uparam = format_params(model.U, pc_ids, microbe_ids, 'microbe')
-        Vparam = format_params(V, pc_ids, metabolite_ids, 'metabolite')
+        Uparam = format_params(model.U, pc_ids, list(train_microbes_df.columns), 'microbe')
+        Vparam = format_params(V, pc_ids, list(metabolite_ids), 'metabolite')
         df = pd.concat(
             (
                 Uparam, Vparam,
