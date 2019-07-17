@@ -113,17 +113,18 @@ class TestMMvecSoilsBenchmark(unittest.TestCase):
             modelV = np.vstack(
                 (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
 
-            ranks = pd.DataFrame(np.hstack((np.zeros((d1, 1)), modelU @ modelV)),
-                                 index=self.microbes.ids(axis='observation'),
-                                 columns=self.metabolites.ids(axis='observation'))
+            ranks = pd.DataFrame(
+                np.hstack((np.zeros((d1, 1)), modelU @ modelV)),
+                index=self.microbes.ids(axis='observation'),
+                columns=self.metabolites.ids(axis='observation'))
             ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
             microcoleus_metabolites = [
-                '(3-methyladenine)', '7-methyladenine', '4-guanidinobutanoate', 'uracil',
-                'xanthine', 'hypoxanthine', '(N6-acetyl-lysine)', 'cytosine',
-                'N-acetylornithine', 'N-acetylornithine', 'succinate',
-                'adenosine', 'guanine', 'adenine']
+                '(3-methyladenine)', '7-methyladenine', '4-guanidinobutanoate',
+                'uracil', 'xanthine', 'hypoxanthine', '(N6-acetyl-lysine)',
+                'cytosine', 'N-acetylornithine', 'N-acetylornithine',
+                'succinate', 'adenosine', 'guanine', 'adenine']
             mprobs = ranks.loc['rplo 1 (Cyanobacteria)']
-            self.assertEqual(np.sum(mprobs.loc[microcoleus_metabolites]>0),
+            self.assertEqual(np.sum(mprobs.loc[microcoleus_metabolites] > 0),
                              len(microcoleus_metabolites))
 
 

@@ -294,21 +294,22 @@ def format_params(vals, colnames, rownames,
 
     return df[['feature_id', 'axis', 'embed_type', 'values']]
 
+
 def embeddings2ranks(embeddings):
     """ Converts embeddings to ranks"""
-    microbes = embeddings.loc[embeddings.embed_type=='microbe']
-    metabolites = embeddings.loc[embeddings.embed_type=='metabolite']
+    microbes = embeddings.loc[embeddings.embed_type == 'microbe']
+    metabolites = embeddings.loc[embeddings.embed_type == 'metabolite']
 
     U = microbes.pivot(index='feature_id', columns='axis', values='values')
     V = metabolites.pivot(index='feature_id', columns='axis', values='values')
     pc_ids = sorted(list(set(U.columns) - {'bias'}))
-    cols = pc_ids + ['bias']
     U['ones'] = 1
     V['ones'] = 1
     ranks = U[pc_ids + ['ones', 'bias']] @ V[pc_ids + ['bias', 'ones']].T
     # center each row
     ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
     return ranks
+
 
 def alr2clr(x):
     if x.ndim > 1:

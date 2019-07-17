@@ -2,7 +2,6 @@ from qiime2.plugin import SemanticType, model
 from q2_types.feature_data import FeatureData
 
 
-
 Conditional = SemanticType('Conditional',
                            variant_of=FeatureData.field['type'])
 
