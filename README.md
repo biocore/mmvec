@@ -1,14 +1,25 @@
+[![Build Status](https://travis-ci.org/biocore/rhapsody.svg?branch=master)](https://travis-ci.org/biocore/rhapsody)
+
 # rhapsody
 Neural networks for estimating microbe-metabolite co-occurence probabilities.
 
 # Installation
 
-Rhapsody can be installed on conda-forge as follows
+Rhapsody can be installed via pypi as follows
 
 ```
-conda create -n rhapsody_env rhapsody -c conda-forge
+pip install rhapsody
 ```
 
+If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
+
+Rhapsody can also be installed via conda as follows
+
+```
+conda install rhapsody -c conda-forge
+```
+
+Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install rhapsody within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
 # Getting started
 
@@ -49,22 +60,23 @@ the qiime2 plugin, run the following commands to import an example dataset
 
 ```
 qiime tools import \
-	--input-path data/otus.biom \
-	--output-path otus.qza \
+	--input-path data/otus_nt.biom \
+	--output-path otus_nt.qza \
 	--type FeatureTable[Frequency]
 
 qiime tools import \
-	--input-path data/ms.biom \
-	--output-path ms.qza \
+	--input-path data/lcms_nt.biom \
+	--output-path lcms_nt.qza \
 	--type FeatureTable[Frequency]
 ```
 
 Then you can run mmvec
 ```
 qiime rhapsody mmvec \
-	--i-microbes otus.qza \
-	--i-metabolites ms.qza \
-	--output-dir results
+	--i-microbes otus_nt.qza \
+	--i-metabolites lcms_nt.qza \
+	--o-conditionals ranks.qza \
+	--o-conditional-biplot biplot.qza
 ```
 In the results, there are two files, namely `results/conditional_biplot.qza` and `results/conditionals.qza`. The conditional biplot is a biplot representation the
 conditional probability matrix so that you can visualize these microbe-metabolite interactions in an exploratory manner.  This can be directly visualized in
@@ -91,16 +103,21 @@ Then you can run the following to generate a emperor biplot.
 
 ```
 qiime emperor biplot \
-	--i-biplot results/conditional_biplot.qza \
+	--i-biplot conditional_biplot.qza \
 	--m-sample-metadata-file data/metabolite-metadata.txt \
 	--m-feature-metadata-file data/microbe-metadata.txt \
 	--o-visualization emperor.qzv
 
 ```
 
-Here, the samples are metabolites and the arrows are microbes.  The distance between points is given by the Aitchison distance between metabolites (which is equivalent to Lovell's
-[proportionality](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004075)).  The distance between arrow tips is the Aitchison distance between microbes.
+The resulting biplot should look like something as follows
 
+![biplot](https://github.com/biocore/rhapsody/raw/master/img/biplot.png "Biplot")
+
+Here, the metabolite represent points and the arrows represent microbes.  The points close together are indicative of metabolites that
+frequently co-occur with each other.  Furthermore, arrows that have a small angle between them are indicative of microbes that co-occur with each other.
+Arrows that point in the same direction as the metabolites are indicative of microbe-metabolite co-occurrences.  In the biplot above, the red arrows
+correspond to Pseudomonas aeruginosa, and the red points correspond to Rhamnolipids that are likely produced by Pseudomonas aeruginosa.
 
 More information behind the parameters can found under `qiime rhapsody --help`
 

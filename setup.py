@@ -13,7 +13,7 @@ from glob import glob
 from setuptools import find_packages, setup
 
 classes = """
-    Development Status :: 3 - Alpha
+    Development Status :: 4 - Beta
     License :: OSI Approved :: BSD License
     Topic :: Software Development :: Libraries
     Topic :: Scientific/Engineering
@@ -44,6 +44,7 @@ setup(name='rhapsody',
       license='BSD-3-Clause',
       description=description,
       long_description=long_description,
+      long_description_content_type='text/markdown',
       author="gneiss development team",
       author_email="jamietmorton@gmail.com",
       maintainer="gneiss development team",
@@ -57,6 +58,8 @@ setup(name='rhapsody',
           'scipy >= 0.15.1',
           'nose >= 1.3.7',
           'scikit-bio >= 0.5.1',
+          'tqdm',
+          'tensorflow'
       ],
       classifiers=classifiers,
       entry_points={

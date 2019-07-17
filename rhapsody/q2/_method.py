@@ -8,6 +8,7 @@ from qiime2.plugin import Metadata
 from rhapsody.multimodal import MMvec
 from rhapsody.util import split_tables
 from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import svds
 
 
 def mmvec(microbes: biom.Table,
@@ -65,15 +66,17 @@ def mmvec(microbes: biom.Table,
              np.ones((1, model.V.shape[1])), V)
         )
 
-        microbe_embed = model.U
-        metabolite_embed = np.hstack((np.zeros((V.shape[0], 1)), V)).T
+        ranks = pd.DataFrame(
+            clr(clr_inv(np.hstack(
+                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
+            index=train_microbes_df.columns,
+            columns=train_metabolites_df.columns)
 
-        # make sure that the entries are row centered
-        # only if the shape is greater than 1 (otherwise that will just
-        # be subtracted out to zero.)
-        if microbe_embed.shape[1] > 1:
-            microbe_embed -= microbe_embed.mean(axis=1).reshape(-1, 1)
-            metabolite_embed -= metabolite_embed.mean(axis=1).reshape(-1, 1)
+        ranks = ranks - ranks.mean(axis=0)
+        u, s, v = svds(ranks, k=latent_dim)
+
+        microbe_embed = u @ np.diag(s)
+        metabolite_embed = v.T
 
         pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
         features = pd.DataFrame(
@@ -84,17 +87,11 @@ def mmvec(microbes: biom.Table,
             index=train_metabolites_df.columns)
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
-        eigvals = pd.Series(np.ones(len(pc_ids)), index=pc_ids)
-        proportion_explained = pd.Series(np.ones(len(pc_ids)), index=pc_ids)
+        eigvals = pd.Series(s, index=pc_ids)
+        proportion_explained = pd.Series(s**2 / np.sum(s**2), index=pc_ids)
         biplot = OrdinationResults(
             short_method_name, long_method_name, eigvals,
             samples=samples, features=features,
             proportion_explained=proportion_explained)
-
-        ranks = pd.DataFrame(
-            clr(clr_inv(np.hstack(
-                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-            index=train_microbes_df.columns,
-            columns=train_metabolites_df.columns)
 
         return ranks, biplot
