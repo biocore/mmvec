@@ -191,10 +191,10 @@ def mmvec(microbe_file, metabolite_file,
         # Save to a ranks file
         ranks = pd.DataFrame(model.U @ V.T, index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
+        ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
         ranks.to_csv(ranks_file)
 
         # Save to an ordination file
-        ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
         ranks = ranks - ranks.mean(axis=0)
         u, s, v = svds(ranks, k=latent_dim)
         microbe_embed = u @ np.diag(s)
