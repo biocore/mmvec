@@ -50,15 +50,6 @@ class TestOnehot(unittest.TestCase):
         npt.assert_allclose(exp_otu_hits, otu_hits)
 
 
-class TestEmbeddingUtils(unittest.TestCase):
-    def test_embedding2ranks(self):
-        embeds = pd.read_table(get_data_path('embeddings.txt'), index_col=0)
-        ranks = embeddings2ranks(embeds)
-        means = ranks.mean(axis=1)
-        self.assertAlmostEqual(means.mean(), 0)
-        npt.assert_allclose(ranks.shape, np.array([45, 99]))
-
-
 class TestRankHits(unittest.TestCase):
 
     def test_rank_hits(self):
