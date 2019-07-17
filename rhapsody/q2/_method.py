@@ -67,11 +67,11 @@ def mmvec(microbes: biom.Table,
         )
 
         ranks = pd.DataFrame(
-            clr(clr_inv(np.hstack(
-                (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
+                np.hstack((np.zeros((model.U.shape[0], 1)), U_ @ V_)),
             index=train_microbes_df.columns,
             columns=train_metabolites_df.columns)
 
+        ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
         ranks = ranks - ranks.mean(axis=0)
         u, s, v = svds(ranks, k=latent_dim)
 
