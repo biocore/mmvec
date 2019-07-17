@@ -113,6 +113,7 @@ def mmvec(microbe_file, metabolite_file,
     else:
         metadata = None
 
+    # filter out low abundance microbes and split table
     res = split_tables(
         microbes, metabolites,
         metadata=metadata, training_column=training_column,
@@ -122,9 +123,6 @@ def mmvec(microbe_file, metabolite_file,
     (train_microbes_df, test_microbes_df,
      train_metabolites_df, test_metabolites_df) = res
 
-    # filter out low abundance microbes
-    microbe_ids = microbes.ids(axis='observation')
-    metabolite_ids = metabolites.ids(axis='observation')
 
     params = []
 
@@ -180,12 +178,12 @@ def mmvec(microbe_file, metabolite_file,
 
         # Save to an embeddings file
         Uparam = format_params(model.U, pc_ids, list(train_microbes_df.columns), 'microbe')
-        Vparam = format_params(V, pc_ids, list(metabolite_ids), 'metabolite')
+        Vparam = format_params(V, pc_ids, list(train_metabolites_df.columns), 'metabolite')
         df = pd.concat(
             (
                 Uparam, Vparam,
-                format_params(model.Ubias, ['bias'], microbe_ids, 'microbe'),
-                format_params(Vbias, ['bias'], metabolite_ids, 'metabolite')
+                format_params(model.Ubias, ['bias'], train_microbes_df.columns, 'microbe'),
+                format_params(Vbias, ['bias'], train_metabolites_df.columns, 'metabolite')
             ), axis=0)
 
         df.to_csv(embeddings_file, sep='\t')
