@@ -22,9 +22,6 @@ install:
   - pip install -e .
 script:
   - make all
-  # basic command to make sure that mmvec can still run
-  - sh examples/cf/q2_run.sh
-  - runipy examples/soils/check_soils.ipynb
 notifications:
   webhooks:
     on_success: change
