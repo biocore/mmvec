@@ -249,3 +249,14 @@ def rank_hits(ranks, k, pos=True):
         edges.loc[i, 'rank'] = ranks.loc[src, dest]
     edges['rank'] = edges['rank'].astype(np.float64)
     return edges
+
+
+def alr2clr(x):
+    if x.ndim > 1:
+        y = np.hstack((np.zeros((x.shape[0], 1)), x))
+        y = y - y.mean(axis=1).reshape(-1, 1)
+    else:
+        y = np.hstack((np.zeros(1), x))
+        y = y - y.mean()
+
+    return y

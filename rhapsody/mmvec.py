@@ -1,54 +1,17 @@
-from rhapsody.layers import GaussianEmbedding, GaussianDecoder
 from tqdm import tqdm
-from abc import ABC, abstractmethod
-from batch import get_batch
+import torch
+import torch.optim as optim
+import torch.nn.functional as F
+from torch.distributions.multinomial import Multinomial
+from torch.distributions.normal import Normal
+from rhapsody.layers import VecEmbedding, VecLinear
+from rhapsody.batch import get_batch
 
 
-class VEC(nn.Module, ABC):
-
-    def __init__(self, batch_size, subsample_size):
-        self.batch_size = batch_size
-        self.subsample_size = subsample_size
-        super(VEC, self).__init__()
-
-    @abstractmethod    
-    def loss(self):
-        print('Loss function not implemented.')
-
-    def fit(self, trainX, trainY, testX, testY):
-        best_loss = np.inf
-        losses = []
-        klds = []
-        likes = []
-        errs = []
-        for ep in tqdm(range(0, epochs)):
-        
-            model.train()
-            scheduler.step()
-            for i in range(0, num_samples, self.batch_size):
-                optimizer.zero_grad()
-        
-                inp, out = get_batch(trainX, trainY, i % num_samples,
-                                     self.subsample_size, self.batch_size)
-        
-                pred = self.forward(inp)            
-                loss, kld, like = self.loss(pred, out)      
-        
-                err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
-                loss.backward()
-                                 
-                errs.append(err.item())
-                losses.append(loss.item())
-                klds.append(kld.item())
-                likes.append(like.item())
-
-                optimizer.step()
-
-
-class MMvec(VEC):
+class MMvec(torch.nn.Module):
     def __init__(self, num_samples, num_microbes, num_metabolites, microbe_total,
-                 latent_dim, batch_size=10, subsample_size=100, mc_samples=10,
-                 device='cpu'):
+                 latent_dim, batch_size=10, subsample_size=100,
+                 in_prior=1, out_prior=1, device='cpu'):
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
         self.num_metabolites = num_metabolites
@@ -56,12 +19,14 @@ class MMvec(VEC):
         self.device = device
         self.batch_size = batch_size
         self.subsample_size = subsample_size
-        self.mc_samples = mc_samples
         self.microbe_total = microbe_total
+        self.in_prior = 1
+        self.out_prior = 1
+
         # TODO: enable max norm in embedding to account for scale identifiability
-        self.encoder = GaussianEmbedding(num_microbes, latent_dim)
-        self.decoder = GaussianDecoder(latent_dim, num_metabolites)
-        
+        self.encoder = VecEmbedding(num_microbes, latent_dim)
+        self.decoder = VecLinear(latent_dim, num_metabolites)
+
     def forward(self, x):
         code = self.encoder(x)
         log_probs = self.decoder(code)
@@ -71,11 +36,46 @@ class MMvec(VEC):
 
     def loss(self, pred, obs):
         """ Computes the loss function to be minimized. """
-        mean_like = torch.zeros(mc_samples, device=self.device)  
-        kld = self.encoder.divergence() + self.decoder.divergence()
         n = self.microbe_total * self.num_samples
         likelihood = n * torch.mean(Multinomial(logits=pred).log_prob(obs))
-        elbo = kld + likelihood
-        return -elbo, kld, likelihood      
+        prior = self.encoder.log_prob(self.in_prior) + \
+            self.decoder.log_prob(self.out_prior)
+        return -(likelihood + prior)
 
-    
+    def fit(self, trainX, trainY, testX, testY, epochs=1000,
+            learning_rate=1e-3, beta1=0.9, beta2=0.99):
+        losses = []
+        klds = []
+        likes = []
+        errs = []
+        optimizer = optim.Adam(self.parameters(), betas=(beta1, beta2),
+                               lr=learning_rate)
+        for ep in tqdm(range(0, epochs)):
+
+            self.train()
+            for i in range(0, self.num_samples, self.batch_size):
+                optimizer.zero_grad()
+
+                inp, out = get_batch(trainX, trainY, i % self.num_samples,
+                                     self.subsample_size, self.batch_size)
+
+                pred = self.forward(inp)
+                loss = self.loss(pred, out)
+                metabolite_total = torch.sum(out, 1).view(-1, 1)
+                err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
+                loss.backward()
+
+                errs.append(err.item())
+                losses.append(loss.item())
+
+                optimizer.step()
+
+        return losses, errs
+
+    def ranks(self):
+        U = self.encoder.embedding.weight
+        Ub = self.encoder.bias.weight
+        V = self.decoder.weight
+        Vb = self.decoder.bias
+
+        return Ub.view(-1, 1) + (U @ torch.t(V)) + Vb

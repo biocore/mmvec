@@ -4,96 +4,61 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.distributions.multinomial import Multinomial
+from torch.distributions.normal import Normal
 from torch.nn.utils import clip_grad_norm
 
 
-class GaussianLayer(torch.nn.Module):
+class VecEmbedding(torch.nn.Module):
     def __init__(self, in_features, out_features):
         """
         In the constructor we instantiate two nn.Linear modules and assign them as
         member variables.
         """
-        super(GaussianVariational, self).__init__()
-
-    def reparameterize(self, mu, logvar):
-        """ Samples from the posterior distribution via
-        reparameterization gradients"""
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return mu + eps*std        
-
-    def _divergence(self, mu, logvar):
-        return 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())   
-
-class GaussianEmbedding(GaussianLayer):
-    def __init__(self, in_features, out_features):
-        """
-        In the constructor we instantiate two nn.Linear modules and assign them as
-        member variables.
-        """
-        super(GaussianEmbedding, self).__init__()
+        super(VecEmbedding, self).__init__()
         self.embedding = torch.nn.Embedding(in_features, out_features)
         self.bias = torch.nn.Embedding(in_features, 1)
-        
-        self.embedding_var = torch.nn.Embedding(in_features, out_features)
-        self.bias_var = torch.nn.Embedding(in_features, 1)
+
         self.in_features = in_features
-        self.out_features = out_features        
-    
-    def divergence(self):
-        """ Computes the KL divergence between posterior and prior. """
-        w = self._divergence(self.embedding.weight, self.embedding_var.weight)
-        b = self._divergence(self.bias.weight, self.bias_var.weight)
-        return w + b
-                
+        self.out_features = out_features
+
     def forward(self, x):
         """
         In the forward function we accept a Tensor of input data and we must return
         a Tensor of output data. We can use Modules defined in the constructor as
         well as arbitrary operators on Tensors.
         """
-        embeds = self.reparameterize(
-            self.embedding(x),
-            self.embedding_var(x)
-        )
-        biases = self.reparameterize(
-            self.bias(x),
-            self.bias_var(x)
-        )
+        embeds = self.embedding(x)
+        biases = self.bias(x)
         pred = embeds + biases
         return pred
 
+    def log_prob(self, sigma):
+        """ This is for MAP regularization """
+        mu = torch.zeros_like(self.embedding.weight)
+        sigma = torch.ones_like(self.embedding.weight)
+        w = Normal(mu, sigma).log_prob(self.embedding.weight)
 
-class GaussianDecoder(GaussianLayer)::
+        muB = torch.zeros_like(self.bias.weight)
+        sigmaB = torch.ones_like(self.bias.weight)
+        b = Normal(muB, sigmaB).log_prob(self.bias.weight)
+        return torch.sum(w) + torch.sum(b)
+
+
+class VecLinear(torch.nn.Linear):
+
     def __init__(self, in_features, out_features):
         """
-        In the constructor we instantiate two nn.Linear modules and assign them as
-        member variables.
+        In the constructor we just inherit
         """
-        super(GaussianDecoder, self).__init__()
-        self.mean = torch.nn.Linear(in_features, out_features)
-        self.var = torch.nn.Linear(in_features, out_features)
-        self.in_features = in_features
-        self.out_features = out_features                
-                    
-    def divergence(self):
-        """ Computes the KL divergence between posterior and prior. """
-        # see Appendix B from VAE paper:
-        # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-        # https://arxiv.org/abs/1312.6114
-        w = self._divergence(self.mean.weight, self.var.weight)
-        b = self._divergence(self.mean.bias, self.var.bias)                        
-        return w + b
-    
-    def forward(self, x):
-        """
-        In the forward function we accept a Tensor of input data and we must return
-        a Tensor of output data. We can use Modules defined in the constructor as
-        well as arbitrary operators on Tensors.
-        """
-        pred = self.reparameterize(
-            self.mean(x),
-            self.var(x)
-        )
-        return pred
+        super(VecLinear, self).__init__(in_features, out_features)
+
+    def log_prob(self, sigma):
+        """ This is for MAP regularization """
+        mu = torch.zeros_like(self.weight)
+        sigma = torch.ones_like(self.weight)
+        w = Normal(mu, sigma).log_prob(self.weight)
+
+        muB = torch.zeros_like(self.bias)
+        sigmaB = torch.ones_like(self.bias)
+        b = Normal(muB, sigmaB).log_prob(self.bias)
+        return torch.sum(w) + torch.sum(b)

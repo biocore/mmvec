@@ -1,6 +1,7 @@
+import torch
 import numpy as np
 
-      
+
 def get_batch(X, Y, i, subsample_size, batch_size):
     """ Retrieves minibatch
     Parameters
