@@ -50,7 +50,7 @@ class TestMMvecSim(unittest.TestCase):
         _ = model.fit(
             csr_matrix(self.trainX.values), self.trainY.values,
             csr_matrix(self.testX.values), self.testY.values,
-            epochs=10, learning_rate=1,
+            epochs=100, learning_rate=.1,
             beta1=0.9, beta2=0.95)
 
         # Loose checks on the weight matrices to make sure
@@ -61,11 +61,11 @@ class TestMMvecSim(unittest.TestCase):
         ubias = model.encoder.bias.weight.detach().numpy()
         vbias = model.decoder.bias.detach().numpy()
         res = spearmanr(pdist(self.U), pdist(u))
-        self.assertGreater(res.correlation, 0.2)
+        self.assertGreater(res.correlation, 0.4)
         self.assertLess(res.pvalue, 0.001)
         resV = alr2clr(self.V)
         res = spearmanr(pdist(resV.T), pdist(v))
-        self.assertGreater(res.correlation, 0.2)
+        self.assertGreater(res.correlation, 0.4)
         self.assertLess(res.pvalue, 0.001)
 
 
@@ -91,15 +91,15 @@ class TestMMvecSoils(unittest.TestCase):
 
         n, d1 = X.shape
         n, d2 = Y.shape
-        latent_dim = 1
+        latent_dim = 2
         total = np.sum(X.sum())
         model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                       microbe_total=total, latent_dim=latent_dim,
-                      batch_size=3, subsample_size=100,
+                      batch_size=5, subsample_size=500,
                       device='cpu')
         losses, errs = model.fit(
             X, Y, X, Y,
-            epochs=1000, learning_rate=1e-2,
+            epochs=100, learning_rate=0.0001,
             beta1=0.9, beta2=0.95)
         ranks = model.ranks()
         ranks = ranks.detach().numpy()
@@ -107,9 +107,6 @@ class TestMMvecSoils(unittest.TestCase):
         idx = ranks[0, :] > 0
 
         res = set(self.metabolites.ids(axis='observation')[idx])
-        print(self.known_metabolites - res)
-        print(np.log10(losses[:5]), np.log10(losses[-5:]))
-        print(np.log10(errs[:5]), np.log10(errs[-5:]))
         self.assertEqual(len(res & self.known_metabolites), 13)
 
 

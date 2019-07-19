@@ -1,8 +1,10 @@
-import torch
 import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader
+from biom import load_table
 
 
-def get_batch(X, Y, i, subsample_size, batch_size):
+def get_batch(X, Y, subsample_size, batch_size):
     """ Retrieves minibatch
     Parameters
     ----------
@@ -10,8 +12,6 @@ def get_batch(X, Y, i, subsample_size, batch_size):
         Input sparse matrix of abundances
     Y : np.array
         Output dense matrix of abundances
-    i : int
-        Sample index
     subsample_size : int
         Number of sequences to randomly draw per iteration
     batch_size : int
@@ -26,7 +26,8 @@ def get_batch(X, Y, i, subsample_size, batch_size):
     Xs = []
     Ys = []
     for n in range(batch_size):
-        k = (i + n) % Y.shape[0]
+        # k = (i + n) % Y.shape[0]
+        k = np.random.randint(0, Y.shape[0])
         row = X.getrow(k)
         cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
                           for i in range(len(row.indptr)-1)])

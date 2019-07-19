@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -38,8 +39,9 @@ class MMvec(torch.nn.Module):
         """ Computes the loss function to be minimized. """
         n = self.microbe_total * self.num_samples
         likelihood = n * torch.mean(Multinomial(logits=pred).log_prob(obs))
-        prior = self.encoder.log_prob(self.in_prior) + \
-            self.decoder.log_prob(self.out_prior)
+        encoder_prior = self.encoder.log_prob(self.in_prior)
+        decoder_prior = self.decoder.log_prob(self.out_prior)
+        prior = encoder_prior + decoder_prior
         return -(likelihood + prior)
 
     def fit(self, trainX, trainY, testX, testY, epochs=1000,
@@ -56,7 +58,7 @@ class MMvec(torch.nn.Module):
             for i in range(0, self.num_samples, self.batch_size):
                 optimizer.zero_grad()
 
-                inp, out = get_batch(trainX, trainY, i % self.num_samples,
+                inp, out = get_batch(trainX, trainY,
                                      self.subsample_size, self.batch_size)
 
                 pred = self.forward(inp)
@@ -64,12 +66,10 @@ class MMvec(torch.nn.Module):
                 metabolite_total = torch.sum(out, 1).view(-1, 1)
                 err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
                 loss.backward()
-
                 errs.append(err.item())
                 losses.append(loss.item())
 
                 optimizer.step()
-
         return losses, errs
 
     def ranks(self):
