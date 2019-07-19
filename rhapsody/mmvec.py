@@ -23,6 +23,7 @@ class MMvec(torch.nn.Module):
         self.microbe_total = microbe_total
         self.in_prior = 1
         self.out_prior = 1
+        self.latent_dim = latent_dim
 
         # TODO: enable max norm in embedding to account for scale identifiability
         self.encoder = VecEmbedding(num_microbes, latent_dim)
@@ -77,5 +78,48 @@ class MMvec(torch.nn.Module):
         Ub = self.encoder.bias.weight
         V = self.decoder.weight
         Vb = self.decoder.bias
+        res = Ub.view(-1, 1) + (U @ torch.t(V)) + Vb
+        res = res - res.mean(1).view(-1, 1)
+        return res
 
-        return Ub.view(-1, 1) + (U @ torch.t(V)) + Vb
+    def embeddings(self, rowids, columnids):
+        U = self.encoder.embedding.weight
+        Ub = self.encoder.bias.weight
+        V = self.decoder.weight
+        Vb = self.decoder.bias
+
+        pc_ids = ['PC%d' % i for i in range(latent_dim)]
+        df = pd.concat(
+            (
+                format_params(U, pc_ids, rowids, 'microbe'),
+                format_params(V.T, pc_ids, columnids, 'metabolite'),
+                format_params(Ub, ['bias'], rowids, 'microbe'),
+                format_params(Vb, ['bias'], columnids, 'metabolite')
+            ), axis=0)
+
+        return df
+
+    def ordination(self, rowids, columnids):):
+
+        pc_ids = ['PC%d' % i for i in range(U.shape[1])]
+        res = self.ranks()
+        res = res - res.mean(axis=0).view(-1, 1)
+        u, s, v = svds(res.detach().numpy(), k=latent_dim)
+        microbe_embed = u @ np.diag(s)
+        metabolite_embed = v.T
+
+        pc_ids = ['PC%d' % i for i in range(latent_dim)]
+        features = pd.DataFrame(
+            microbe_embed, columns=pc_ids,
+            index=rowids)
+        samples = pd.DataFrame(
+            metabolite_embed, columns=pc_ids,
+            index=columnids)
+        short_method_name = 'mmvec biplot'
+        long_method_name = 'Multiomics mmvec biplot'
+        eigvals = pd.Series(s, index=pc_ids)
+        proportion_explained = pd.Series(s**2 / np.sum(s**2), index=pc_ids)
+        biplot = OrdinationResults(
+            short_method_name, long_method_name, eigvals,
+            samples=samples, features=features,
+            proportion_explained=proportion_explained)

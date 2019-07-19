@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
 import time
+import click
+import datetime
 from decimal import Decimal
 from tqdm import tqdm
 import pandas as pd
@@ -9,11 +11,8 @@ from biom import load_table, Table
 from biom.util import biom_open
 from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
-import matplotlib.pyplot as plt
 from scipy.stats import entropy, spearmanr
-import click
 from scipy.sparse import csr_matrix
-import datetime
 from rhapsody.multimodal import MMvec
 from rhapsody.util import (onehot, rank_hits, random_multimodal,
                            split_tables, format_params)
@@ -25,11 +24,14 @@ def rhapsody():
 
 
 @rhapsody.command()
-@click.option('--exog-features',
-              help='Input sequence counts to use for prediction.')
-@click.option('--endog-features',
-              help=('Output sequence abundances to predict '
-                    'from input sequence counts.'))
+@click.option('--input-abundances',
+              help=('Input abundances to use for prediction. '
+                    'These could be metabolite intensities or sequence counts.'
+              ))
+@click.option('--output-abundances',
+              help=('Output abundances to predict from input abundances. '
+                    'These could be metabolite intensities or sequence counts.'
+              ))
 @click.option('--metadata-file', default=None,
               help='Input sample metadata file')
 @click.option('--training-column',
@@ -63,12 +65,6 @@ def rhapsody():
 @click.option('--learning-rate',
               help=('Gradient descent learning rate.'),
               default=1e-1)
-@click.option('--decay-rate',
-              help=('Gradient descent decay rate.'),
-              default=0.1)
-@click.option('--step-size',
-              help=('Number of epochs before learning rate is decremented.'),
-              default=1)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
               default=0.9)
@@ -86,26 +82,34 @@ def rhapsody():
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
-@click.option('--model-output', default=None,
-              help=('Model parameter file containing microbe-metabolite '
-                    'interaction parameters.'))
-def seq2seq(exog_features, endog_features,
-            metadata_file, training_column,
-            num_testing_examples, min_feature_count,
-            epochs, batch_size, subsample_size, mc_samples,
-            latent_dim, arm_the_gpu, learning_rate,
-            decay_rate, step_size, beta1, beta2, seed,
-            checkpoint_interval, summary_interval,
-            summary_dir, model_output):
-    input_seq_counts, output_seq_counts = exog_features, endog_features
+@click.option('--embeddings-file', default=None,
+              help=('Path to save the embeddings learned from the model. '
+                    'If this is not specified, then this will be saved under '
+                    '`--summary-dir`.'))
+@click.option('--ranks-file', default=None,
+              help=('Path to save the ranks learned from the model. '
+                    'If this is not specified, then this will be saved under '
+                    '`--summary-dir`.'))
+@click.option('--ordination-file', default=None,
+              help=('Path to save the ordination learned from the model. '
+                    'If this is not specified, then this will be saved under '
+                    '`--summary-dir`.'))
+def mmvec(input_abundances, output_abundances
+          metadata_file, training_column,
+          num_testing_examples, min_feature_count,
+          epochs, batch_size, subsample_size, mc_samples,
+          latent_dim, arm_the_gpu, learning_rate,
+          beta1, beta2, seed,
+          checkpoint_interval, summary_interval,summary_dir,
+          embeddings_file, ranks_file, ordination_file):
     # set random seed if specified
     if seed is not None:
         np.random.seed(seed)
         torch.manual_seed(seed)
 
     # TODO: rename from microbes/metabolites to something more general
-    microbes = load_table(input_seq_counts)
-    metabolites = load_table(output_seq_counts)
+    microbes = load_table(input_abundances)
+    metabolites = load_table(ouput_abundances)
 
     if metadata_file is not None:
         metadata = pd.read_table(metadata_file, index_col=0)
@@ -128,11 +132,9 @@ def seq2seq(exog_features, endog_features,
     params = []
 
     sname = '_'.join(['log_PC(%d)' % latent_dim,
-                      'mc(%d)' % mc_samples,
                       'samp(%d)' % batch_size,
                       'sub(%d)' % subsample_size,
                       'lr(%s)' % "{:.2E}".format(Decimal(learning_rate)),
-                      'decay(%s)' % "{:.2E}".format(Decimal(decay_rate)),
                       'beta1(%.2f)' % beta1,
                       'beta2(%.2f)' % beta2])
 
@@ -155,45 +157,25 @@ def seq2seq(exog_features, endog_features,
     model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=latent_dim,
                   batch_size=batch_size, subsample_size=subsample_size,
                   device=device_name)
-    fitted_model = model.fit(
-        trainX, trainY, testX, testY,
-        epochs=epochs, gamma=decay_rate,
-        learning_rate=learning_rate, mc_samples=mc_samples,
-        beta1=beta1, beta2=beta2, step_size=step_size,
-        summary_interval=summary_interval,
-        checkpoint_interval=checkpoint_interval)
+    model.fit(trainX, trainY, testX, testY,
+              epochs=epochs,  learning_rate=learning_rate,
+              beta1=beta1, beta2=beta2, step_size=step_size,
+              summary_interval=summary_interval,
+              checkpoint_interval=checkpoint_interval)
 
-    # now extract the model weights and save them to disk
-    mu_u = fitted_model.embeddings.weight.detach().cpu().numpy()
-    mu_ub = fitted_model.bias.weight.detach().cpu().numpy().reshape(-1, 1)
-    mu_v = fitted_model.muV.detach().cpu().numpy()
-    mu_vb = fitted_model.muVb.detach().cpu().numpy().reshape(-1, 1)
+    # Save to an embeddings file
+    embeds = model.embeddings(train_microbes_df.columns,
+                              train_metabolites_df.columns)
+    embeds.to_csv(embeddings_file)
 
-    std_u = np.exp(fitted_model.logstdU.weight.detach().numpy())
-    std_ub = np.exp(
-        fitted_model.logstdUb.weight.detach().numpy()
-    ).reshape(-1, 1)
-    std_v = np.exp(fitted_model.logstdV.detach().numpy())
-    std_vb = np.exp(
-        fitted_model.logstdVb.detach().numpy()
-    ).reshape(-1, 1)
+    # Save to ranks file
+    ranks = model.ranks()
+    ranks.to_csv(ranks_file)
 
-    otu_ids = list(map(lambda x: 'clr(%s)' % x,
-                       list(train_microbes_df.columns)))
-    ms_ids = list(train_metabolites_df.columns)
-    pc_ids = ['PC%d' % i for i in range(mu_u.shape[1])]
-    alr_ms_ids = ['log(%s:%s)' % (ms_ids[i], ms_ids[0])
-                  for i in range(1, len(ms_ids))]
-
-    df = pd.concat(
-        (
-            format_params(mu_u, std_u, pc_ids, otu_ids, 'microbe'),
-            format_params(mu_v.T, std_v.T, pc_ids, alr_ms_ids, 'metabolite'),
-            format_params(mu_ub, std_ub, ['bias'], otu_ids, 'microbe'),
-            format_params(mu_vb, std_vb, ['bias'], alr_ms_ids, 'metabolite')
-        ), axis=0)
-
-    df.to_csv(model_output)
+    # Save to ordination file
+    ordination = model.ordination(train_microbes_df.columns,
+                                  train_metabolites_df.columns)
+    ordination.write(ordination_file)
 
 
 if __name__ == '__main__':
