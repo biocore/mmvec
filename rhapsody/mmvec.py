@@ -99,7 +99,7 @@ class MMvec(torch.nn.Module):
 
         return df
 
-    def ordination(self, rowids, columnids):):
+    def ordination(self, rowids, columnids):
 
         pc_ids = ['PC%d' % i for i in range(U.shape[1])]
         res = self.ranks()

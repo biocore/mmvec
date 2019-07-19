@@ -13,7 +13,7 @@ from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
 from scipy.stats import entropy, spearmanr
 from scipy.sparse import csr_matrix
-from rhapsody.multimodal import MMvec
+from rhapsody.mmvec import MMvec
 from rhapsody.util import (onehot, rank_hits, random_multimodal,
                            split_tables, format_params)
 
@@ -94,7 +94,7 @@ def rhapsody():
               help=('Path to save the ordination learned from the model. '
                     'If this is not specified, then this will be saved under '
                     '`--summary-dir`.'))
-def mmvec(input_abundances, output_abundances
+def mmvec(input_abundances, output_abundances,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
           epochs, batch_size, subsample_size, mc_samples,
