@@ -30,9 +30,7 @@ which can be used to estimate microbe-metabolite conditional probabilities that 
 rhapsody mmvec \
 	--otu-file data/otus.biom \
 	--metabolite-file data/ms.biom \
-	--summary-dir summary \
-	--results-file cv-results.csv \
-	--ranks-file ranks.csv
+	--summary-dir summary
 ```
 
 While this is running, you can open up another session and run `tensorboard --logdir .` for diagnosis, see FAQs below for more details.
@@ -125,24 +123,13 @@ More information behind the parameters can found under `qiime rhapsody --help`
 
 **Q**: Looks like there are two different commands, a standalone script and a qiime2 interface.  Which one should I use?!?
 
-**A**:  It'll depend on how deep in the weeds you'll want to get.  For most intents and purposes, the qiime2 interface will more practical for most analyses.  There are 4 major reasons why the standalone scripts are more preferable to the qiime2 interface, namely
+**A**:  It'll depend on how deep in the weeds you'll want to get.  For most intents and purposes, the qiime2 interface will more practical for most analyses.  There are 3 major reasons why the standalone scripts are more preferable to the qiime2 interface, namely
 
 1. Customized acceleration : If you want to bring down your runtime from a few days to a few hours, you may need to compile Tensorflow to handle hardware specific instructions (i.e. GPUs / SIMD instructions).  It probably is possible to enable GPU compatiability within a conda environment with some effort, but since conda packages binaries, SIMD instructions will not work out of the box.
 
 2. Checkpoints : If you are not sure how long your analysis should run, the standalone script can allow you record checkpoints, which can allow you to recover your model parameters.  This enables you to investigate your model while the model is training.
 
-3. More model parameters : The standalone script will return the bias parameters learned for each dataset (i.e. microbe and metabolite abundances).  These are stored under the summary directory (specified by `--summary`) under the names `U.txt`, `V.txt`, `Ubias.txt` and `Vbias.txt`.  `U.txt` corresponds to the learned simplical coordinates of the microbes and `V.txt` corresponds to the learned simplical coordinates for the metabolties.  `Ubias.txt` and `Vbias.txt` are bias parameters required to make the microbes and metabolite comparable.
-
-4. More model diagnostics : In addition, it will record more cross validation statistics, which can enable you to investigate which microbes have the lowest cross validation error.  There are two files that are generated **if --ranks-file is specified** (there are scenarios where you can blow memory if you compute all of the ranks, which is why this is an optional parameter).  `model_results.csv` contains some cross validation results relevant to the global model fit.  There are 6 statistics reported, namely
-
-   - TP, FP, FN, TN : True positive, False positive, False negatives and True negatives on holdout samples using `--top-k` as a threshold to evaluate the top most abundant metabolites.  This primarily tests to see how well the microbes can predict which metabolites are the most abundant for a given sample.
-
-    Precision, Recall : Precision and recall statistics estimated from the TP, FP, FN and TN computed.
-   - F1 score: Harmonic average of precision and recall.  See [wikipedia](https://en.wikipedia.org/wiki/F1_score) for more details
-
-   - meanRK: The average Spearman rank correlation across all microbes.  This measures how well on average each microbe can predict the metabolite ranks.
-
-   - `otu_cv_results.csv` provides a more detailed breakdown of the cross-validation results for each microbe for each sample using the same statistics as discussed above.
+3. More model parameters : The standalone script will return the bias parameters learned for each dataset (i.e. microbe and metabolite abundances).  These are stored under the summary directory (specified by `--summary`) under the names `embeddings.csv`. This file will hold the coordinates for the microbes and metabolites, along with biases.  There are 4 columns in this file, namely `feature_id`, `axis`, `embed_type` and `values`.  `feature_id` is the name of the feature, whether it be a microbe name or a metabolite feature id.  `axis` corresponds to the name of the axis, which either corresponds to a PC axis or bias.  `embed_type` denotes if the coordinate corresponds to a microbe or metabolite.  `values` is the coordinate value for the given `axis`, `embed_type` and `feature_id`.  This can be useful for accessing the raw parameters and building custom biplots / ranks visualizations - this also has the advantage of requiring much less memory to manipulate.
 
 **Q** : You mentioned that you can use GPUs.  How can you do that??
 
@@ -184,7 +171,7 @@ The x-axis is the number of iterations (meaning times the model is training acro
 
 The y-axis is the average number of counts off for each feature. The model is predicting the sequence counts for each feature in the samples that were set aside for testing. So in the graph above it means that, on average, the model is off by ~0.75 intensity units, which is low. However, this is ABSOLUTE error not relative error (unfortunately we don't know how to compute relative errors because of the sparsity in these datasets).
 
-You can also compare multiple runs with different parameters to see which run performed the best.  If you are doing this, be sure to look at the `training_column` example make the testing samples consistent across runs.
+You can also compare multiple runs with different parameters to see which run performed the best.  If you are doing this, be sure to look at the `training-column` example make the testing samples consistent across runs.
 
 **Q** : What's up with the `--training-column` argument?
 
@@ -193,12 +180,12 @@ You can also compare multiple runs with different parameters to see which run pe
 
 **Q** : What sort of parameters should I focus on when picking a good model?
 
-**A** : There are 3 different parameters to focus on, `input_prior`, `output_prior` and `latent_dim`
+**A** : There are 3 different parameters to focus on, `input-prior`, `output-prior` and `latent-dim`
 
-The `--input_prior`  and `--output_prior` options specifies the width of the prior distribution of the coefficients, where the `--input_prior` is typically specific to microbes and the `--output_prior` is specific to metabolites.
-For a prior of 1, this means 99% of entries in the embeddings (typically given in the `U.txt` and `V.txt` files are within -3 and +3 (log fold change). The higher differential-prior is, the more parameters can have bigger changes, so you want to keep this relatively small. If you see overfitting (accuracy and fit increasing over iterations in tensorboard) you may consider reducing the `--input_prior` and `--output_prior` in order to reduce the parameter space.
+The `--input-prior`  and `--output-prior` options specifies the width of the prior distribution of the coefficients, where the `--input-prior` is typically specific to microbes and the `--output-prior` is specific to metabolites.
+For a prior of 1, this means 99% of entries in the embeddings (typically given in the `U.txt` and `V.txt` files are within -3 and +3 (log fold change). The higher differential-prior is, the more parameters can have bigger changes, so you want to keep this relatively small. If you see overfitting (accuracy and fit increasing over iterations in tensorboard) you may consider reducing the `--input-prior` and `--output-prior` in order to reduce the parameter space.
 
-Another parameter worth thinking about is `--latent_dim`, which controls the number of dimensions used to approximate the conditional probability matrix.  This also specifies the dimensions of the microbe/metabolite embeddings `U.txt` and `V.txt`.  The more dimensions this has, the more accurate the embeddings can be -- but the higher the chance of overfitting there is.  The rule of thumb to follow is in order to fit these models, you need at least 10 times as many samples as there are latent dimensions (this is following a similar rule of thumb for fitting straight lines).  So if you have 100 samples, you should definitely not have a latent dimension of more than 10.  Furthermore, you can still overfit certain microbes and metabolites.  For example, you are fitting a model with those 100 samples and just 1 latent dimension, you can still easily overfit microbes and metabolites that appear in less than 10 samples -- so even fitting models with just 1 latent dimension will require some microbes and metabolites that appear in less than 10 samples to be filtered out.
+Another parameter worth thinking about is `--latent-dim`, which controls the number of dimensions used to approximate the conditional probability matrix.  This also specifies the dimensions of the microbe/metabolite embeddings `U.txt` and `V.txt`.  The more dimensions this has, the more accurate the embeddings can be -- but the higher the chance of overfitting there is.  The rule of thumb to follow is in order to fit these models, you need at least 10 times as many samples as there are latent dimensions (this is following a similar rule of thumb for fitting straight lines).  So if you have 100 samples, you should definitely not have a latent dimension of more than 10.  Furthermore, you can still overfit certain microbes and metabolites.  For example, you are fitting a model with those 100 samples and just 1 latent dimension, you can still easily overfit microbes and metabolites that appear in less than 10 samples -- so even fitting models with just 1 latent dimension will require some microbes and metabolites that appear in less than 10 samples to be filtered out.
 
 
 **Q** : What does a good model fit look like??
@@ -214,6 +201,6 @@ Another parameter worth thinking about is `--latent_dim`, which controls the num
 This also depends on if your program will converge. The `learning-rate` specifies the resolution (smaller step size = smaller resolution, but may take longer to converge). You will need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
 
 If you are running this on a CPU, 16 cores, a run that reaches convergence should take about 1 day.
-If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch_size` parameter maybe required -- instead of having a small `batch_size` < 100, you'll want to bump up the `batch_size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
+If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch-size` parameter maybe required -- instead of having a small `batch-size` < 100, you'll want to bump up the `batch-size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
 
 Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)) and Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) for their README contributions.
