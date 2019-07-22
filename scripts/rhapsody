@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
 import os
 import time
+import click
+import datetime
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from biom import load_table, Table
 from biom.util import biom_open
+from skbio import OrdinationResults
 from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
-import matplotlib.pyplot as plt
 from scipy.stats import entropy, spearmanr
-import click
 from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import svds
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
-import datetime
 from rhapsody.multimodal import MMvec, cross_validation
-from rhapsody.util import onehot, rank_hits, random_multimodal, split_tables
-
+from rhapsody.util import split_tables, format_params
+import matplotlib.pyplot as plt
 
 @click.group()
 def rhapsody():
@@ -44,18 +45,18 @@ def rhapsody():
               default=10)
 @click.option('--epochs',
               help='Number of epochs to train', default=10)
-@click.option('--batch_size',
+@click.option('--batch-size',
               help='Size of mini-batch', default=32)
-@click.option('--latent_dim',
+@click.option('--latent-dim',
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
               default=3)
-@click.option('--input_prior',
+@click.option('--input-prior',
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
               default=1.)
-@click.option('--output_prior',
+@click.option('--output-prior',
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
@@ -63,9 +64,6 @@ def rhapsody():
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
               default=False)
-@click.option('--top-k',
-              help=('Number of top hits to compare for cross-validation.'),
-              default=50)
 @click.option('--learning-rate',
               help=('Gradient descent decay rate.'),
               default=1e-1)
@@ -86,16 +84,26 @@ def rhapsody():
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
+@click.option('--embeddings-file', default=None,
+              help=('Path to save the embeddings learned from the model. '
+                    'If this is not specified, then this will be saved under '
+                    '`--summary-dir`.'))
 @click.option('--ranks-file', default=None,
-              help='Ranks file containing microbe-metabolite rankings.')
+              help=('Path to save the ranks learned from the model. '
+                    'If this is not specified, then this will be saved under '
+                    '`--summary-dir`.'))
+@click.option('--ordination-file', default=None,
+              help=('Path to save the ordination learned from the model. '
+                    'If this is not specified, then this will be saved under '
+                    '`--summary-dir`.'))
 def mmvec(microbe_file, metabolite_file,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
-         epochs, batch_size, latent_dim,
-          input_prior, output_prior, arm_the_gpu, top_k,
+          epochs, batch_size, latent_dim,
+          input_prior, output_prior, arm_the_gpu,
           learning_rate, beta1, beta2, clipnorm,
           checkpoint_interval, summary_interval,
-          summary_dir, ranks_file):
+          summary_dir, embeddings_file, ranks_file, ordination_file):
 
     microbes = load_table(microbe_file)
     metabolites = load_table(metabolite_file)
@@ -105,6 +113,7 @@ def mmvec(microbe_file, metabolite_file,
     else:
         metadata = None
 
+    # filter out low abundance microbes and split table
     res = split_tables(
         microbes, metabolites,
         metadata=metadata, training_column=training_column,
@@ -114,9 +123,6 @@ def mmvec(microbe_file, metabolite_file,
     (train_microbes_df, test_microbes_df,
      train_metabolites_df, test_metabolites_df) = res
 
-    # filter out low abundance microbes
-    microbe_ids = microbes.ids(axis='observation')
-    metabolite_ids = metabolites.ids(axis='observation')
 
     params = []
 
@@ -127,6 +133,13 @@ def mmvec(microbe_file, metabolite_file,
            '_beta2_%.2f' % beta2
 
     sname = os.path.join(summary_dir, sname)
+    if embeddings_file is None:
+        embeddings_file = sname + "_embedding.csv"
+    if ranks_file is None:
+        ranks_file = sname + "_ranks.csv"
+    if ordination_file is None:
+        ordination_file = sname + "_ordination.txt"
+
 
     n, d1 = microbes.shape
     n, d2 = metabolites.shape
@@ -157,39 +170,51 @@ def mmvec(microbe_file, metabolite_file,
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval,
                              checkpoint_interval=checkpoint_interval)
 
-        U, V = model.U, model.V
-        d1 = U.shape[0]
+        pc_ids = list(range(latent_dim))
+        vdim = model.V.shape[0]
+        V = np.hstack((np.zeros((vdim, 1)), model.V))
+        V = V.T
+        Vbias = np.hstack((np.zeros(1), model.Vbias.ravel()))
 
-        U_ = np.hstack(
-            (np.ones((model.U.shape[0], 1)),
-             model.Ubias.reshape(-1, 1), U)
-        )
-        V_ = np.vstack(
-            (model.Vbias.reshape(1, -1),
-             np.ones((1, model.V.shape[1])), V)
-        )
+        # Save to an embeddings file
+        Uparam = format_params(model.U, pc_ids, list(train_microbes_df.columns), 'microbe')
+        Vparam = format_params(V, pc_ids, list(train_metabolites_df.columns), 'metabolite')
+        df = pd.concat(
+            (
+                Uparam, Vparam,
+                format_params(model.Ubias, ['bias'], train_microbes_df.columns, 'microbe'),
+                format_params(Vbias, ['bias'], train_metabolites_df.columns, 'metabolite')
+            ), axis=0)
 
-        np.savetxt(os.path.join(summary_dir, 'U.txt'), model.U)
-        np.savetxt(os.path.join(summary_dir, 'V.txt'), model.V)
-        np.savetxt(os.path.join(summary_dir, 'Ubias.txt'), model.Ubias)
-        np.savetxt(os.path.join(summary_dir, 'Vbias.txt'), model.Vbias)
+        df.to_csv(embeddings_file, sep='\t')
 
-        if ranks_file is not None:
-            ranks = pd.DataFrame(
-                clr(softmax(np.hstack(
-                    (np.zeros((model.U.shape[0], 1)), U_ @ V_)))),
-                index=train_microbes_df.columns,
-                columns=train_metabolites_df.columns)
+        # Save to a ranks file
+        ranks = pd.DataFrame(model.U @ V.T, index=train_microbes_df.columns,
+                             columns=train_metabolites_df.columns)
+        ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
+        ranks.to_csv(ranks_file)
 
-            # shift the reference from the first microbe to the average microbe
-            ranks = ranks - ranks.mean(axis=1)
-
-            params, rank_stats = cross_validation(
-                model, test_microbes_df, test_metabolites_df, top_N=top_k)
-
-            params.to_csv(os.path.join(summary_dir, 'model_results.csv'))
-            rank_stats.to_csv(os.path.join(summary_dir, 'otu_cv_results.csv'))
-            ranks.to_csv(ranks_file)
+        # Save to an ordination file
+        ranks = ranks - ranks.mean(axis=0)
+        u, s, v = svds(ranks, k=latent_dim)
+        microbe_embed = u @ np.diag(s)
+        metabolite_embed = v.T
+        pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
+        features = pd.DataFrame(
+            microbe_embed, columns=pc_ids,
+            index=train_microbes_df.columns)
+        samples = pd.DataFrame(
+            metabolite_embed, columns=pc_ids,
+            index=train_metabolites_df.columns)
+        short_method_name = 'mmvec biplot'
+        long_method_name = 'Multiomics mmvec biplot'
+        eigvals = pd.Series(s, index=pc_ids)
+        proportion_explained = pd.Series(s**2 / np.sum(s**2), index=pc_ids)
+        biplot = OrdinationResults(
+            short_method_name, long_method_name, eigvals,
+            samples=samples, features=features,
+            proportion_explained=proportion_explained)
+        biplot.write(ordination_file)
 
 
 if __name__ == '__main__':
