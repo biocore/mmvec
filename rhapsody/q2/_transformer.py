@@ -7,7 +7,7 @@ from rhapsody.q2.plugin_setup import plugin
 @plugin.register_transformer
 def _1(ff: ConditionalFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', comment='#', skip_blank_lines=True,
-                     header=True, dtype=object)
+                     header=0, index_col=0)
     return df
 
 
