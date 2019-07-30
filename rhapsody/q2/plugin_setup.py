@@ -8,15 +8,16 @@
 import importlib
 import qiime2.plugin
 import qiime2.sdk
-from rhapsody import __version__
-from qiime2.plugin import (Str, Properties, Int, Float,  Metadata)
+from rhapsody import __version__, _heatmap_choices, _cmaps
+from qiime2.plugin import (Str, Properties, Int, Float, Metadata, Bool,
+                           MetadataColumn, Categorical, Range, Choices)
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults
 
 from rhapsody.q2 import (
     Conditional, ConditionalFormat, ConditionalDirFmt,
-    mmvec
+    mmvec, heatmap
 )
 
 plugin = qiime2.plugin.Plugin(
@@ -83,6 +84,46 @@ plugin.methods.register_function(
     description="Performs bi-loglinear multinomial regression and calculates "
                 "the conditional probability ranks of metabolite "
                 "co-occurence given the microbe presence.",
+    citations=[]
+)
+
+plugin.visualizers.register_function(
+    function=heatmap,
+    inputs={'ranks': FeatureData[Conditional]},
+    parameters={
+        'microbe_metadata': MetadataColumn[Categorical],
+        'metabolite_metadata': MetadataColumn[Categorical],
+        'method': Str % Choices(_heatmap_choices['method']),
+        'metric': Str % Choices(_heatmap_choices['metric']),
+        'color_palette': Str % Choices(_cmaps['heatmap']),
+        'margin_palette': Str % Choices(_cmaps['margins']),
+        'x_labels': Bool,
+        'y_labels': Bool,
+        'level': Int % Range(-1, None),
+        'threshold': Int % Range(0, None)
+    },
+    input_descriptions={'ranks': 'Conditional probabilities.'},
+    parameter_descriptions={
+        'microbe_metadata': 'Optional microbe metadata for annotating plots.',
+        'metabolite_metadata': 'Optional metabolite metadata for annotating '
+                               'plots.',
+        'method': 'Hierarchical clustering method used in clustermap.',
+        'metric': 'Distance metric used in clustermap.',
+        'color_palette': 'Color palette for clustermap.',
+        'margin_palette': 'Name of color palette to use for annotating '
+                          'metadata along margin(s) of clustermap.',
+        'x_labels': 'Plot x-axis (metabolite) labels?',
+        'y_labels': 'Plot y-axis (microbe) labels?',
+        'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
+                 'parsing semicolon-delimited taxonomies or wish to print '
+                 'entire annotation.',
+        'threshold': 'Minimum absolute value of conditional probabilities to '
+                     'plot. Metabolites/taxa that do not have at least one '
+                     'conditional probability above the threshold will be '
+                     'removed.'
+    },
+    name='Conditional probability heatmap',
+    description="Generate heatmap depicting mmvec conditional probabilities.",
     citations=[]
 )
 
