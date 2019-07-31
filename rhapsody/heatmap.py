@@ -120,7 +120,8 @@ def _parse_heatmap_metadata_annotations(metadata_column, margin_palette):
     '''
     Transform feature or sample metadata into color vector for annotating
     margin of clustermap.
-
+Parameters
+----------
     metadata_column: pd.Series of metadata for annotating plots
     margin_palette: str
         Name of color palette to use for annotating metadata
