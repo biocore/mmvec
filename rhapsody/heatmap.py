@@ -179,7 +179,8 @@ def _process_metabolite_metadata(ranks, metabolite_metadata, margin_palette):
 
 def _warn_metadata_filtering(metadata_type):
     warning = ('Conditional probabilities table and {0} metadata will be '
-               'filtered to contain only the index. If this behavior is '
-               'unintended, ensure that all {0} IDs are present in both the '
-               'table and the metadata file'.format(metadata_type))
+               'filtered to contain only the intersection of IDs in each. If '
+               'this behavior is undesired, ensure that all {0} IDs are '
+               'present in both the table and the metadata '
+               'file'.format(metadata_type))
     warnings.warn(warning, UserWarning)
