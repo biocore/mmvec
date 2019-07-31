@@ -56,7 +56,9 @@ Parameters
         metabolites/taxa that do not have at least one CP above the
         threshold will be removed.
 
-    Returns clustermap
+    Returns
+    -------
+    sns.clustermap
     '''
     # filter microbes
     abs_vals = ranks.abs()
