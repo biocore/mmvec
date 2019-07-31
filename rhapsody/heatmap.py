@@ -154,6 +154,8 @@ def _parse_taxonomy_strings(taxonomy_series, level):
     taxonomy_series: pd.Series of semicolon-delimited taxonomy strings
     level: int
         taxonomic level for annotating clustermap.
+ Returns
+ -------
     Returns a pd.Series of taxonomy names at specified level,
         or terminal annotation
     '''
