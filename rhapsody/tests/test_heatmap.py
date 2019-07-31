@@ -1,7 +1,8 @@
 import unittest
 import pandas as pd
 from rhapsody.heatmap import (
-    _parse_taxonomy_strings, _parse_heatmap_metadata_annotations)
+    _parse_taxonomy_strings, _parse_heatmap_metadata_annotations,
+    _process_microbe_metadata, _process_metabolite_metadata)
 import pandas.util.testing as pdt
 
 
@@ -93,3 +94,34 @@ class TestHeatmapAnnotation(unittest.TestCase):
             self.taxonomy, 'magma')
         pdt.assert_series_equal(exp_cols, cols)
         self.assertDictEqual(exp_classes, classes)
+
+
+class TestMetadataProcessing(unittest.TestCase):
+
+    def setUp(self):
+        self.taxonomy = pd.Series(
+            ['k__Bacteria', 'k__Archaea', 'k__Bacteria'],
+            index=pd.Index([c for c in 'ABC']), name='Taxon')
+        self.metabolites = pd.Series([
+            'amino acid', 'carbohydrate', 'drug metabolism'],
+            index=pd.Index(['a', 'b', 'c']), name='Super Pathway')
+        self.ranks = pd.DataFrame(
+            [[4, 1, 2, 3], [1, 2, 1, 2], [2, 4, 3, 1], [6, 4, 2, 3]],
+            index=pd.Index([c for c in 'ABCD']), columns=[c for c in 'abcd'])
+
+    # test that metadata processing works, filters ranks, and works in sequence
+    def test_process_metadata(self):
+        # filter on taxonomy, taxonomy parser/annotation tested above
+        with self.assertWarnsRegex(UserWarning, "microbe IDs are present"):
+            res = _process_microbe_metadata(
+                    self.ranks, self.taxonomy, -1, 'magma')
+        ranks_filtered = pd.DataFrame(
+            [[4, 1, 2, 3], [1, 2, 1, 2], [2, 4, 3, 1]],
+            index=pd.Index([c for c in 'ABC']), columns=[c for c in 'abcd'])
+        pdt.assert_frame_equal(ranks_filtered, res[1])
+        # filter on metabolites, annotation tested above
+        with self.assertWarnsRegex(UserWarning, "metabolite IDs are present"):
+            res = _process_metabolite_metadata(
+                ranks_filtered, self.metabolites, 'magma')
+        ranks_filtered = ranks_filtered[[c for c in 'abc']]
+        pdt.assert_frame_equal(ranks_filtered, res[1])

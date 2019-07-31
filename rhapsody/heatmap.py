@@ -1,5 +1,6 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
+import warnings
 
 
 _heatmap_choices = {
@@ -26,11 +27,12 @@ _cmaps = {
 def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
                   method='average', metric='euclidean',
                   color_palette='seismic', margin_palette='cubehelix',
-                  x_labels=False, y_labels=False, level=3, threshold=3):
+                  x_labels=False, y_labels=False, level=3):
     '''
     Generate clustermap of microbe X metabolite conditional probabilities.
-Parameters
-----------
+
+    Parameters
+    ----------
     ranks: pd.DataFrame of conditional probabilities.
         Microbes (rows) X metabolites (columns).
     microbe_metadata: pd.Series of microbe metadata for annotating plots
@@ -51,39 +53,24 @@ Parameters
     level: int
         taxonomic level for annotating clustermap. Set to -1 if not parsing
         semicolon-delimited taxonomies or wish to print entire annotation.
-    threshold: int
-        Minimum absolute value of conditional probabilities to plot.
-        metabolites/taxa that do not have at least one CP above the
-        threshold will be removed.
 
     Returns
     -------
     sns.clustermap
     '''
-    # filter microbes
-    abs_vals = ranks.abs()
-    ranks = ranks[abs_vals.max(axis=1) > threshold]
-    # filter metabolites
-    ranks = ranks[ranks.columns[(abs_vals > threshold).any()]]
-
     # subset microbe metadata based on rows/columns
     if microbe_metadata is not None:
-        microbe_metadata = microbe_metadata.reindex(ranks.index)
-        # parse semicolon-delimited taxonomy
-        if level > -1:
-            microbe_metadata = _parse_taxonomy_strings(microbe_metadata, level)
-        # map metadata categories to row colors
-        row_colors, row_class_colors = _parse_heatmap_metadata_annotations(
-            microbe_metadata, margin_palette)
+        microbe_metadata, ranks, row_colors, row_class_colors = \
+            _process_microbe_metadata(
+                ranks, microbe_metadata, level, margin_palette)
     else:
         row_colors = None
 
     # subset metabolite metadata based on rows/columns
     if metabolite_metadata is not None:
-        metabolite_metadata = metabolite_metadata.reindex(ranks.columns)
-        # map metadata categories to column colors
-        col_colors, col_class_colors = _parse_heatmap_metadata_annotations(
-            metabolite_metadata, margin_palette)
+        metabolite_metadata, ranks, col_colors, col_class_colors = \
+            _process_metabolite_metadata(
+                ranks, metabolite_metadata, margin_palette)
     else:
         col_colors = None
 
@@ -91,7 +78,7 @@ Parameters
     hotmap = sns.clustermap(ranks, cmap=color_palette, center=0,
                             col_colors=col_colors, row_colors=row_colors,
                             figsize=(12, 12), method=method, metric=metric,
-                            cbar_kws={'label': 'Conditional\nProbability'})
+                            cbar_kws={'label': 'Log Conditional\nProbability'})
 
     # add legends
     if col_colors is not None:
@@ -106,7 +93,7 @@ Parameters
             hotmap.ax_row_dendrogram.bar(
                 0, 0, color=row_class_colors[label], label=label, linewidth=0)
         hotmap.ax_row_dendrogram.legend(
-            title=microbe_metadata.name, ncol=1, bbox_to_anchor=(0.1, 0.5),
+            title=microbe_metadata.name, ncol=1, bbox_to_anchor=(0.1, 0.7),
             bbox_transform=plt.gcf().transFigure)
 
     # toggle axis labels
@@ -122,14 +109,14 @@ def _parse_heatmap_metadata_annotations(metadata_column, margin_palette):
     '''
     Transform feature or sample metadata into color vector for annotating
     margin of clustermap.
-Parameters
-----------
+    Parameters
+    ----------
     metadata_column: pd.Series of metadata for annotating plots
     margin_palette: str
         Name of color palette to use for annotating metadata
         along margin(s) of clustermap.
-Returns
--------
+    Returns
+    -------
     Returns vector of colors for annotating clustermap and dict mapping colors
     to classes.
     '''
@@ -156,9 +143,43 @@ def _parse_taxonomy_strings(taxonomy_series, level):
     taxonomy_series: pd.Series of semicolon-delimited taxonomy strings
     level: int
         taxonomic level for annotating clustermap.
- Returns
- -------
+     Returns
+     -------
     Returns a pd.Series of taxonomy names at specified level,
         or terminal annotation
     '''
     return taxonomy_series.apply(lambda x: x.split(';')[:level][-1].strip())
+
+
+def _process_microbe_metadata(ranks, microbe_metadata, level, margin_palette):
+    _warn_metadata_filtering('microbe')
+    microbe_metadata, ranks = microbe_metadata.align(
+        ranks, join='inner', axis=0)
+    # parse semicolon-delimited taxonomy
+    if level > -1:
+        microbe_metadata = _parse_taxonomy_strings(microbe_metadata, level)
+    # map metadata categories to row colors
+    row_colors, row_class_colors = _parse_heatmap_metadata_annotations(
+        microbe_metadata, margin_palette)
+
+    return microbe_metadata, ranks, row_colors, row_class_colors
+
+
+def _process_metabolite_metadata(ranks, metabolite_metadata, margin_palette):
+    _warn_metadata_filtering('metabolite')
+    _ids = set(metabolite_metadata.index) & set(ranks.columns)
+    ranks = ranks[sorted(_ids)]
+    metabolite_metadata = metabolite_metadata.reindex(ranks.columns)
+    # map metadata categories to column colors
+    col_colors, col_class_colors = _parse_heatmap_metadata_annotations(
+        metabolite_metadata, margin_palette)
+
+    return metabolite_metadata, ranks, col_colors, col_class_colors
+
+
+def _warn_metadata_filtering(metadata_type):
+    warning = ('Conditional probabilities table and {0} metadata will be '
+               'filtered to contain only the index. If this behavior is '
+               'unintended, ensure that all {0} IDs are present in both the '
+               'table and the metadata file'.format(metadata_type))
+    warnings.warn(warning, UserWarning)

@@ -19,8 +19,7 @@ def heatmap(output_dir: str,
             margin_palette: str = 'cubehelix',
             x_labels: bool = False,
             y_labels: bool = False,
-            level: int = -1,
-            threshold: int = 3) -> None:
+            level: int = -1) -> None:
     if microbe_metadata is not None:
         microbe_metadata = microbe_metadata.to_series()
     if metabolite_metadata is not None:
@@ -28,7 +27,7 @@ def heatmap(output_dir: str,
 
     hotmap = ranks_heatmap(ranks, microbe_metadata, metabolite_metadata,
                            method, metric, color_palette, margin_palette,
-                           x_labels, y_labels, level, threshold)
+                           x_labels, y_labels, level)
 
     hotmap.savefig(join(output_dir, 'heatmap.pdf'), bbox_inches='tight')
     hotmap.savefig(join(output_dir, 'heatmap.png'), bbox_inches='tight')

@@ -100,7 +100,6 @@ plugin.visualizers.register_function(
         'x_labels': Bool,
         'y_labels': Bool,
         'level': Int % Range(-1, None),
-        'threshold': Int % Range(0, None)
     },
     input_descriptions={'ranks': 'Conditional probabilities.'},
     parameter_descriptions={
@@ -117,10 +116,6 @@ plugin.visualizers.register_function(
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '
                  'entire annotation.',
-        'threshold': 'Minimum absolute value of conditional probabilities to '
-                     'plot. Metabolites/taxa that do not have at least one '
-                     'conditional probability above the threshold will be '
-                     'removed.'
     },
     name='Conditional probability heatmap',
     description="Generate heatmap depicting mmvec conditional probabilities.",
