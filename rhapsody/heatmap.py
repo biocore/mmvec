@@ -126,7 +126,8 @@ Parameters
     margin_palette: str
         Name of color palette to use for annotating metadata
         along margin(s) of clustermap.
-
+Returns
+-------
     Returns vector of colors for annotating clustermap and dict mapping colors
     to classes.
     '''
