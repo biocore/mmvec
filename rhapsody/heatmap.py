@@ -29,7 +29,8 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
                   x_labels=False, y_labels=False, level=3, threshold=3):
     '''
     Generate clustermap of microbe X metabolite conditional probabilities.
-
+Parameters
+----------
     ranks: pd.DataFrame of conditional probabilities.
         Microbes (rows) X metabolites (columns).
     microbe_metadata: pd.Series of microbe metadata for annotating plots
