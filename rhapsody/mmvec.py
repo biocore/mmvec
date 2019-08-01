@@ -52,30 +52,58 @@ class MMvec(torch.nn.Module):
         klds = []
         likes = []
         errs = []
-        optimizer = optim.Adam(self.parameters(), betas=(beta1, beta2),
-                               lr=learning_rate)
-        step_size = 50
-        scheduler = StepLR(optimizer, step_size=step_size, gamma=0.1)
-        for ep in tqdm(range(0, epochs)):
-            self.train()
-            for i in range(0, self.num_samples, self.batch_size):
-                optimizer.zero_grad()
+        # custom make scheduler for alternating
+        lrs = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+        with tqdm(total=epochs*len(lrs)*2) as pbar:
+            for lr in lrs:
+                # setup optimizer for alternating optimization
+                optimizer = optim.Adamax(
+                    [
+                        {'params': self.encoder.parameters(), 'lr': baseline},
+                        {'params': self.decoder.parameters(), 'lr': lr}
+                    ],
+                    betas=(beta1, beta2))
+                for _ in range(0, epochs):
+                    self.train()
+                    for i in range(0, self.num_samples, self.batch_size):
+                        optimizer.zero_grad()
 
-                inp, out = get_batch(trainX, trainY,
-                                     self.subsample_size, self.batch_size)
+                        inp, out = get_batch(trainX, trainY,
+                                             self.subsample_size, self.batch_size)
 
-                pred = self.forward(inp)
-                loss = self.loss(pred, out)
-                metabolite_total = torch.sum(out, 1).view(-1, 1)
-                err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
-                loss.backward()
-                errs.append(err.item())
-                losses.append(loss.item())
+                        pred = self.forward(inp)
+                        loss = self.loss(pred, out)
+                        metabolite_total = torch.sum(out, 1).view(-1, 1)
+                        err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
+                        loss.backward()
+                        errs.append(err.item())
+                        losses.append(loss.item())
+                        optimizer.step()
+                    pbar.update(1)
 
-                optimizer.step()
-            scheduler.step()
+                optimizer = optim.Adamax(
+                    [
+                        {'params': self.encoder.parameters(), 'lr': lr},
+                        {'params': self.decoder.parameters(), 'lr': baseline}
+                    ],
+                    betas=(beta1, beta2))
+                for _ in range(0, epochs):
+                    self.train()
+                    for i in range(0, self.num_samples, self.batch_size):
+                        optimizer.zero_grad()
 
+                        inp, out = get_batch(trainX, trainY,
+                                             self.subsample_size, self.batch_size)
 
+                        pred = self.forward(inp)
+                        loss = self.loss(pred, out)
+                        metabolite_total = torch.sum(out, 1).view(-1, 1)
+                        err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
+                        loss.backward()
+                        errs.append(err.item())
+                        losses.append(loss.item())
+                        optimizer.step()
+                    pbar.update(1)
         return losses, errs
 
     def ranks(self):

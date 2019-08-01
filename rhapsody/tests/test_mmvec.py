@@ -18,8 +18,8 @@ class TestMMvecSim(unittest.TestCase):
         # build small simulation
         self.latent_dim = 2
         res = random_multimodal(
-            num_microbes=20, num_metabolites=20, num_samples=100,
-            latent_dim=self.latent_dim, sigmaQ=2, sigmaU=1, sigmaV=1,
+            num_microbes=15, num_metabolites=15, num_samples=220,
+            latent_dim=self.latent_dim, sigmaQ=1, sigmaU=1, sigmaV=1,
             microbe_total=100, metabolite_total=1000, seed=1
         )
         (self.microbes, self.metabolites, self.X, self.B,
@@ -45,13 +45,13 @@ class TestMMvecSim(unittest.TestCase):
         total = np.sum(self.trainX.values.sum())
         model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                       microbe_total=total, latent_dim=latent_dim,
-                      batch_size=5, subsample_size=100,
+                      batch_size=20, subsample_size=100,
                       device='cpu')
         _ = model.fit(
             csr_matrix(self.trainX.values), self.trainY.values,
             csr_matrix(self.testX.values), self.testY.values,
-            epochs=100, learning_rate=.1,
-            beta1=0.9, beta2=0.95)
+            epochs=30, learning_rate=.1,
+            beta1=0.9, beta2=0.999)
 
         # Loose checks on the weight matrices to make sure
         # that we aren't learning complete garbage
@@ -61,13 +61,11 @@ class TestMMvecSim(unittest.TestCase):
         ubias = model.encoder.bias.weight.detach().numpy()
         vbias = model.decoder.bias.detach().numpy()
         res = spearmanr(pdist(self.U), pdist(u))
-        self.assertGreater(res.correlation, 0.3)
-        self.assertLess(res.pvalue, 0.001)
-        # resV = alr2clr(self.V)
-        resV = v.T
-        res = spearmanr(pdist(self.V), pdist(resV.T))
-        self.assertGreater(res.correlation, 0.3)
-        self.assertLess(res.pvalue, 0.001)
+        self.assertGreater(res.correlation, 0.5)
+        self.assertLess(res.pvalue, 1e-5)
+        res = spearmanr(pdist(self.V.T), pdist(v))
+        self.assertGreater(res.correlation, 0.5)
+        self.assertLess(res.pvalue, 1e-5)
 
 
 class TestMMvecSoils(unittest.TestCase):
@@ -92,15 +90,15 @@ class TestMMvecSoils(unittest.TestCase):
 
         n, d1 = X.shape
         n, d2 = Y.shape
-        latent_dim = 2
+        latent_dim = 1
         total = np.sum(X.sum())
         model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                       microbe_total=total, latent_dim=latent_dim,
-                      batch_size=5, subsample_size=500,
+                      batch_size=3, subsample_size=500,
                       device='cpu')
         losses, errs = model.fit(
             X, Y, X, Y,
-            epochs=100, learning_rate=0.0001,
+            epochs=100, learning_rate=0.1,
             beta1=0.9, beta2=0.95)
         ranks = model.ranks()
         ranks = ranks.detach().numpy()
