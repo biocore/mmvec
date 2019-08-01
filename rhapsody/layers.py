@@ -50,7 +50,28 @@ class VecLinear(torch.nn.Linear):
         """
         In the constructor we just inherit
         """
-        super(VecLinear, self).__init__(in_features, out_features)
+        super(VecLinear, self).__init__(in_features, out_features-1)
+
+    def forward(self, x):
+        """
+        In the forward function we accept a Tensor of input data and we must return
+        a Tensor of output data. We can use Modules defined in the constructor as
+        well as arbitrary operators on Tensors.
+        """
+        y = F.linear(x, self.weight, self.bias)
+        z = torch.zeros(y.shape[0], 1)
+        return torch.cat((z, y), 1)
+
+    @property
+    def weight_(self):
+        z = torch.zeros(1, self.weight.shape[1])
+        return torch.cat((z, self.weight))
+
+    @property
+    def bias_(self):
+        z = torch.zeros(1)
+        return torch.cat((z, self.bias))
+
 
     def log_prob(self, sigma):
         """ This is for MAP regularization """

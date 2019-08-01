@@ -5,6 +5,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions.multinomial import Multinomial
 from torch.distributions.normal import Normal
+from torch.optim.lr_scheduler import StepLR
 from rhapsody.layers import VecEmbedding, VecLinear
 from rhapsody.batch import get_batch
 
@@ -53,8 +54,9 @@ class MMvec(torch.nn.Module):
         errs = []
         optimizer = optim.Adam(self.parameters(), betas=(beta1, beta2),
                                lr=learning_rate)
+        step_size = 50
+        scheduler = StepLR(optimizer, step_size=step_size, gamma=0.1)
         for ep in tqdm(range(0, epochs)):
-
             self.train()
             for i in range(0, self.num_samples, self.batch_size):
                 optimizer.zero_grad()
@@ -71,13 +73,16 @@ class MMvec(torch.nn.Module):
                 losses.append(loss.item())
 
                 optimizer.step()
+            scheduler.step()
+
+
         return losses, errs
 
     def ranks(self):
         U = self.encoder.embedding.weight
         Ub = self.encoder.bias.weight
-        V = self.decoder.weight
-        Vb = self.decoder.bias
+        V = self.decoder.weight_
+        Vb = self.decoder.bias_
         res = Ub.view(-1, 1) + (U @ torch.t(V)) + Vb
         res = res - res.mean(1).view(-1, 1)
         return res
