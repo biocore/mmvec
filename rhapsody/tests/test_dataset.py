@@ -1,8 +1,11 @@
 import unittest
 import numpy as np
+import pandas as pd
 from biom import Table
 from rhapsody.dataset import PairedDataset
+from rhapsody.dataset import split_tables
 import numpy.testing as npt
+
 
 
 class TestPairedDataset(unittest.TestCase):
@@ -31,6 +34,81 @@ class TestPairedDataset(unittest.TestCase):
                              self.sids)
         self.assertListEqual(list(dataset.metabolites.ids(axis='sample')),
                              self.sids)
+
+
+class TestSplitTables(unittest.TestCase):
+
+    def setUp(self):
+
+        omat = np.array([
+            [104, 10, 2, 0, 0],
+            [4, 100, 20, 0, 0],
+            [0, 1, 0, 0, 4],
+            [4, 0, 21, 0, 2],
+            [40, 0, 2, 1, 39],
+            [0, 0, 32, 10, 3],
+            [59, 1, 0, 0, 3]
+        ])
+        mmat = np.array([
+            [104, 1, 31, 0, 8],
+            [4, 100, 20, 0, 0],
+            [0, 8, 0, 0, 4],
+            [0, 0, 2, 1, 2],
+            [0, 0, 20, 10, 3],
+            [0, 8, 0, 0, 4],
+            [0, 0, 2, 10, 3],
+            [0, 0, 320, 139, 3],
+            [59, 9, 0, 0, 33]
+        ]) * 10e6
+
+        oids = list(map(lambda x: 'o'+str(x), np.arange(omat.shape[0])))
+        mids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[0])))
+        sids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[1])))
+
+        self.otu_table = Table(omat, oids, sids)
+        self.metabolite_table = Table(mmat, mids, sids)
+
+        self.metadata = pd.DataFrame(
+            {
+                'testing': ['Train', 'Test', 'Train', 'Test', 'Train'],
+                'bad': [True, False, True, False, True]
+            }, index=sids
+        )
+
+    def test_split_tables_train_column(self):
+
+        train, test = split_tables(self.otu_table, self.metabolite_table,
+                                   metadata=self.metadata, training_column='testing',
+                                   num_test=10, min_samples=0)
+
+        npt.assert_allclose(train.microbes.shape, np.array([3, 7]))
+        npt.assert_allclose(test.microbes.shape, np.array([2, 7]))
+        npt.assert_allclose(train.metabolites.shape, np.array([3, 9]))
+        npt.assert_allclose(test.metabolites.shape, np.array([2, 9]))
+
+    def test_split_tables_bad_column(self):
+        with self.assertRaises(Exception):
+            split_tables(self.otu_table, self.metabolite_table,
+                         metadata=self.metadata, training_column='bad',
+                         num_test=10, min_samples=0)
+
+    def test_split_tables_random(self):
+        train, test = split_tables(self.otu_table, self.metabolite_table,
+                                   num_test=2, min_samples=0)
+
+        npt.assert_allclose(train.microbes.shape, np.array([3, 7]))
+        npt.assert_allclose(test.microbes.shape, np.array([2, 7]))
+        npt.assert_allclose(train.metabolites.shape, np.array([3, 9]))
+        npt.assert_allclose(test.metabolites.shape, np.array([2, 9]))
+
+    def test_split_tables_random_filter(self):
+        train, test = split_tables(self.otu_table, self.metabolite_table,
+                                   num_test=2, min_samples=2)
+
+        npt.assert_allclose(train.microbes.shape, np.array([3, 6]))
+        npt.assert_allclose(test.microbes.shape, np.array([2, 6]))
+        npt.assert_allclose(train.metabolites.shape, np.array([3, 9]))
+        npt.assert_allclose(test.metabolites.shape, np.array([2, 9]))
 
 
 if __name__ == "__main__":

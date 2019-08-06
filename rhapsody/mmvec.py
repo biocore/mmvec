@@ -46,8 +46,32 @@ class MMvec(torch.nn.Module):
         prior = encoder_prior + decoder_prior
         return -(likelihood + prior)
 
-    def fit(self, trainX, trainY, testX, testY, epochs=1000,
+    def fit(self, train_dataloader, test_dataloader, epochs=1000,
             learning_rate=1e-3, beta1=0.9, beta2=0.99):
+        """ Fit the model
+
+        Parameters
+        ----------
+        train_dataloader: torch.data_utils.DataLoader
+            Torch DataLoader iterator for training samples
+        test_dataloader: torch.data_utils.DataLoader
+            Torch DataLoader iterator for testing samples
+        epochs : int
+            Number of epochs to train model
+        learning_rate : float
+            The initial learning rate
+        beta1 : float
+            First ADAM momentum constant
+        beta2 : float
+            Second ADAM momentum constant
+
+        Returns
+        -------
+        losses : list of float
+            Log likelihood of model
+        errs : list of float
+            Cross validation error between model and testing dataset
+        """
         losses = []
         klds = []
         likes = []
@@ -57,53 +81,39 @@ class MMvec(torch.nn.Module):
         with tqdm(total=epochs*len(lrs)*2) as pbar:
             for lr in lrs:
                 # setup optimizer for alternating optimization
-                optimizer = optim.Adamax(
-                    [
-                        {'params': self.encoder.parameters(), 'lr': baseline},
-                        {'params': self.decoder.parameters(), 'lr': lr}
-                    ],
-                    betas=(beta1, beta2))
-                for _ in range(0, epochs):
-                    self.train()
-                    for i in range(0, self.num_samples, self.batch_size):
-                        optimizer.zero_grad()
+                for (b, l) in [[baseline, lr], [lr, baseline]]:
+                    optimizer = optim.Adamax(
+                        [
+                            {'params': self.encoder.parameters(), 'lr': b},
+                            {'params': self.decoder.parameters(), 'lr': l}
+                        ],
+                        betas=(beta1, beta2))
+                    for _ in range(0, epochs):
+                        # Training
+                        self.train()
+                        for _ in range(0, self.num_samples, self.batch_size):
+                            optimizer.zero_grad()
+                            inp, out = next(train_dataloader)
+                            pred = self.forward(inp)
+                            loss = self.loss(pred, out)
+                            loss.backward()
+                            losses.append(loss.item())
+                            optimizer.step()
 
-                        inp, out = get_batch(trainX, trainY,
-                                             self.subsample_size, self.batch_size)
+                        # Validation (TODO iterate)
+                        mean_err = []
+                        for _ in self.batch_size
+                            inp, out = next(test_dataloader)
+                            mt = torch.sum(out, 1).view(-1, 1)
+                            err = torch.mean(
+                                torch.abs(
+                                    F.softmax(pred, dim=1) * mt - out
+                                )
+                            )
+                            mean_err.append(err.item())
+                        errs.append(np.mean(mean_err))
+                        pbar.update(1)
 
-                        pred = self.forward(inp)
-                        loss = self.loss(pred, out)
-                        metabolite_total = torch.sum(out, 1).view(-1, 1)
-                        err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
-                        loss.backward()
-                        errs.append(err.item())
-                        losses.append(loss.item())
-                        optimizer.step()
-                    pbar.update(1)
-
-                optimizer = optim.Adamax(
-                    [
-                        {'params': self.encoder.parameters(), 'lr': lr},
-                        {'params': self.decoder.parameters(), 'lr': baseline}
-                    ],
-                    betas=(beta1, beta2))
-                for _ in range(0, epochs):
-                    self.train()
-                    for i in range(0, self.num_samples, self.batch_size):
-                        optimizer.zero_grad()
-
-                        inp, out = get_batch(trainX, trainY,
-                                             self.subsample_size, self.batch_size)
-
-                        pred = self.forward(inp)
-                        loss = self.loss(pred, out)
-                        metabolite_total = torch.sum(out, 1).view(-1, 1)
-                        err = torch.mean(torch.abs(F.softmax(pred, dim=1) * metabolite_total - out))
-                        loss.backward()
-                        errs.append(err.item())
-                        losses.append(loss.item())
-                        optimizer.step()
-                    pbar.update(1)
         return losses, errs
 
     def ranks(self):

@@ -99,6 +99,7 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     ms_ids = ['metabolite_%d' % d for d in range(metabolite_counts.shape[1])]
     sample_ids = ['sample_%d' % d for d in range(metabolite_counts.shape[0])]
 
+    # TODO: convert to biom Tables instead of DataFrames
     microbe_counts = pd.DataFrame(
         microbe_counts, index=sample_ids, columns=otu_ids)
     metabolite_counts = pd.DataFrame(
@@ -106,77 +107,6 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
 
     return (microbe_counts, metabolite_counts, X, beta,
             Umain, Ubias, Vmain, Vbias)
-
-
-def split_tables(otu_table, metabolite_table,
-                 metadata=None, training_column=None, num_test=10,
-                 min_samples=10):
-    """ Splits otu and metabolite tables into training and testing datasets.
-
-    Parameters
-    ----------
-    otu_table : biom.Table
-       Table of microbe abundances
-    metabolite_table : biom.Table
-       Table of metabolite intensities
-    metadata : pd.DataFrame
-       DataFrame of sample metadata information.  This is primarily used
-       to indicated training and testing samples
-    training_column : str
-       The column used to indicate training and testing samples.
-       Samples labeled 'Train' are allocated to the training set.
-       All other samples are placed in the testing dataset.
-    num_test : int
-       If metadata or training_column is not specified, then `num_test`
-       indicates how many testing samples will be allocated for
-       cross validation.
-    min_samples : int
-       The minimum number of samples a microbe needs to be observed in
-       in order to not get filtered out
-
-    Returns
-    -------
-    train_microbes : pd.DataFrame
-       Training set of microbes
-    test_microbes : pd.DataFrame
-       Testing set of microbes
-    train_metabolites : pd.DataFrame
-       Training set of metabolites
-    test_metabolites : pd.DataFrame
-       Testing set of metabolites
-
-    Notes
-    -----
-    There is an inefficient conversion from a sparse matrix to a
-    dense matrix.  This may become a bottleneck later.
-    """
-    microbes_df = otu_table.to_dataframe().T
-    metabolites_df = metabolite_table.to_dataframe().T
-
-    microbes_df, metabolites_df = microbes_df.align(
-        metabolites_df, axis=0, join='inner'
-    )
-
-    # filter out microbes that don't appear in many samples
-    idx = (microbes_df > 0).sum(axis=0) > min_samples
-    microbes_df = microbes_df.loc[:, idx]
-    if metadata is None or training_column is None:
-        sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
-        sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
-    else:
-        if len(set(metadata[training_column]) & {'Train', 'Test'}) == 0:
-            raise ValueError("Training column must only specify `Train` and `Test`"
-                             "values")
-        idx = metadata.loc[metadata[training_column] != 'Train'].index
-        sample_ids = set(idx)
-        sample_ids = np.array([(x in sample_ids) for x in microbes_df.index])
-
-    train_microbes = microbes_df.loc[~sample_ids]
-    test_microbes = microbes_df.loc[sample_ids]
-    train_metabolites = metabolites_df.loc[~sample_ids]
-    test_metabolites = metabolites_df.loc[sample_ids]
-
-    return train_microbes, test_microbes, train_metabolites, test_metabolites
 
 
 def onehot(microbes):

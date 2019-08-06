@@ -15,7 +15,9 @@ from scipy.stats import entropy, spearmanr
 from scipy.sparse import csr_matrix
 from rhapsody.mmvec import MMvec
 from rhapsody.util import (onehot, rank_hits, random_multimodal,
-                           split_tables, format_params)
+                           format_params)
+from rhapsody.dataset import PairedDataset, split_tables
+from torch.utils.data import DataLoader
 
 
 @click.group()
@@ -50,11 +52,6 @@ def rhapsody():
                     'number of samples to process an entire dataset.'), default=10)
 @click.option('--batch-size',
               help='Number of samples to analyze per iteration.', default=10)
-@click.option('--subsample-size',
-              help='Number of sequences to analyze per sample.', default=100)
-@click.option('--mc-samples',
-              help='Number of Monte Carlo samples to estimate gradient steps.',
-              default=5)
 @click.option('--latent-dim',
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
@@ -62,6 +59,9 @@ def rhapsody():
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
               default=False)
+@click.option('--num-workers',
+              help=('Number of processes for preprocessing tables.'),
+              default=1)
 @click.option('--learning-rate',
               help=('Gradient descent learning rate.'),
               default=1e-1)
@@ -97,8 +97,8 @@ def rhapsody():
 def mmvec(input_abundances, output_abundances,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
-          epochs, batch_size, subsample_size, mc_samples,
-          latent_dim, arm_the_gpu, learning_rate,
+          epochs, batch_size, subsample_size,
+          latent_dim, arm_the_gpu, num_workers, learning_rate,
           beta1, beta2, seed,
           checkpoint_interval, summary_interval,summary_dir,
           embeddings_file, ranks_file, ordination_file):
@@ -116,16 +116,18 @@ def mmvec(input_abundances, output_abundances,
     else:
         metadata = None
 
-    res = split_tables(
+    # TODO: split into two datasets
+    train_dataset, test_dataset = split_tables(
         microbes, metabolites,
         metadata=metadata, training_column=training_column,
         num_test=num_testing_examples,
         min_samples=min_feature_count)
 
-    (train_microbes_df, test_microbes_df,
-     train_metabolites_df, test_metabolites_df) = res
+    train_dataloader = DataLoader(train_dataset, batch_size=50,
+                                  shuffle=True, num_workers=num_workers)
+    test_dataloader = DataLoader(test_dataset, batch_size=50,
+                                 shuffle=True, num_workers=num_workers)
 
-    # filter out low abundance microbes
     microbe_ids = microbes.ids(axis='observation')
     metabolite_ids = metabolites.ids(axis='observation')
 
@@ -140,13 +142,9 @@ def mmvec(input_abundances, output_abundances,
 
     sname = os.path.join(summary_dir, sname)
 
-    trainX = csr_matrix(train_microbes_df.values)
-    testX = csr_matrix(test_microbes_df.values)
-    trainY = train_metabolites_df.values
-    testY = test_metabolites_df.values
 
-    n, d1 = trainX.shape
-    n, d2 = trainY.shape
+    d1, n = train_dataset.microbes.shape
+    d2, n = train_dataset.metabolties.shape
 
     if arm_the_gpu:
         # pick out the first GPU
@@ -157,7 +155,8 @@ def mmvec(input_abundances, output_abundances,
     model = MMvec(num_microbes=d1, num_metabolites=d2, latent_dim=latent_dim,
                   batch_size=batch_size, subsample_size=subsample_size,
                   device=device_name)
-    model.fit(trainX, trainY, testX, testY,
+
+    model.fit(train_dataset, test_dataset
               epochs=epochs,  learning_rate=learning_rate,
               beta1=beta1, beta2=beta2, step_size=step_size,
               summary_interval=summary_interval,

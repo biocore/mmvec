@@ -11,6 +11,8 @@ from scipy.sparse import coo_matrix, csr_matrix
 from scipy.spatial.distance import pdist
 from rhapsody.mmvec import MMvec
 from rhapsody.util import random_multimodal
+from rhapsody.datset import PairedDataset
+from torch.data_utils import DataLoader
 
 
 class TestMMvecSim(unittest.TestCase):
@@ -25,6 +27,8 @@ class TestMMvecSim(unittest.TestCase):
         (self.microbes, self.metabolites, self.X, self.B,
          self.U, self.Ubias, self.V, self.Vbias) = res
         num_test = 10
+
+        # TODO: convert microbes / metabolites into DataFrames
         self.trainX = self.microbes.iloc[:-num_test]
         self.testX = self.microbes.iloc[-num_test:]
         self.trainY = self.metabolites.iloc[:-num_test]
