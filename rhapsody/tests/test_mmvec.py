@@ -10,7 +10,7 @@ from scipy.stats import spearmanr
 from scipy.sparse import coo_matrix, csr_matrix
 from scipy.spatial.distance import pdist
 from rhapsody.mmvec import MMvec
-from rhapsody.util import random_multimodal, alr2clr
+from rhapsody.util import random_multimodal
 
 
 class TestMMvecSim(unittest.TestCase):

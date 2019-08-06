@@ -6,6 +6,7 @@ from biom import load_table
 
 def get_batch(X, Y, subsample_size, batch_size):
     """ Retrieves minibatch
+
     Parameters
     ----------
     X : scipy.sparse.csr_matrix
