@@ -7,13 +7,12 @@ from rhapsody.dataset import split_tables
 import numpy.testing as npt
 
 
-
 class TestPairedDataset(unittest.TestCase):
 
     def setUp(self):
-        d1 = 20
+        d1 = 200
         d2 = 30
-        n = 10
+        n = 1000
         np.random.seed(0)
         self.oids = list(map(lambda x: 'o%d' % x, np.arange(d1)))
         self.mids = list(map(lambda x: 'o%d' % x, np.arange(d2)))
@@ -34,6 +33,11 @@ class TestPairedDataset(unittest.TestCase):
                              self.sids)
         self.assertListEqual(list(dataset.metabolites.ids(axis='sample')),
                              self.sids)
+
+    def test_get_item(self):
+        dataset = PairedDataset(self.microbes, self.metabolites)
+        for i in range(self.microbes.shape[1]):
+            dataset[i]
 
 
 class TestSplitTables(unittest.TestCase):

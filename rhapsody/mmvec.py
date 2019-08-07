@@ -77,6 +77,7 @@ class MMvec(torch.nn.Module):
         likes = []
         errs = []
         # custom make scheduler for alternating
+        baseline = 1e-8
         lrs = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
         with tqdm(total=epochs*len(lrs)*2) as pbar:
             for lr in lrs:
@@ -89,21 +90,24 @@ class MMvec(torch.nn.Module):
                         ],
                         betas=(beta1, beta2))
                     for _ in range(0, epochs):
-                        # Training
+                        # Train
                         self.train()
-                        for _ in range(0, self.num_samples, self.batch_size):
+                        for inp, out in train_dataloader:
+                            inp = inp.to(self.device)
+                            out = out.to(self.device)
                             optimizer.zero_grad()
-                            inp, out = next(train_dataloader)
+
                             pred = self.forward(inp)
                             loss = self.loss(pred, out)
                             loss.backward()
                             losses.append(loss.item())
                             optimizer.step()
 
-                        # Validation (TODO iterate)
+                        # Validation
                         mean_err = []
-                        for _ in self.batch_size
-                            inp, out = next(test_dataloader)
+                        for inp, out in test_dataloader:
+                            inp = inp.to(self.device)
+                            out = out.to(self.device)
                             mt = torch.sum(out, 1).view(-1, 1)
                             err = torch.mean(
                                 torch.abs(

@@ -1,7 +1,9 @@
 import numpy as np
 from biom import load_table
-from torch.utils.data import Dataset
 from multiprocessing import Pool
+
+import torch
+from torch.utils.data import Dataset
 
 
 class PairedDataset(Dataset):
@@ -29,21 +31,27 @@ class PairedDataset(Dataset):
         self.metabolites = self.metabolites.filter(filter_fn, axis='sample')
         self.microbes = self.microbes.sort()
         self.metabolites = self.metabolites.sort()
+        self._microbes = self.microbes.matrix_data.T
+        self._metabolites = self.metabolites.matrix_data.T
 
     def __len__(self):
         return len(self.microbes.ids())
 
     def __getitem__(self, idx):
-        row = self.microbes.getrow(idx)
-        microbe_cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
-                                  for i in range(len(row.indptr)-1)])
-        microbe_feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i+1]]
-                                   for i in range(len(row.indptr)-1)])
+        row = self._microbes.getrow(idx)
+        cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
+                          for i in range(len(row.indptr)-1)])
+        feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i+1]]
+                           for i in range(len(row.indptr)-1)])
         microbe_seq = np.random.choice(feats, p=cnts/np.sum(cnts), size=1)
 
-        row = self.metabolites.getrow(idx)
+        row = self._metabolites.getrow(idx)
         metabolite_cnts = row.todense()
-        return microbe_seq, metabolite_cnts
+        # TODO: return pytorch data
+        s = microbe_seq.item()
+        m = torch.from_numpy(np.ravel(metabolite_cnts)).float()
+        return s, m
+
 
 def split_tables(otu_table, metabolite_table,
                  metadata=None, training_column=None, num_test=10,

@@ -11,13 +11,14 @@ from scipy.sparse import coo_matrix, csr_matrix
 from scipy.spatial.distance import pdist
 from rhapsody.mmvec import MMvec
 from rhapsody.util import random_multimodal
-from rhapsody.datset import PairedDataset
-from torch.data_utils import DataLoader
+from rhapsody.dataset import PairedDataset, split_tables
+from torch.utils.data import DataLoader
 
 
 class TestMMvecSim(unittest.TestCase):
     def setUp(self):
         # build small simulation
+        np.random.seed(0)
         self.latent_dim = 2
         res = random_multimodal(
             num_microbes=15, num_metabolites=15, num_samples=220,
@@ -27,12 +28,11 @@ class TestMMvecSim(unittest.TestCase):
         (self.microbes, self.metabolites, self.X, self.B,
          self.U, self.Ubias, self.V, self.Vbias) = res
         num_test = 10
-
-        # TODO: convert microbes / metabolites into DataFrames
-        self.trainX = self.microbes.iloc[:-num_test]
-        self.testX = self.microbes.iloc[-num_test:]
-        self.trainY = self.metabolites.iloc[:-num_test]
-        self.testY = self.metabolites.iloc[-num_test:]
+        min_feature_count = 1
+        self.train_dataset, self.test_dataset = split_tables(
+            self.microbes, self.metabolites,
+            num_test=num_test,
+            min_samples=min_feature_count)
 
     def tearDown(self):
         # remove all log directories
@@ -42,20 +42,24 @@ class TestMMvecSim(unittest.TestCase):
     def test_fit(self):
         np.random.seed(1)
         torch.manual_seed(1)
+        train_dataloader = DataLoader(self.train_dataset, batch_size=50,
+                                      shuffle=True, num_workers=1)
+        test_dataloader = DataLoader(self.test_dataset, batch_size=50,
+                                     shuffle=True, num_workers=1)
 
-        n, d1 = self.trainX.shape
-        n, d2 = self.trainY.shape
+        d1, n = self.train_dataset.microbes.shape
+        d2, n = self.train_dataset.metabolites.shape
         latent_dim = self.latent_dim
-        total = np.sum(self.trainX.values.sum())
+        total = self.train_dataset.microbes.sum().sum()
+
         model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                       microbe_total=total, latent_dim=latent_dim,
                       batch_size=20, subsample_size=100,
                       device='cpu')
-        _ = model.fit(
-            csr_matrix(self.trainX.values), self.trainY.values,
-            csr_matrix(self.testX.values), self.testY.values,
-            epochs=30, learning_rate=.1,
-            beta1=0.9, beta2=0.999)
+        _ = model.fit(train_dataloader,
+                      test_dataloader,
+                      epochs=100, learning_rate=.1,
+                      beta1=0.9, beta2=0.999)
 
         # Loose checks on the weight matrices to make sure
         # that we aren't learning complete garbage
@@ -65,10 +69,10 @@ class TestMMvecSim(unittest.TestCase):
         ubias = model.encoder.bias.weight.detach().numpy()
         vbias = model.decoder.bias.detach().numpy()
         res = spearmanr(pdist(self.U), pdist(u))
-        self.assertGreater(res.correlation, 0.5)
+        self.assertGreater(res.correlation, 0.4)
         self.assertLess(res.pvalue, 1e-5)
         res = spearmanr(pdist(self.V.T), pdist(v))
-        self.assertGreater(res.correlation, 0.5)
+        self.assertGreater(res.correlation, 0.4)
         self.assertLess(res.pvalue, 1e-5)
 
 
@@ -86,22 +90,32 @@ class TestMMvecSoils(unittest.TestCase):
             'adenosine', 'guanine', 'adenine'
         }
 
+        self.train_dataset, self.test_dataset = split_tables(
+            self.microbes, self.metabolites,
+            num_test=1,
+            min_samples=1)
+
+
     def test_soils(self):
         np.random.seed(1)
         torch.manual_seed(1)
-        X = self.microbes.matrix_data.T
-        Y = np.array(self.metabolites.matrix_data.T.todense())
 
-        n, d1 = X.shape
-        n, d2 = Y.shape
+        train_dataloader = DataLoader(self.train_dataset, batch_size=50,
+                                      shuffle=True, num_workers=1)
+        test_dataloader = DataLoader(self.test_dataset, batch_size=50,
+                                     shuffle=True, num_workers=1)
+
+        d1, n = self.train_dataset.microbes.shape
+        d2, n = self.train_dataset.metabolites.shape
+
         latent_dim = 1
-        total = np.sum(X.sum())
+        total = self.train_dataset.microbes.sum().sum()
         model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                       microbe_total=total, latent_dim=latent_dim,
                       batch_size=3, subsample_size=500,
                       device='cpu')
         losses, errs = model.fit(
-            X, Y, X, Y,
+            train_dataloader, test_dataloader,
             epochs=100, learning_rate=0.1,
             beta1=0.9, beta2=0.95)
         ranks = model.ranks()

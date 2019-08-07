@@ -4,6 +4,7 @@ from sklearn.utils import check_random_state
 from skbio.stats.composition import ilr_inv
 from skbio.stats.composition import clr_inv as softmax
 from scipy.sparse import coo_matrix
+from biom import Table
 
 
 def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
@@ -12,7 +13,8 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
                       uB=0, sigmaB=2, sigmaQ=0.1,
                       uU=0, sigmaU=1, uV=0, sigmaV=1,
                       seed=0):
-    """
+    """ Simulate paired datasets
+
     Parameters
     ----------
     num_microbes : int
@@ -52,9 +54,9 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
 
     Returns
     -------
-    microbe_counts : pd.DataFrame
+    microbe_counts : biom.Table
        Count table of microbial counts
-    metabolite_counts : pd.DataFrame
+    metabolite_counts : biom.Table
        Count table of metabolite counts
     """
     state = check_random_state(seed)
@@ -100,10 +102,10 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     sample_ids = ['sample_%d' % d for d in range(metabolite_counts.shape[0])]
 
     # TODO: convert to biom Tables instead of DataFrames
-    microbe_counts = pd.DataFrame(
-        microbe_counts, index=sample_ids, columns=otu_ids)
-    metabolite_counts = pd.DataFrame(
-        metabolite_counts, index=sample_ids, columns=ms_ids)
+    microbe_counts = Table(
+        microbe_counts.T, otu_ids, sample_ids)
+    metabolite_counts = Table(
+        metabolite_counts.T, ms_ids, sample_ids)
 
     return (microbe_counts, metabolite_counts, X, beta,
             Umain, Ubias, Vmain, Vbias)
