@@ -26,7 +26,7 @@ class PairedDataset(Dataset):
             set(self.metabolites.ids(axis='sample'))
         filter_fn = lambda v, i, m: i in common_samples
         self.microbes = self.microbes.filter(filter_fn, axis='sample')
-        self.metabolites = self.microbes.filter(filter_fn, axis='sample')
+        self.metabolites = self.metabolites.filter(filter_fn, axis='sample')
         self.microbes = self.microbes.sort()
         self.metabolites = self.metabolites.sort()
 
@@ -92,18 +92,24 @@ def split_tables(otu_table, metabolite_table,
         test_ids = set(sample_ids[-num_test:])
     else:
         if len(set(metadata[training_column]) & {'Train', 'Test'}) == 0:
-            raise ValueError("Training column must only specify `Train` and `Test`"
-                             "values")
-        train_ids = set(metadata.loc[metadata[training_column] == 'Train'].index)
-        test_ids = set(metadata.loc[metadata[training_column] == 'Test'].index)
+            raise ValueError(
+                "Training column must only specify `Train` and `Test`"
+                "values"
+            )
+        train_ids = set(
+            metadata.loc[metadata[training_column] == 'Train'].index)
+        test_ids = set(
+            metadata.loc[metadata[training_column] == 'Test'].index)
 
     def train_filter(v, i, m): return (i in train_ids)
     def test_filter(v, i, m): return (i in test_ids)
-    train_microbes = otu_table.filter(train_filter)
-    test_microbes = otu_table.filter(test_filter)
+    train_microbes = otu_table.filter(train_filter, inplace=False)
+    test_microbes = otu_table.filter(test_filter, inplace=False)
 
-    train_metabolites = metabolite_table.filter(train_filter)
-    test_metabolites = metabolite_table.filter(test_filter)
+    train_metabolites = metabolite_table.filter(
+        train_filter, inplace=False)
+    test_metabolites = metabolite_table.filter(
+        test_filter, inplace=False)
 
     train_dataset = PairedDataset(train_microbes, train_metabolites)
     test_dataset = PairedDataset(test_microbes, test_metabolites)

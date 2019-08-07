@@ -81,10 +81,10 @@ class TestSplitTables(unittest.TestCase):
                                    metadata=self.metadata, training_column='testing',
                                    num_test=10, min_samples=0)
 
-        npt.assert_allclose(train.microbes.shape, np.array([3, 7]))
-        npt.assert_allclose(test.microbes.shape, np.array([2, 7]))
-        npt.assert_allclose(train.metabolites.shape, np.array([3, 9]))
-        npt.assert_allclose(test.metabolites.shape, np.array([2, 9]))
+        npt.assert_allclose(train.microbes.shape, np.array([7, 3]))
+        npt.assert_allclose(test.microbes.shape, np.array([7, 2]))
+        npt.assert_allclose(train.metabolites.shape, np.array([9, 3]))
+        npt.assert_allclose(test.metabolites.shape, np.array([9, 2]))
 
     def test_split_tables_bad_column(self):
         with self.assertRaises(Exception):
@@ -96,19 +96,19 @@ class TestSplitTables(unittest.TestCase):
         train, test = split_tables(self.otu_table, self.metabolite_table,
                                    num_test=2, min_samples=0)
 
-        npt.assert_allclose(train.microbes.shape, np.array([3, 7]))
-        npt.assert_allclose(test.microbes.shape, np.array([2, 7]))
-        npt.assert_allclose(train.metabolites.shape, np.array([3, 9]))
-        npt.assert_allclose(test.metabolites.shape, np.array([2, 9]))
+        npt.assert_allclose(train.microbes.shape, np.array([7, 3]))
+        npt.assert_allclose(test.microbes.shape, np.array([7, 2]))
+        npt.assert_allclose(train.metabolites.shape, np.array([9, 3]))
+        npt.assert_allclose(test.metabolites.shape, np.array([9, 2]))
 
     def test_split_tables_random_filter(self):
         train, test = split_tables(self.otu_table, self.metabolite_table,
                                    num_test=2, min_samples=2)
 
-        npt.assert_allclose(train.microbes.shape, np.array([3, 6]))
-        npt.assert_allclose(test.microbes.shape, np.array([2, 6]))
-        npt.assert_allclose(train.metabolites.shape, np.array([3, 9]))
-        npt.assert_allclose(test.metabolites.shape, np.array([2, 9]))
+        npt.assert_allclose(train.microbes.shape, np.array([7, 3]))
+        npt.assert_allclose(test.microbes.shape, np.array([7, 2]))
+        npt.assert_allclose(train.metabolites.shape, np.array([9, 3]))
+        npt.assert_allclose(test.metabolites.shape, np.array([9, 2]))
 
 
 if __name__ == "__main__":
