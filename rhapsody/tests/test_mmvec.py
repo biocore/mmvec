@@ -54,12 +54,11 @@ class TestMMvecSim(unittest.TestCase):
 
         model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                       microbe_total=total, latent_dim=latent_dim,
-                      batch_size=20, subsample_size=100,
                       device='cpu')
-        _ = model.fit(train_dataloader,
-                      test_dataloader,
-                      epochs=100, learning_rate=.1,
-                      beta1=0.9, beta2=0.999)
+        model.fit(train_dataloader,
+                  test_dataloader,
+                  epochs=100, learning_rate=.1,
+                  beta1=0.9, beta2=0.999)
 
         # Loose checks on the weight matrices to make sure
         # that we aren't learning complete garbage
@@ -112,7 +111,6 @@ class TestMMvecSoils(unittest.TestCase):
         total = self.train_dataset.microbes.sum().sum()
         model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
                       microbe_total=total, latent_dim=latent_dim,
-                      batch_size=3, subsample_size=500,
                       device='cpu')
         losses, errs = model.fit(
             train_dataloader, test_dataloader,

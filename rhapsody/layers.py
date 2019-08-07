@@ -72,7 +72,6 @@ class VecLinear(torch.nn.Linear):
         z = torch.zeros(1)
         return torch.cat((z, self.bias))
 
-
     def log_prob(self, sigma):
         """ This is for MAP regularization """
         mu = torch.zeros_like(self.weight)
