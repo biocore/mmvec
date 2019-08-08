@@ -11,7 +11,7 @@ from scipy.sparse import coo_matrix, csr_matrix
 from scipy.spatial.distance import pdist
 from rhapsody.mmvec import MMvec
 from rhapsody.util import random_multimodal
-from rhapsody.dataset import PairedDataset, split_tables
+from rhapsody.dataset import PairedDataset, IterablePairedDataset, split_tables
 from torch.utils.data import DataLoader
 
 
@@ -58,6 +58,60 @@ class TestMMvecSim(unittest.TestCase):
         model.fit(train_dataloader,
                   test_dataloader,
                   epochs=100, learning_rate=.1,
+                  beta1=0.9, beta2=0.999)
+
+        # Loose checks on the weight matrices to make sure
+        # that we aren't learning complete garbage
+        u = model.encoder.embedding.weight.detach().numpy()
+        v = model.decoder.weight.detach().numpy()
+
+        ubias = model.encoder.bias.weight.detach().numpy()
+        vbias = model.decoder.bias.detach().numpy()
+        res = spearmanr(pdist(self.U), pdist(u))
+        self.assertGreater(res.correlation, 0.4)
+        self.assertLess(res.pvalue, 1e-5)
+        res = spearmanr(pdist(self.V.T), pdist(v))
+        self.assertGreater(res.correlation, 0.4)
+        self.assertLess(res.pvalue, 1e-5)
+
+class TestMMvecSimIterable(unittest.TestCase):
+    def setUp(self):
+        # build small simulation
+        np.random.seed(0)
+        self.latent_dim = 2
+        res = random_multimodal(
+            num_microbes=15, num_metabolites=15, num_samples=220,
+            latent_dim=self.latent_dim, sigmaQ=1, sigmaU=1, sigmaV=1,
+            microbe_total=100, metabolite_total=1000, seed=1
+        )
+        (self.microbes, self.metabolites, self.X, self.B,
+         self.U, self.Ubias, self.V, self.Vbias) = res
+        num_test = 10
+        min_feature_count = 1
+        self.train_dataset, self.test_dataset = split_tables(
+            self.microbes, self.metabolites,
+            num_test=num_test, iterable=True,
+            min_samples=min_feature_count)
+
+    def test_fit_iterable(self):
+        np.random.seed(1)
+        torch.manual_seed(1)
+        train_dataloader = DataLoader(self.train_dataset, batch_size=50,
+                                      shuffle=False, num_workers=2)
+        test_dataloader = DataLoader(self.test_dataset, batch_size=50,
+                                     shuffle=False, num_workers=0)
+
+        d1, n = self.train_dataset.microbes.shape
+        d2, n = self.train_dataset.metabolites.shape
+        latent_dim = self.latent_dim
+        total = self.train_dataset.microbes.sum().sum()
+
+        model = MMvec(num_samples=n, num_microbes=d1, num_metabolites=d2,
+                      microbe_total=total, latent_dim=latent_dim,
+                      device='cpu')
+        model.fit(train_dataloader,
+                  test_dataloader,
+                  epochs=1, learning_rate=.1,
                   beta1=0.9, beta2=0.999)
 
         # Loose checks on the weight matrices to make sure

@@ -10,7 +10,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions.multinomial import Multinomial
 from torch.distributions.normal import Normal
-from rhapsody.dataset import PairedDataset, split_tables
+from rhapsody.dataset import split_tables
 from torch.utils.data import DataLoader
 from rhapsody.layers import VecEmbedding, VecLinear
 from rhapsody.batch import get_batch
