@@ -117,14 +117,13 @@ class MMvec(torch.nn.Module):
                         for inp, out in train_dataloader:
                             inp = inp.to(self.device)
                             out = out.to(self.device)
-                            optimizer.zero_grad()
-
-                            pred = self.forward(inp)
-                            loss = self.loss(pred, out)
-                            loss.backward()
-
-                            iteration += 1
-                            optimizer.step()
+                            for _ in range(5):
+                                optimizer.zero_grad()
+                                pred = self.forward(inp)
+                                loss = self.loss(pred, out)
+                                loss.backward()
+                                iteration += 1
+                                optimizer.step()
 
                         # write down summary stats
                         # Validation
