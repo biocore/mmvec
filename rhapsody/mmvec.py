@@ -46,8 +46,6 @@ class MMvec(torch.nn.Module):
         else:
             self.save_path = save_path
 
-        os.mkdir(self.save_path)
-
     def forward(self, x):
         code = self.encoder(x)
         log_probs = self.decoder(code)
