@@ -155,18 +155,18 @@ class MMvec(torch.nn.Module):
                         last_checkpoint_time = now
 
     def ranks(self, rowids, columnids):
-        U = self.encoder.embedding.weight.detach().numpy()
-        Ub = self.encoder.bias.weight.detach().numpy()
-        V = self.decoder.weight_.detach().numpy()
-        Vb = self.decoder.bias_.detach().numpy()
+        U = self.encoder.embedding.weight.cpu().detach().numpy()
+        Ub = self.encoder.bias.weight.cpu().detach().numpy()
+        V = self.decoder.weight_.cpu().detach().numpy()
+        Vb = self.decoder.bias_.cpu().detach().numpy()
         res = Ub.reshape(-1, 1) + (U @ V.T) + Vb
         return pd.DataFrame(res, index=rowids, columns=columnids)
 
     def embeddings(self, rowids, columnids):
-        U = self.encoder.embedding.weight.detach().numpy()
-        Ub = self.encoder.bias.weight.detach().numpy()
-        V = self.decoder.weight_.detach().numpy()
-        Vb = self.decoder.bias_.detach().numpy()
+        U = self.encoder.embedding.weight.cpu().detach().numpy()
+        Ub = self.encoder.bias.weight.cpu().detach().numpy()
+        V = self.decoder.weight_.cpu().detach().numpy()
+        Vb = self.decoder.bias_.cpu().detach().numpy()
 
         pc_ids = ['PC%d' % i for i in range(self.latent_dim)]
         df = pd.concat(
