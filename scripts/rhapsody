@@ -139,11 +139,11 @@ def mmvec(input_abundances, output_abundances,
                    (ordination_file, 'ordination.txt')]:
         if f is None:
             sname = '_'.join(
-                ['log_PC(%d)' % latent_dim,
-                 'samp(%d)' % batch_size,
-                 'lr(%s)' % "{:.2E}".format(Decimal(learning_rate)),
-                 'beta1(%.2f)' % beta1,
-                 'beta2(%.2f)' % beta2]
+                ['log_PC|%d|' % latent_dim,
+                 'samp|%d|' % batch_size,
+                 'lr|%s|' % "{:.2E}".format(Decimal(learning_rate)),
+                 'beta1|%.2f|' % beta1,
+                 'beta2|%.2f|' % beta2]
             )
             files.append(sname + '_' + ext)
 

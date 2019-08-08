@@ -17,15 +17,7 @@ from rhapsody.batch import get_batch
 from rhapsody.util import format_params
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds
-
-
-try:
-    from tensorboardX import SummaryWriter
-    has_tensorboard = True
-except:
-    has_tensorboard = False
-    print('TensorboardX not installed. Tensorboard '
-          'summaries will not be written')
+from tensorboardX import SummaryWriter
 
 
 class MMvec(torch.nn.Module):
@@ -102,8 +94,7 @@ class MMvec(torch.nn.Module):
         iteration = 0
         # custom make scheduler for alternating minimization
         baseline = 1e-8
-        if has_tensorboard:
-            writer = SummaryWriter(self.save_path)
+        writer = SummaryWriter(self.save_path)
 
         last_checkpoint_time = 0
         last_summary_time = 0
@@ -134,27 +125,25 @@ class MMvec(torch.nn.Module):
                             optimizer.step()
 
                         # write down summary stats
-                        if (now - last_summary_time > summary_interval and
-                            has_tensorboard):
-
+                        if (now - last_summary_time > summary_interval):
                             # Validation
-                            mean_err = []
+                            err = torch.tensor(0.)
                             for inp, out in test_dataloader:
                                 now = time.time()
                                 inp = inp.to(self.device)
                                 out = out.to(self.device)
                                 pred = self.forward(inp)
                                 mt = torch.sum(out, 1).view(-1, 1)
-                                err = torch.mean(
+                                err += torch.mean(
                                     torch.abs(
                                         F.softmax(pred, dim=1) * mt - out
                                     )
                                 )
 
-                                writer.add_scalar(
-                                    'log_likelihood', loss, iteration)
-                                writer.add_scalar(
-                                    'cv_mae', torch.mean(err), iteration)
+                            writer.add_scalar(
+                                'cv_mae', err, iteration)
+                            writer.add_scalar(
+                                'log_likelihood', loss, iteration)
 
                             last_summary_time = now
                         pbar.update(1)
@@ -271,7 +260,7 @@ def run_mmvec(microbes: biom.Table,
                   in_prior=1, out_prior=1,
                   device=device_name,
                   save_path=summary_dir)
-    model.to_device(device_name)
+    model.to(device_name)
     model.fit(train_dataloader, test_dataloader,
               epochs=epochs, learning_rate=learning_rate,
               beta1=beta1, beta2=beta2,
