@@ -271,6 +271,7 @@ def run_mmvec(microbes: biom.Table,
                   in_prior=1, out_prior=1,
                   device=device_name,
                   save_path=summary_dir)
+    model.to_device(device_name)
     model.fit(train_dataloader, test_dataloader,
               epochs=epochs, learning_rate=learning_rate,
               beta1=beta1, beta2=beta2,
