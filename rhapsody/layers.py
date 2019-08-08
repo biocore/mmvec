@@ -59,7 +59,7 @@ class VecLinear(torch.nn.Linear):
         well as arbitrary operators on Tensors.
         """
         y = F.linear(x, self.weight, self.bias)
-        z = torch.zeros(y.shape[0], 1)
+        z = torch.zeros(y.shape[0], 1, device=self.weight.device)
         return torch.cat((z, y), 1)
 
     @property
