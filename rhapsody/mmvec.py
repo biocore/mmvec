@@ -249,7 +249,7 @@ def run_mmvec(microbes: biom.Table,
 
     if arm_the_gpu:
         # pick out the first GPU
-        device_name='cuda'
+        device_name='cuda:0'
     else:
         device_name='cpu'
 
