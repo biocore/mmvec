@@ -228,13 +228,13 @@ def run_mmvec(microbes: biom.Table,
         microbes, metabolites,
         metadata=metadata, training_column=training_column,
         num_test=num_testing_examples,
-        min_samples=min_feature_count)
+        min_samples=min_feature_count, iterable=True)
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size,
-                                  shuffle=True, num_workers=num_workers,
+                                  shuffle=False, num_workers=num_workers,
                                   pin_memory=arm_the_gpu)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size,
-                                 shuffle=True, num_workers=num_workers,
+                                 shuffle=False, num_workers=num_workers,
                                  pin_memory=arm_the_gpu)
 
     microbe_ids = microbes.ids(axis='observation')
