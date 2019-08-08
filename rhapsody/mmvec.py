@@ -127,27 +127,25 @@ class MMvec(torch.nn.Module):
                             optimizer.step()
 
                         # write down summary stats
-                        if (now - last_summary_time > summary_interval):
-                            # Validation
-                            err = torch.tensor(0.)
-                            for inp, out in test_dataloader:
-                                now = time.time()
-                                inp = inp.to(self.device)
-                                out = out.to(self.device)
-                                pred = self.forward(inp)
-                                mt = torch.sum(out, 1).view(-1, 1)
-                                err += torch.mean(
-                                    torch.abs(
-                                        F.softmax(pred, dim=1) * mt - out
-                                    )
+                        # Validation
+                        err = torch.tensor(0.)
+                        for inp, out in test_dataloader:
+                            inp = inp.to(self.device)
+                            out = out.to(self.device)
+                            pred = self.forward(inp)
+                            mt = torch.sum(out, 1).view(-1, 1)
+                            err += torch.mean(
+                                torch.abs(
+                                    F.softmax(pred, dim=1) * mt - out
                                 )
+                            )
 
-                            writer.add_scalar(
-                                'cv_mae', err, iteration)
-                            writer.add_scalar(
-                                'log_likelihood', loss, iteration)
 
-                            last_summary_time = now
+                        writer.add_scalar(
+                            'cv_mae', err, iteration)
+                        writer.add_scalar(
+                            'log_likelihood', loss, iteration)
+
                         pbar.update(1)
 
                     # write down checkpoint after end of epoch
