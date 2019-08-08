@@ -47,7 +47,6 @@ class PairedDataset(Dataset):
 
         row = self._metabolites.getrow(idx)
         metabolite_cnts = row.todense()
-        # TODO: return pytorch data
         s = microbe_seq.item()
         m = torch.from_numpy(np.ravel(metabolite_cnts)).float()
         return s, m
