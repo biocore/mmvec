@@ -115,8 +115,8 @@ class MMvec(torch.nn.Module):
                         now = time.time()
                         self.train()
                         for inp, out in train_dataloader:
-                            inp = inp.to(self.device)
-                            out = out.to(self.device)
+                            inp = inp.to(self.device, non_blocking=True)
+                            out = out.to(self.device, non_blocking=True)
                             for _ in range(5):
                                 optimizer.zero_grad()
                                 pred = self.forward(inp)
@@ -129,8 +129,8 @@ class MMvec(torch.nn.Module):
                         # Validation
                         err = torch.tensor(0.)
                         for inp, out in test_dataloader:
-                            inp = inp.to(self.device)
-                            out = out.to(self.device)
+                            inp = inp.to(self.device, non_blocking=True)
+                            out = out.to(self.device, non_blocking=True)
                             pred = self.forward(inp)
                             mt = torch.sum(out, 1).view(-1, 1)
                             err += torch.mean(
@@ -138,7 +138,6 @@ class MMvec(torch.nn.Module):
                                     F.softmax(pred, dim=1) * mt - out
                                 )
                             )
-
 
                         writer.add_scalar(
                             'cv_mae', err, iteration)
