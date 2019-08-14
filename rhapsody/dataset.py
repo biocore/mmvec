@@ -1,6 +1,4 @@
 import numpy as np
-from biom import load_table
-from multiprocessing import Pool
 import math
 import torch
 from torch.utils.data import Dataset
@@ -40,11 +38,11 @@ class PairedDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self._microbes.getrow(idx)
-        cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
-                          for i in range(len(row.indptr)-1)])
-        feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i+1]]
-                           for i in range(len(row.indptr)-1)])
-        microbe_seq = np.random.choice(feats, p=cnts/np.sum(cnts), size=1)
+        cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i + 1]]
+                          for i in range(len(row.indptr) - 1)])
+        feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i + 1]]
+                           for i in range(len(row.indptr) - 1)])
+        microbe_seq = np.random.choice(feats, p=cnts / np.sum(cnts), size=1)
 
         row = self._metabolites.getrow(idx)
         metabolite_cnts = row.todense()
@@ -54,7 +52,7 @@ class PairedDataset(Dataset):
 
 
 class IterablePairedDataset(IterableDataset):
-    """Paired microbe/metabolite dataset."""
+    """Paired microbe/metabolite dataset iterable."""
 
     def __init__(self, microbes, metabolites, subsample_size=100):
         """
@@ -64,6 +62,8 @@ class IterablePairedDataset(IterableDataset):
             Biom table of microbe abundances
         metabolite_file : biom.Table
             Biom table of metabolite abundances
+        subsample_size : int
+            Number of sequences to subsample per iteration from a sample.
         """
         self.microbes = microbes
         self.metabolites = metabolites
@@ -82,24 +82,24 @@ class IterablePairedDataset(IterableDataset):
         self.subsample_size = subsample_size
 
     def subsample(self, start, end):
-         idx = np.random.randint(start, end)
-         row = self._microbes.getrow(idx)
-         cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
-                           for i in range(len(row.indptr)-1)])
-         feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i+1]]
-                            for i in range(len(row.indptr)-1)])
-         microbe_seq = np.random.choice(feats, p=cnts/np.sum(cnts),
-                                        size=self.subsample_size)
+        idx = np.random.randint(start, end)
+        row = self._microbes.getrow(idx)
+        cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i + 1]]
+                          for i in range(len(row.indptr) - 1)])
+        feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i + 1]]
+                           for i in range(len(row.indptr) - 1)])
+        microbe_seq = np.random.choice(feats, p=cnts / np.sum(cnts),
+                                       size=self.subsample_size)
 
-         row = self._metabolites.getrow(idx)
-         metabolite_cnts = row.todense()
-         return microbe_seq, metabolite_cnts
+        row = self._metabolites.getrow(idx)
+        metabolite_cnts = row.todense()
+        return microbe_seq, metabolite_cnts
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         start = 0
         end = len(self.microbes.ids())
-        if worker_info is None:  # single-process data loading, return the full iterator
+        if worker_info is None:  # single-process data loading
             for _ in range(end):
                 s, m = self.subsample(start, end)
                 m = torch.from_numpy(np.ravel(m)).float()
@@ -107,7 +107,9 @@ class IterablePairedDataset(IterableDataset):
                     yield sj.item(), m
         else:
             # setup bounds
-            per_worker = int(math.ceil((end - start) / float(worker_info.num_workers)))
+            t = (end - start)
+            w = float(worker_info.num_workers)
+            per_worker = int(math.ceil(t / w))
             worker_id = worker_info.id
             iter_start = start + worker_id * per_worker
             iter_end = min(iter_start + per_worker, end)
@@ -119,11 +121,11 @@ class IterablePairedDataset(IterableDataset):
 
     def __getitem__(self, idx):
         row = self._microbes.getrow(idx)
-        cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i+1]]
-                          for i in range(len(row.indptr)-1)])
-        feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i+1]]
-                           for i in range(len(row.indptr)-1)])
-        microbe_seq = np.random.choice(feats, p=cnts/np.sum(cnts), size=1)
+        cnts = np.hstack([row.data[row.indptr[i]:row.indptr[i + 1]]
+                          for i in range(len(row.indptr) - 1)])
+        feats = np.hstack([row.indices[row.indptr[i]:row.indptr[i + 1]]
+                           for i in range(len(row.indptr) - 1)])
+        microbe_seq = np.random.choice(feats, p=cnts / np.sum(cnts), size=1)
 
         row = self._metabolites.getrow(idx)
         metabolite_cnts = row.todense()
@@ -188,8 +190,8 @@ def split_tables(otu_table, metabolite_table,
         test_ids = set(
             metadata.loc[metadata[training_column] == 'Test'].index)
 
-    def train_filter(v, i, m): return (i in train_ids)
-    def test_filter(v, i, m): return (i in test_ids)
+    train_filter = lambda v, i, m: i in train_ids
+    test_filter = lambda v, i, m: i in test_ids
     train_microbes = otu_table.filter(train_filter, inplace=False)
     test_microbes = otu_table.filter(test_filter, inplace=False)
 
@@ -199,10 +201,14 @@ def split_tables(otu_table, metabolite_table,
         test_filter, inplace=False)
 
     if iterable:
-        train_dataset = IterablePairedDataset(train_microbes, train_metabolites)
-        test_dataset = IterablePairedDataset(test_microbes, test_metabolites)
+        train_dataset = IterablePairedDataset(
+            train_microbes, train_metabolites)
+        test_dataset = IterablePairedDataset(
+            test_microbes, test_metabolites)
     else:
-        train_dataset = PairedDataset(train_microbes, train_metabolites)
-        test_dataset = PairedDataset(test_microbes, test_metabolites)
+        train_dataset = PairedDataset(
+            train_microbes, train_metabolites)
+        test_dataset = PairedDataset(
+            test_microbes, test_metabolites)
 
     return train_dataset, test_dataset

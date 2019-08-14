@@ -25,6 +25,7 @@ class MMvec(torch.nn.Module):
                  microbe_total, latent_dim,
                  in_prior=1, out_prior=1, device='cpu',
                  save_path=None):
+
         super(MMvec, self).__init__()
         self.num_microbes = num_microbes
         self.num_metabolites = num_metabolites

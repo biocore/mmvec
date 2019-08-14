@@ -10,6 +10,6 @@ test:
 	$(TEST_COMMAND)
 pep8:
 	pycodestyle rhapsody setup.py
-	flake8 rhapsody setup.py
+	flake8 --ignore=E731 rhapsody setup.py
 
 all: pep8 test
