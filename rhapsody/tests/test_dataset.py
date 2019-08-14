@@ -98,6 +98,7 @@ class TestSplitTables(unittest.TestCase):
                          num_test=10, min_samples=0)
 
     def test_split_tables_random(self):
+
         train, test = split_tables(self.otu_table, self.metabolite_table,
                                    num_test=2, min_samples=0)
 
