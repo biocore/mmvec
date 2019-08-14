@@ -82,7 +82,8 @@ class TestSplitTables(unittest.TestCase):
     def test_split_tables_train_column(self):
 
         train, test = split_tables(self.otu_table, self.metabolite_table,
-                                   metadata=self.metadata, training_column='testing',
+                                   metadata=self.metadata,
+                                   training_column='testing',
                                    num_test=10, min_samples=0)
 
         npt.assert_allclose(train.microbes.shape, np.array([7, 3]))

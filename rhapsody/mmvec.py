@@ -9,11 +9,9 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions.multinomial import Multinomial
-from torch.distributions.normal import Normal
 from rhapsody.dataset import split_tables
 from torch.utils.data import DataLoader
 from rhapsody.layers import VecEmbedding, VecLinear
-from rhapsody.batch import get_batch
 from rhapsody.util import format_params
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds
@@ -36,7 +34,8 @@ class MMvec(torch.nn.Module):
         self.out_prior = 1
         self.latent_dim = latent_dim
 
-        # TODO: enable max norm in embedding to account for scale identifiability
+        # TODO: enable max norm in embedding to account for
+        # scale identifiability
         self.encoder = VecEmbedding(num_microbes, latent_dim)
         self.decoder = VecLinear(latent_dim, num_metabolites)
 
@@ -63,7 +62,7 @@ class MMvec(torch.nn.Module):
 
     def fit(self, train_dataloader, test_dataloader, epochs=1000,
             learning_rate=1e-3, beta1=0.9, beta2=0.99,
-            summary_interval=60, checkpoint_interval=3600):
+            checkpoint_interval=3600):
         """ Fit the model
 
         Parameters
@@ -88,17 +87,12 @@ class MMvec(torch.nn.Module):
         errs : list of float
             Cross validation error between model and testing dataset
         """
-        losses = []
-        klds = []
-        likes = []
-        errs = []
         iteration = 0
         # custom make scheduler for alternating minimization
         baseline = 1e-8
         writer = SummaryWriter(self.save_path)
 
         last_checkpoint_time = 0
-        last_summary_time = 0
         lrs = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
         with tqdm(total=epochs*len(lrs)*2) as pbar:
             for lr in lrs:
@@ -124,8 +118,7 @@ class MMvec(torch.nn.Module):
                                 iteration += 1
                                 optimizer.step()
 
-                        # write down summary stats
-                        # Validation
+                        # write down summary stats after each epoch
                         err = torch.tensor(0.)
                         for inp, out in test_dataloader:
                             inp = inp.to(self.device, non_blocking=True)
@@ -220,7 +213,6 @@ def run_mmvec(microbes: biom.Table,
               num_workers: int = 1,
               learning_rate: float = 0.001,
               arm_the_gpu: bool = False,
-              summary_interval: int = 60,
               checkpoint_interval: int = 3600,
               summary_dir: str = None) -> MMvec:
     """ Basic procedure behind running mmvec """
@@ -238,19 +230,14 @@ def run_mmvec(microbes: biom.Table,
                                  shuffle=False, num_workers=num_workers,
                                  pin_memory=arm_the_gpu)
 
-    microbe_ids = microbes.ids(axis='observation')
-    metabolite_ids = metabolites.ids(axis='observation')
-
-    params = []
-
     d1, n = train_dataset.microbes.shape
     d2, n = train_dataset.metabolites.shape
 
     if arm_the_gpu:
         # pick out the first GPU
-        device_name='cuda:0'
+        device_name = 'cuda:0'
     else:
-        device_name='cpu'
+        device_name = 'cpu'
 
     total = train_dataset.microbes.sum().sum()
     model = MMvec(num_samples=n, microbe_total=total,
@@ -263,7 +250,6 @@ def run_mmvec(microbes: biom.Table,
     model.fit(train_dataloader, test_dataloader,
               epochs=epochs, learning_rate=learning_rate,
               beta1=beta1, beta2=beta2,
-              summary_interval=summary_interval,
               checkpoint_interval=checkpoint_interval)
 
     embeds = model.embeddings(

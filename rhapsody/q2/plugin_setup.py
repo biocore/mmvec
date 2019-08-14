@@ -9,7 +9,7 @@ import importlib
 import qiime2.plugin
 import qiime2.sdk
 from rhapsody import __version__
-from qiime2.plugin import (Str, Properties, Int, Float,  Metadata)
+from qiime2.plugin import Str, Properties, Int, Float, Metadata
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults

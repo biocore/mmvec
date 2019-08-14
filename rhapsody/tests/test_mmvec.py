@@ -4,14 +4,12 @@ import shutil
 import unittest
 import numpy as np
 from biom import load_table
-from skbio.stats.composition import clr_inv as softmax
 from skbio.util import get_data_path
 from scipy.stats import spearmanr
-from scipy.sparse import coo_matrix, csr_matrix
 from scipy.spatial.distance import pdist
 from rhapsody.mmvec import MMvec
 from rhapsody.util import random_multimodal
-from rhapsody.dataset import PairedDataset, IterablePairedDataset, split_tables
+from rhapsody.dataset import split_tables
 from torch.utils.data import DataLoader
 
 
@@ -65,14 +63,13 @@ class TestMMvecSim(unittest.TestCase):
         u = model.encoder.embedding.weight.detach().numpy()
         v = model.decoder.weight.detach().numpy()
 
-        ubias = model.encoder.bias.weight.detach().numpy()
-        vbias = model.decoder.bias.detach().numpy()
         res = spearmanr(pdist(self.U), pdist(u))
         self.assertGreater(res.correlation, 0.4)
         self.assertLess(res.pvalue, 1e-5)
         res = spearmanr(pdist(self.V.T), pdist(v))
         self.assertGreater(res.correlation, 0.4)
         self.assertLess(res.pvalue, 1e-5)
+
 
 class TestMMvecSimIterable(unittest.TestCase):
     def setUp(self):
@@ -119,8 +116,6 @@ class TestMMvecSimIterable(unittest.TestCase):
         u = model.encoder.embedding.weight.detach().numpy()
         v = model.decoder.weight.detach().numpy()
 
-        ubias = model.encoder.bias.weight.detach().numpy()
-        vbias = model.decoder.bias.detach().numpy()
         res = spearmanr(pdist(self.U), pdist(u))
         self.assertGreater(res.correlation, 0.4)
         self.assertLess(res.pvalue, 1e-5)
@@ -137,17 +132,16 @@ class TestMMvecSoils(unittest.TestCase):
         self.metabolites = load_table(metabolite_file)
 
         self.known_metabolites = {
-            '(3-methyladenine)', '7-methyladenine', '4-guanidinobutanoate', 'uracil',
-            'xanthine', 'hypoxanthine', '(N6-acetyl-lysine)', 'cytosine',
-            'N-acetylornithine', 'N-acetylornithine', 'succinate',
-            'adenosine', 'guanine', 'adenine'
+            '(3-methyladenine)', '7-methyladenine', '4-guanidinobutanoate',
+            'uracil', 'xanthine', 'hypoxanthine', '(N6-acetyl-lysine)',
+            'cytosine', 'N-acetylornithine', 'N-acetylornithine',
+            'succinate', 'adenosine', 'guanine', 'adenine'
         }
 
         self.train_dataset, self.test_dataset = split_tables(
             self.microbes, self.metabolites,
             num_test=1,
             min_samples=1)
-
 
     def test_soils(self):
         np.random.seed(1)
@@ -177,7 +171,6 @@ class TestMMvecSoils(unittest.TestCase):
 
         res = set(self.metabolites.ids(axis='observation')[idx])
         self.assertEqual(len(res & self.known_metabolites), 13)
-
 
 
 if __name__ == "__main__":
