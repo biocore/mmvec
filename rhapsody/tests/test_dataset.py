@@ -107,6 +107,7 @@ class TestSplitTables(unittest.TestCase):
         npt.assert_allclose(test.metabolites.shape, np.array([9, 2]))
 
     def test_split_tables_random_filter(self):
+
         train, test = split_tables(self.otu_table, self.metabolite_table,
                                    num_test=2, min_samples=2)
 
