@@ -66,23 +66,23 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     X = np.vstack((np.ones(num_samples),
                    np.linspace(low, high, num_samples))).T
     microbes = ilr_inv(state.multivariate_normal(
-        mean=np.zeros(num_microbes-1), cov=np.diag([sigmaQ]*(num_microbes-1)),
+        mean=np.zeros(num_microbes - 1), cov=np.diag([sigmaQ] * (num_microbes - 1)),
         size=num_samples)
     )
     Umain = state.normal(
         uU, sigmaU, size=(num_microbes, latent_dim))
     Vmain = state.normal(
-        uV, sigmaV, size=(latent_dim, num_metabolites-1))
+        uV, sigmaV, size=(latent_dim, num_metabolites - 1))
 
     Ubias = state.normal(
         uU, sigmaU, size=(num_microbes, 1))
     Vbias = state.normal(
-        uV, sigmaV, size=(1, num_metabolites-1))
+        uV, sigmaV, size=(1, num_metabolites - 1))
 
     U_ = np.hstack(
         (np.ones((num_microbes, 1)), Ubias, Umain))
     V_ = np.vstack(
-        (Vbias, np.ones((1, num_metabolites-1)), Vmain))
+        (Vbias, np.ones((1, num_metabolites - 1)), Vmain))
 
     phi = np.hstack((np.zeros((num_microbes, 1)), U_ @ V_))
     probs = softmax(phi)

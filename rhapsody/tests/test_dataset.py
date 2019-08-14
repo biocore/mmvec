@@ -65,9 +65,9 @@ class TestSplitTables(unittest.TestCase):
             [59, 9, 0, 0, 33]
         ]) * 10e6
 
-        oids = list(map(lambda x: 'o'+str(x), np.arange(omat.shape[0])))
-        mids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[0])))
-        sids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[1])))
+        oids = list(map(lambda x: 'o' + str(x), np.arange(omat.shape[0])))
+        mids = list(map(lambda x: 'm' + str(x), np.arange(mmat.shape[0])))
+        sids = list(map(lambda x: 'm' + str(x), np.arange(mmat.shape[1])))
 
         self.otu_table = Table(omat, oids, sids)
         self.metabolite_table = Table(mmat, mids, sids)
