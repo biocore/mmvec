@@ -66,7 +66,8 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     X = np.vstack((np.ones(num_samples),
                    np.linspace(low, high, num_samples))).T
     microbes = ilr_inv(state.multivariate_normal(
-        mean=np.zeros(num_microbes - 1), cov=np.diag([sigmaQ] * (num_microbes - 1)),
+        mean=np.zeros(
+            num_microbes - 1), cov=np.diag([sigmaQ] * (num_microbes - 1)),
         size=num_samples)
     )
     Umain = state.normal(
