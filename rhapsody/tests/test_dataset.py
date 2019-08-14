@@ -92,6 +92,7 @@ class TestSplitTables(unittest.TestCase):
         npt.assert_allclose(test.metabolites.shape, np.array([9, 2]))
 
     def test_split_tables_bad_column(self):
+
         with self.assertRaises(Exception):
             split_tables(self.otu_table, self.metabolite_table,
                          metadata=self.metadata, training_column='bad',
