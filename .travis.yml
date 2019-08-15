@@ -18,6 +18,7 @@ install:
   - conda env create -q -n test_env --file qiime2-latest-py36-linux-conda.yml
   - conda install --yes -q -n test_env --file ci/conda_requirements.txt -c biocore -c pytorch
   - source activate test_env
+  - pip install tensorboardX
   - pip install -e .
 script:
   - make all
