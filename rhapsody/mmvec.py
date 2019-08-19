@@ -183,6 +183,7 @@ class MMvec(torch.nn.Module):
         pc_ids = ['PC%d' % i for i in range(self.latent_dim)]
         res = self.ranks(rowids, columnids)
         res = res - res.mean(axis=0).values
+        res = res - res.mean(axis=1).values.reshape(-1, 1)
         u, s, v = svds(res.values, k=self.latent_dim)
         microbe_embed = u @ np.diag(s)
         metabolite_embed = v.T
@@ -220,10 +221,14 @@ def run_mmvec(microbes: biom.Table,
               clip_norm: float = 10.0,
               num_workers: int = 1,
               learning_rate: float = 0.001,
+              num_steps: int = 10,
+              decay_rate: int = 0.1,
               arm_the_gpu: bool = False,
               checkpoint_interval: int = 3600,
               summary_dir: str = None) -> MMvec:
     """ Basic procedure behind running mmvec """
+
+    step_size = epochs // num_steps
 
     train_dataset, test_dataset = split_tables(
         microbes, metabolites,
@@ -259,6 +264,7 @@ def run_mmvec(microbes: biom.Table,
     model.fit(train_dataloader, test_dataloader,
               epochs=epochs, learning_rate=learning_rate,
               beta1=beta1, beta2=beta2,
+              step_size = step_size, decay_rate=decay_rate,
               checkpoint_interval=checkpoint_interval)
 
     embeds = model.embeddings(
