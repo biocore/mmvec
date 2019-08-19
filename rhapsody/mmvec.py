@@ -11,8 +11,11 @@ import torch.nn.functional as F
 from torch.distributions.multinomial import Multinomial
 from rhapsody.dataset import split_tables
 from torch.utils.data import DataLoader
+from torch.nn.utils import clip_grad_norm_
 from rhapsody.layers import VecEmbedding, VecLinear
 from rhapsody.util import format_params
+from rhapsody.scheduler import AlternatingStepLR
+from torch.optim.lr_scheduler import StepLR
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds
 from tensorboardX import SummaryWriter
@@ -21,7 +24,9 @@ from tensorboardX import SummaryWriter
 class MMvec(torch.nn.Module):
     def __init__(self, num_samples, num_microbes, num_metabolites,
                  microbe_total, latent_dim,
-                 in_prior=1, out_prior=1, device='cpu',
+                 in_prior=1, out_prior=1,
+                 clip_norm=10.,
+                 device='cpu',
                  save_path=None):
 
         super(MMvec, self).__init__()
@@ -33,6 +38,7 @@ class MMvec(torch.nn.Module):
         self.in_prior = 1
         self.out_prior = 1
         self.latent_dim = latent_dim
+        self.clip_norm = clip_norm
 
         # TODO: enable max norm in embedding to account for
         # scale identifiability
@@ -61,7 +67,7 @@ class MMvec(torch.nn.Module):
         return -(likelihood + prior)
 
     def fit(self, train_dataloader, test_dataloader, epochs=1000,
-            learning_rate=1e-3, beta1=0.9, beta2=0.99,
+            learning_rate=1e-3, step_size=10, decay_rate=0.1, beta1=0.9, beta2=0.99,
             checkpoint_interval=3600):
         """ Fit the model
 
@@ -75,6 +81,10 @@ class MMvec(torch.nn.Module):
             Number of epochs to train model
         learning_rate : float
             The initial learning rate
+        step_size : int
+            Number of steps before learning rate is decremented
+        decay_rate : float
+            The decay rate of the learning rate per step
         beta1 : float
             First ADAM momentum constant
         beta2 : float
@@ -87,66 +97,64 @@ class MMvec(torch.nn.Module):
         errs : list of float
             Cross validation error between model and testing dataset
         """
-        iteration = 0
         # custom make scheduler for alternating minimization
-        baseline = 1e-8
         writer = SummaryWriter(self.save_path)
-
         last_checkpoint_time = 0
-        lrs = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
-        with tqdm(total=epochs * len(lrs) * 2) as pbar:
-            for lr in lrs:
-                # setup optimizer for alternating optimization
-                for (b, l) in [[baseline, lr], [lr, baseline]]:
-                    optimizer = optim.Adamax(
-                        [
-                            {'params': self.encoder.parameters(), 'lr': b},
-                            {'params': self.decoder.parameters(), 'lr': l}
-                        ],
-                        betas=(beta1, beta2))
-                    for _ in range(0, epochs):
-                        now = time.time()
-                        self.train()
-                        for inp, out in train_dataloader:
-                            inp = inp.to(self.device, non_blocking=True)
-                            out = out.to(self.device, non_blocking=True)
-                            for _ in range(5):
-                                optimizer.zero_grad()
-                                pred = self.forward(inp)
-                                loss = self.loss(pred, out)
-                                loss.backward()
-                                iteration += 1
-                                optimizer.step()
+        optimizer = optim.Adamax(
+            [
+                {'params': self.encoder.parameters(), 'lr': learning_rate},
+                {'params': self.decoder.parameters(), 'lr': learning_rate}
+            ],
+            betas=(beta1, beta2))
 
-                        # write down summary stats after each epoch
-                        err = torch.tensor(0.)
-                        for inp, out in test_dataloader:
-                            inp = inp.to(self.device, non_blocking=True)
-                            out = out.to(self.device, non_blocking=True)
-                            pred = self.forward(inp)
-                            mt = torch.sum(out, 1).view(-1, 1)
-                            err += torch.mean(
-                                torch.abs(
-                                    F.softmax(pred, dim=1) * mt - out
-                                )
-                            )
+        scheduler = StepLR(optimizer, step_size)
+        for iteration in tqdm(range(epochs)):
+            now = time.time()
+            self.train()
+            for inp, out in train_dataloader:
+                inp = inp.to(self.device, non_blocking=True)
+                out = out.to(self.device, non_blocking=True)
+                for _ in range(5):
+                    optimizer.zero_grad()
+                    pred = self.forward(inp)
+                    loss = self.loss(pred, out)
+                    loss.backward()
+                    clip_grad_norm_(self.parameters(),
+                                    self.clip_norm)
+                    optimizer.step()
+            scheduler.step()
 
-                        writer.add_scalar(
-                            'cv_mae', err, iteration)
-                        writer.add_scalar(
-                            'log_likelihood', loss, iteration)
+            # write down summary stats after each epoch
+            err = torch.tensor(0.)
+            for inp, out in test_dataloader:
+                inp = inp.to(self.device, non_blocking=True)
+                out = out.to(self.device, non_blocking=True)
+                pred = self.forward(inp)
+                mt = torch.sum(out, 1).view(-1, 1)
+                err += torch.mean(
+                    torch.abs(
+                        F.softmax(pred, dim=1) * mt - out
+                    )
+                )
 
-                        pbar.update(1)
+            writer.add_scalar(
+                'cv_mae', err, iteration)
+            writer.add_scalar(
+                'log_likelihood', loss, iteration)
+            writer.add_scalar(
+                'encoder_lr', optimizer.param_groups[0]['lr'], iteration)
+            writer.add_scalar(
+                'decoder_lr', optimizer.param_groups[1]['lr'], iteration)
 
-                    # write down checkpoint after end of epoch
-                    now = time.time()
-                    if now - last_checkpoint_time > checkpoint_interval:
-                        suffix = datetime.datetime.now().strftime(
-                            "%y%m%d_%H%M%S")
-                        torch.save(self.state_dict(),
-                                   os.path.join(self.save_path,
-                                                'checkpoint_' + suffix))
-                        last_checkpoint_time = now
+            # write down checkpoint after end of epoch
+            now = time.time()
+            if now - last_checkpoint_time > checkpoint_interval:
+                suffix = datetime.datetime.now().strftime(
+                    "%y%m%d_%H%M%S")
+                torch.save(self.state_dict(),
+                           os.path.join(self.save_path,
+                                        'checkpoint_' + suffix))
+                last_checkpoint_time = now
 
     def ranks(self, rowids, columnids):
         U = self.encoder.embedding.weight.cpu().detach().numpy()
@@ -210,6 +218,7 @@ def run_mmvec(microbes: biom.Table,
               output_prior: float = 1,
               beta1: float = 0.9,
               beta2: float = 0.99,
+              clip_norm: float = 10.0,
               num_workers: int = 1,
               learning_rate: float = 0.001,
               arm_the_gpu: bool = False,
@@ -243,7 +252,8 @@ def run_mmvec(microbes: biom.Table,
     model = MMvec(num_samples=n, microbe_total=total,
                   num_microbes=d1, num_metabolites=d2,
                   latent_dim=latent_dim,
-                  in_prior=1, out_prior=1,
+                  clip_norm=clip_norm,
+                  in_prior=input_prior, out_prior=output_prior,
                   device=device_name,
                   save_path=summary_dir)
     model.to(device_name)

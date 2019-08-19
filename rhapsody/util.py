@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.utils import check_random_state
-from skbio.stats.composition import ilr_inv
+from skbio.stats.composition import ilr_inv, closure
 from skbio.stats.composition import clr_inv as softmax
 from scipy.sparse import coo_matrix
 from biom import Table
@@ -92,11 +92,13 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     n1 = microbe_total
     n2 = metabolite_total // microbe_total
     for n in range(num_samples):
-        otu = state.multinomial(n1, microbes[n, :])
-        for i in range(num_microbes):
-            ms = state.multinomial(otu[i] * n2, probs[i, :])
-            metabolite_counts[n, :] += ms
-        microbe_counts[n, :] += otu
+        p = np.zeros(num_metabolites)
+        pm = closure(microbes[n, :])
+        for mt in range(microbe_total):
+            otu = state.choice(np.arange(num_microbes), p=pm, size=1)
+            microbe_counts[n, otu] += 1
+            p += probs[otu, :].ravel()
+        metabolite_counts[n, :] = state.multinomial(metabolite_total, closure(p))
 
     otu_ids = ['OTU_%d' % d for d in range(microbe_counts.shape[1])]
     ms_ids = ['metabolite_%d' % d for d in range(metabolite_counts.shape[1])]

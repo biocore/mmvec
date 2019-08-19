@@ -4,8 +4,8 @@ import warnings
 
 class AlternatingStepLR(_LRScheduler):
     """Sets the learning rate of each parameter group to the initial lr
-    decayed by gamma every step_size epochs. When last_epoch=-1, sets
-    initial lr as lr.
+    decayed by gamma every step_size epochs. Only parameter group is
+    optimized at a time. When last_epoch=-1, sets initial lr as lr.
 
     Args:
         optimizer (Optimizer): Wrapped optimizer.
@@ -20,17 +20,18 @@ class AlternatingStepLR(_LRScheduler):
         >>> # lr = 0.005    if 30 <= epoch < 60
         >>> # lr = 0.0005   if 60 <= epoch < 90
         >>> # ...
-        >>> scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
+        >>> scheduler = AlternatingStepLR(optimizer, step_size=30, gamma=0.1)
         >>> for epoch in range(100):
         >>>     train(...)
         >>>     validate(...)
         >>>     scheduler.step()
     """
 
-    def __init__(self, optimizer, step_size, gamma=0.1, baseline_lr=1e-8, last_epoch=-1):
+    def __init__(self, optimizer, step_size, gamma=0.1,
+                 baseline_lr=1e-8, last_epoch=-1):
         self.step_size = step_size
         self.gamma = gamma
-        self.baseline_lr = 1e-8
+        self.baseline_lr = baseline_lr
         self.alternate = 0
         super(AlternatingStepLR, self).__init__(optimizer, last_epoch)
 
@@ -45,7 +46,6 @@ class AlternatingStepLR(_LRScheduler):
             epoch = self.last_epoch + 1
         self.last_epoch = epoch
         n_layers = len(self.optimizer.param_groups)
-
         # only step for 1 layer at a time
         for i, (param_group, lr) in enumerate(zip(
                 self.optimizer.param_groups, self.get_lr())):
