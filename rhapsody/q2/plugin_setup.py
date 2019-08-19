@@ -9,7 +9,7 @@ import importlib
 import qiime2.plugin
 import qiime2.sdk
 from rhapsody import __version__
-from qiime2.plugin import Str, Properties, Int, Float, Metadata
+from qiime2.plugin import Str, Properties, Int, Float, Metadata, Bool
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults
@@ -43,8 +43,9 @@ plugin.methods.register_function(
         'latent_dim': Int,
         'input_prior': Float,
         'output_prior': Float,
+        'num_workers': Int,
         'learning_rate': Float,
-        'summary_interval': Int
+        'arm_the_gpu': Bool
     },
     outputs=[
         ('conditionals', FeatureData[Conditional]),
@@ -78,7 +79,9 @@ plugin.methods.register_function(
                          'coefficients. Smaller values will regularize '
                          'parameters towards zero. Values must be greater '
                          'than 0.'),
+        'num_workers': ('Number of worker processes for training'),
         'learning_rate': ('Gradient descent decay rate.'),
+        'arm_the_gpu': ('Enable the GPU for computation.')
 
     },
     name='Microbe metabolite vectors',

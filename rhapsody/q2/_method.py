@@ -25,12 +25,20 @@ def mmvec(microbes: biom.Table,
 
     # note that there are no checkpoints
     _, ranks, ordination = run_mmvec(
-        microbes, metabolites, metadata,
-        training_column, num_testing_examples,
-        min_feature_count, epochs,
-        batch_size, latent_dim,
-        input_prior, output_prior,
-        num_workers, learning_rate, arm_the_gpu,
+        microbes=microbes, metabolites=metabolites,
+        metadata=metadata,
+        training_column=training_column,
+        num_testing_examples=num_testing_examples,
+        min_feature_count=min_feature_count,
+        epochs=epochs,
+        batch_size=batch_size,
+        latent_dim=latent_dim,
+        input_prior=input_prior,
+        output_prior=output_prior,
+        beta1=0.9, beta2=0.99,
+        num_workers=num_workers,
+        learning_rate=learning_rate,
+        arm_the_gpu=arm_the_gpu,
         checkpoint_interval=-1)
 
     return ranks, ordination
