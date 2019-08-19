@@ -9,7 +9,6 @@ from scipy.spatial.distance import pdist
 from rhapsody.mmvec import MMvec
 from rhapsody.util import random_multimodal
 from rhapsody.dataset import split_tables
-from rhapsody.scheduler import AlternatingStepLR
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -44,10 +43,8 @@ class TestMMvecTrack(unittest.TestCase):
             iterable=False,
             min_samples=min_feature_count)
 
-
     def test_track(self):
-
-        batch=100
+        batch = 100
         epochs = 300
         learning_rate = 0.1
         step_size = 100
@@ -258,7 +255,6 @@ class TestMMvecSimIterable(unittest.TestCase):
                   test_dataloader,
                   epochs=1, learning_rate=.1,
                   beta1=0.9, beta2=0.999)
-
 
         u = model.encoder.embedding.weight.detach().numpy()
         v = model.decoder.weight.detach().numpy()

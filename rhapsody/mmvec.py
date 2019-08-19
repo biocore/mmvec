@@ -14,7 +14,6 @@ from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from rhapsody.layers import VecEmbedding, VecLinear
 from rhapsody.util import format_params
-from rhapsody.scheduler import AlternatingStepLR
 from torch.optim.lr_scheduler import StepLR
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds
@@ -67,8 +66,8 @@ class MMvec(torch.nn.Module):
         return -(likelihood + prior)
 
     def fit(self, train_dataloader, test_dataloader, epochs=1000,
-            learning_rate=1e-3, step_size=10, decay_rate=0.1, beta1=0.9, beta2=0.99,
-            checkpoint_interval=3600):
+            learning_rate=1e-3, step_size=10, decay_rate=0.1,
+            beta1=0.9, beta2=0.99, checkpoint_interval=3600):
         """ Fit the model
 
         Parameters
