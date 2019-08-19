@@ -92,9 +92,6 @@ def rhapsody():
 @click.option('--checkpoint-interval',
               help=('Number of seconds before a storing a checkpoint.'),
               default=1000)
-@click.option('--summary-interval',
-              help=('Number of seconds before a storing a summary.'),
-              default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
 @click.option('--embeddings-file', default=None,
@@ -117,7 +114,7 @@ def mmvec(input_abundances, output_abundances,
           arm_the_gpu, num_workers, learning_rate,
           num_steps, decay_rate,
           beta1, beta2, clip_norm, seed,
-          checkpoint_interval, summary_interval, summary_dir,
+          checkpoint_interval, summary_dir,
           embeddings_file, ranks_file, ordination_file):
     # set random seed if specified
     if seed is not None:

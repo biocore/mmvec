@@ -141,9 +141,7 @@ class MMvec(torch.nn.Module):
             writer.add_scalar(
                 'log_likelihood', loss, iteration)
             writer.add_scalar(
-                'encoder_lr', optimizer.param_groups[0]['lr'], iteration)
-            writer.add_scalar(
-                'decoder_lr', optimizer.param_groups[1]['lr'], iteration)
+                'lr', optimizer.param_groups[0]['lr'], iteration)
 
             # write down checkpoint after end of epoch
             now = time.time()
