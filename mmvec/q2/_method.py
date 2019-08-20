@@ -2,7 +2,7 @@ import biom
 import pandas as pd
 from skbio import OrdinationResults
 from qiime2.plugin import Metadata
-from rhapsody.mmvec import run_mmvec
+from mmvec.mmvec import run_mmvec
 
 
 def mmvec(microbes: biom.Table,

@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 import pandas as pd
 from biom import Table
-from rhapsody.dataset import PairedDataset
-from rhapsody.dataset import split_tables
+from mmvec.dataset import PairedDataset
+from mmvec.dataset import split_tables
 import numpy.testing as npt
 
 

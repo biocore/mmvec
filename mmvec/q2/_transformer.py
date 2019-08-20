@@ -1,7 +1,7 @@
 import pandas as pd
 
-from rhapsody.q2 import ConditionalFormat
-from rhapsody.q2.plugin_setup import plugin
+from mmvec.q2 import ConditionalFormat
+from mmvec.q2.plugin_setup import plugin
 
 
 @plugin.register_transformer

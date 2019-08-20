@@ -9,7 +9,7 @@ help:
 test:
 	$(TEST_COMMAND)
 pep8:
-	pycodestyle --ignore=E731 rhapsody setup.py
-	flake8 --ignore=E731 rhapsody setup.py
+	pycodestyle --ignore=E731 mmvec setup.py
+	flake8 --ignore=E731 mmvec setup.py
 
 all: pep8 test

@@ -6,9 +6,9 @@ from biom import load_table
 from skbio.util import get_data_path
 from scipy.stats import spearmanr
 from scipy.spatial.distance import pdist
-from rhapsody.mmvec import MMvec
-from rhapsody.util import random_multimodal
-from rhapsody.dataset import split_tables
+from mmvec.mmvec import MMvec
+from mmvec.util import random_multimodal
+from mmvec.dataset import split_tables
 import torch
 import torch.optim as optim
 import torch.nn.functional as F

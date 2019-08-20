@@ -9,11 +9,11 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions.multinomial import Multinomial
-from rhapsody.dataset import split_tables
+from mmvec.dataset import split_tables
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
-from rhapsody.layers import VecEmbedding, VecLinear
-from rhapsody.util import format_params
+from mmvec.layers import VecEmbedding, VecLinear
+from mmvec.util import format_params
 from torch.optim.lr_scheduler import StepLR
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds

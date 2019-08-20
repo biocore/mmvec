@@ -12,18 +12,18 @@ from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
 from scipy.stats import entropy, spearmanr
 from scipy.sparse import csr_matrix
-from rhapsody.mmvec import run_mmvec
-from rhapsody.dataset import PairedDataset, split_tables
+from mmvec.mmvec import run_mmvec
+from mmvec.dataset import PairedDataset, split_tables
 from torch.utils.data import DataLoader
 from decimal import Decimal
 
 
 @click.group()
-def rhapsody():
+def mmvec():
     pass
 
 
-@rhapsody.command()
+@mmvec.command()
 @click.option('--input-abundances',
               help=('Input abundances to use for prediction. '
                     'These could be metabolite intensities or sequence counts.'
@@ -171,4 +171,4 @@ def mmvec(input_abundances, output_abundances,
 
 
 if __name__ == '__main__':
-    rhapsody()
+    mmvec()

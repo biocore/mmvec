@@ -1,4 +1,4 @@
-# rhapsody changelog
+# mmvec changelog
 
 
 ## Version 0.2.0 (2019-04-22)

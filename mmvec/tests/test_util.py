@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 import pandas as pd
-from rhapsody.util import onehot, rank_hits
-from rhapsody.util import random_multimodal
+from mmvec.util import onehot, rank_hits
+from mmvec.util import random_multimodal
 from skbio.util import get_data_path
 import numpy.testing as npt
 import pandas.util.testing as pdt

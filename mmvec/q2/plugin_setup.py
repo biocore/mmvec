@@ -8,26 +8,26 @@
 import importlib
 import qiime2.plugin
 import qiime2.sdk
-from rhapsody import __version__
+from mmvec import __version__
 from qiime2.plugin import Str, Properties, Int, Float, Metadata, Bool
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults
 
-from rhapsody.q2 import (
+from mmvec.q2 import (
     Conditional, ConditionalFormat, ConditionalDirFmt,
     mmvec
 )
 
 plugin = qiime2.plugin.Plugin(
-    name='rhapsody',
+    name='mmvec',
     version=__version__,
-    website="https://github.com/mortonjt/rhapsody",
+    website="https://github.com/mortonjt/mmvec",
     short_description=('Plugin for performing microbe-metabolite '
                        'co-occurence analysis.'),
     description=('This is a QIIME 2 plugin supporting microbe-metabolite '
                  'co-occurence analysis using mmvec.'),
-    package='rhapsody')
+    package='mmvec')
 
 plugin.methods.register_function(
     function=mmvec,
@@ -97,4 +97,4 @@ plugin.register_semantic_types(Conditional)
 plugin.register_semantic_type_to_format(
     FeatureData[Conditional], ConditionalDirFmt)
 
-importlib.import_module('rhapsody.q2._transformer')
+importlib.import_module('mmvec.q2._transformer')
