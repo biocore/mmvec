@@ -69,7 +69,7 @@ class TestMMvecTrack(unittest.TestCase):
             epochs, learning_rate, step_size, batch, clip_norm, beta1, beta2
         )
         suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
-        writer = SummaryWriter(suffix+save_path)
+        writer = SummaryWriter(suffix + save_path)
         optimizer = optim.Adamax(
             [
                 {'params': model.encoder.parameters(), 'lr': learning_rate},

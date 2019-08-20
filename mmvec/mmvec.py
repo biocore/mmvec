@@ -262,7 +262,7 @@ def run_mmvec(microbes: biom.Table,
     model.fit(train_dataloader, test_dataloader,
               epochs=epochs, learning_rate=learning_rate,
               beta1=beta1, beta2=beta2,
-              step_size = step_size, decay_rate=decay_rate,
+              step_size=step_size, decay_rate=decay_rate,
               checkpoint_interval=checkpoint_interval)
 
     embeds = model.embeddings(
