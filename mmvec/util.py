@@ -90,15 +90,6 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     microbe_counts = np.zeros((num_samples, num_microbes))
     metabolite_counts = np.zeros((num_samples, num_metabolites))
 
-    # n1 = microbe_total
-    # n2 = metabolite_total // microbe_total
-    # for n in range(num_samples):
-    #     otu = state.multinomial(n1, microbes[n, :])
-    #     for i in range(num_microbes):
-    #         ms = state.multinomial(otu[i] * n2, probs[i, :])
-    #         metabolite_counts[n, :] += ms
-    #     microbe_counts[n, :] += otu
-
     for n in range(num_samples):
         p = np.zeros(num_metabolites)
         pm = closure(microbes[n, :])
@@ -121,31 +112,6 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
 
     return (microbe_counts, metabolite_counts, X, beta,
             Umain, Ubias, Vmain, Vbias)
-
-
-def onehot(microbes):
-    """ One hot encoding for microbes.
-
-    Parameters
-    ----------
-    microbes : np.array
-       Table of microbe abundances (counts)
-
-    Returns
-    -------
-    otu_hits : np.array
-       One hot encodings of microbes
-    sample_ids : np.array
-       Sample ids
-    """
-    coo = coo_matrix(microbes)
-    data = coo.data.astype(np.int64)
-    otu_ids = coo.col
-    sample_ids = coo.row
-    otu_hits = np.repeat(otu_ids, data)
-    sample_ids = np.repeat(sample_ids, data)
-
-    return otu_hits.astype(np.int32), sample_ids
 
 
 def rank_hits(ranks, k, pos=True):

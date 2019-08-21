@@ -8,46 +8,6 @@ import numpy.testing as npt
 import pandas.util.testing as pdt
 
 
-class TestOnehot(unittest.TestCase):
-    def setUp(self):
-        seed = 0
-        # build small simulation
-        res = random_multimodal(
-            uB=-5,
-            num_microbes=2, num_metabolites=4, num_samples=10,
-            latent_dim=2, low=-1, high=1,
-            microbe_total=10, metabolite_total=10,
-            seed=seed
-        )
-        (self.microbes, self.metabolites, self.X, self.B,
-         self.U, self.Ubias, self.V, self.Vbias) = res
-
-    def test_onehot(self):
-        otu_hits, _ = onehot(self.microbes.to_dataframe().T.values)
-        np.savetxt(get_data_path('otu_hits.txt'), otu_hits)
-        exp_otu_hits = np.loadtxt(get_data_path('otu_hits.txt'))
-        npt.assert_allclose(exp_otu_hits, otu_hits)
-
-    def test_onehot_simple(self):
-        seed = 0
-        # build small simulation
-        res = random_multimodal(
-            uB=-5,
-            num_microbes=2, num_metabolites=2, num_samples=3,
-            latent_dim=1, low=-1, high=1,
-            microbe_total=3, metabolite_total=3,
-            seed=seed
-        )
-
-        (microbes, metabolites, X, B, U, V, Ubias, Vbias) = res
-        otu_hits, sample_ids = onehot(microbes.to_dataframe().T.values)
-        exp_otu_hits = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1])
-
-        exp_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
-        npt.assert_allclose(exp_ids, sample_ids)
-        npt.assert_allclose(exp_otu_hits, otu_hits)
-
-
 class TestRankHits(unittest.TestCase):
 
     def test_rank_hits(self):
