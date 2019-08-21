@@ -3,7 +3,6 @@ import pandas as pd
 from sklearn.utils import check_random_state
 from skbio.stats.composition import ilr_inv, closure
 from skbio.stats.composition import clr_inv as softmax
-from scipy.sparse import coo_matrix
 from biom import Table
 
 

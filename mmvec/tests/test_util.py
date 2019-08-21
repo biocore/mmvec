@@ -1,10 +1,6 @@
 import unittest
-import numpy as np
 import pandas as pd
-from mmvec.util import onehot, rank_hits
-from mmvec.util import random_multimodal
-from skbio.util import get_data_path
-import numpy.testing as npt
+from mmvec.util import rank_hits
 import pandas.util.testing as pdt
 
 
