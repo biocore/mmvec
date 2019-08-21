@@ -191,16 +191,18 @@ class MMvec(torch.nn.Module):
         microbe_embed = u @ np.diag(s)
         metabolite_embed = v.T
 
+        # reverse PCs so that the strongest PC is first
         features = pd.DataFrame(
-            microbe_embed, columns=pc_ids,
+            microbe_embed[:, ::-1], columns=pc_ids,
             index=rowids)
         samples = pd.DataFrame(
-            metabolite_embed, columns=pc_ids,
+            metabolite_embed[:, ::-1], columns=pc_ids,
             index=columnids)
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
-        eigvals = pd.Series(s, index=pc_ids)
-        proportion_explained = pd.Series(s**2 / np.sum(s**2), index=pc_ids)
+        eigvals = pd.Series(s[::-1], index=pc_ids)
+        proportion_explained = pd.Series(
+            (s**2 / np.sum(s**2))[::-1], index=pc_ids)
         biplot = OrdinationResults(
             short_method_name, long_method_name, eigvals,
             samples=samples, features=features,
@@ -220,10 +222,10 @@ def run_mmvec(microbes: biom.Table,
               input_prior: float = 1,
               output_prior: float = 1,
               beta1: float = 0.9,
-              beta2: float = 0.99,
+              beta2: float = 0.999,
               clip_norm: float = 10.0,
               num_workers: int = 1,
-              learning_rate: float = 0.001,
+              learning_rate: float = 0.1,
               num_steps: int = 10,
               decay_rate: int = 0.1,
               arm_the_gpu: bool = False,
@@ -231,7 +233,7 @@ def run_mmvec(microbes: biom.Table,
               summary_dir: str = None) -> MMvec:
     """ Basic procedure behind running mmvec """
 
-    step_size = epochs // num_steps
+    step_size = max(1, epochs // num_steps)
 
     train_dataset, test_dataset = split_tables(
         microbes, metabolites,
