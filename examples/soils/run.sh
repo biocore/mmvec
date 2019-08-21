@@ -1,4 +1,4 @@
-rhapsody mmvec \
+mmvec \
 	 --microbe-file microbes.biom \
 	 --metabolite-file metabolites.biom \
 	 --num-testing-examples 1 \
