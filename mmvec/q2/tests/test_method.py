@@ -1,6 +1,7 @@
 import biom
 import unittest
 import numpy as np
+import torch
 from mmvec.q2._method import mmvec
 from mmvec.util import random_multimodal
 from skbio.stats.composition import clr_inv
