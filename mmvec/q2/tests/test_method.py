@@ -1,7 +1,6 @@
 import biom
 import unittest
 import numpy as np
-import tensorflow as tf
 from mmvec.q2._method import mmvec
 from mmvec.util import random_multimodal
 from skbio.stats.composition import clr_inv
@@ -39,9 +38,8 @@ class TestMMvec(unittest.TestCase):
 
     def test_fit(self):
         np.random.seed(1)
-        tf.reset_default_graph()
+        torch.manual_seed(1)
         latent_dim = 2
-        tf.set_random_seed(0)
         res_ranks, res_biplot = mmvec(
             self.microbes, self.metabolites,
             epochs=1000, latent_dim=latent_dim

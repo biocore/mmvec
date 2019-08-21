@@ -313,7 +313,7 @@ class TestMMvecSoils(unittest.TestCase):
                       clip_norm=20, device='cpu')
         model.fit(
             train_dataloader, test_dataloader,
-            epochs=100, learning_rate=0.1,
+            epochs=1000, step_size=300, learning_rate=0.1,
             beta1=0.9, beta2=0.95)
         rowids = np.arange(d1)
         colids = np.arange(d2)
