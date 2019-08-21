@@ -40,8 +40,8 @@ class TestMMvec(unittest.TestCase):
         res_ranks, res_biplot = mmvec(
             self.microbes, self.metabolites,
             batch_size=50, epochs=3, learning_rate=0.1,
-            latent_dim=latent_dim, num_steps=3,
-            min_feature_count=1, num_testing_examples=10,
+            latent_dim=latent_dim, min_feature_count=1,
+            num_testing_examples=10,
         )
         s_r, s_p = spearmanr(np.ravel(res_ranks), np.ravel(self.exp_ranks))
         self.assertGreater(s_r, 0.1)
