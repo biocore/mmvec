@@ -24,14 +24,10 @@ def mmvec():
 
 
 @mmvec.command()
-@click.option('--input-abundances',
-              help=('Input abundances to use for prediction. '
-                    'These could be metabolite intensities or sequence counts.'
-              ))
-@click.option('--output-abundances',
-              help=('Output abundances to predict from input abundances. '
-                    'These could be metabolite intensities or sequence counts.'
-              ))
+@click.option('--microbe-file',
+              help='Input microbial abundances')
+@click.option('--metabolite-file',
+              help='Input metabolite abundances')
 @click.option('--metadata-file', default=None,
               help='Input sample metadata file')
 @click.option('--training-column',
@@ -106,7 +102,7 @@ def mmvec():
               help=('Path to save the ordination learned from the model. '
                     'If this is not specified, then this will be saved under '
                     '`--summary-dir`.'))
-def mmvec(input_abundances, output_abundances,
+def mmvec(microbe_file, metabolite_file,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
           epochs, batch_size,  latent_dim,
@@ -121,8 +117,8 @@ def mmvec(input_abundances, output_abundances,
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-    microbes = load_table(input_abundances)
-    metabolites = load_table(output_abundances)
+    microbes = load_table(microbe_file)
+    metabolites = load_table(metabolite_file)
 
     if metadata_file is not None:
         metadata = pd.read_table(metadata_file, index_col=0)
