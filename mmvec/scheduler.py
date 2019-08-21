@@ -1,5 +1,4 @@
 from torch.optim.lr_scheduler import _LRScheduler
-import warnings
 
 
 class AlternatingStepLR(_LRScheduler):

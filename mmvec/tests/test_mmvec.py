@@ -9,11 +9,10 @@ from scipy.spatial.distance import pdist
 from mmvec.mmvec import MMvec
 from mmvec.util import random_multimodal
 from mmvec.dataset import split_tables
+from mmvec.scheduler import AlternatingStepLR
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import StepLR
-from mmvec.scheduler import AlternatingStepLR
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -49,7 +48,6 @@ class TestMMvecTrack(unittest.TestCase):
         V_ = np.vstack(
             (self.Vbias, np.ones((1, self.num_metabolites - 1)), self.V))
         self.exp_ranks = np.hstack((np.zeros((self.num_microbes, 1)), U_ @ V_))
-
 
     def test_track(self):
         batch = 50
@@ -125,8 +123,6 @@ class TestMMvecTrack(unittest.TestCase):
 
             u = model.encoder.embedding.weight.detach().numpy()
             v = model.decoder.weight.detach().numpy()
-            ubias = model.encoder.bias.weight.detach().numpy()
-            vbias = model.decoder.bias.detach().numpy()
 
             res = spearmanr(pdist(self.U), pdist(u))
             writer.add_scalar('u_fit', res[0], iteration)
@@ -141,10 +137,12 @@ class TestMMvecTrack(unittest.TestCase):
 
         print('U', spearmanr(pdist(self.U), pdist(u)))
         print('V', spearmanr(pdist(self.V.T), pdist(v)))
-        print('ranks', spearmanr(self.exp_ranks.ravel(), res_ranks.values.ravel()))
+        print('ranks', spearmanr(self.exp_ranks.ravel(),
+                                 res_ranks.values.ravel()))
 
 
 class TestMMvecSim(unittest.TestCase):
+
     def setUp(self):
         # build small simulation
         np.random.seed(0)
@@ -198,11 +196,6 @@ class TestMMvecSim(unittest.TestCase):
                   test_dataloader,
                   epochs=100, learning_rate=.1,
                   beta1=0.9, beta2=0.999)
-
-        u = model.encoder.embedding.weight.detach().numpy()
-        v = model.decoder.weight.detach().numpy()
-        ubias = model.encoder.bias.weight.detach().numpy()
-        vbias = model.decoder.bias.detach().numpy()
 
         res_ranks = model.ranks(np.arange(self.num_microbes),
                                 np.arange(self.num_metabolites))
@@ -262,11 +255,6 @@ class TestMMvecSimIterable(unittest.TestCase):
                   test_dataloader,
                   epochs=3, learning_rate=.1,
                   beta1=0.9, beta2=0.999)
-
-        u = model.encoder.embedding.weight.detach().numpy()
-        v = model.decoder.weight.detach().numpy()
-        ubias = model.encoder.bias.weight.detach().numpy()
-        vbias = model.decoder.bias.detach().numpy()
 
         res_ranks = model.ranks(np.arange(self.num_microbes),
                                 np.arange(self.num_metabolites))

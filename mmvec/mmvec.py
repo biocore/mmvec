@@ -15,7 +15,6 @@ from torch.nn.utils import clip_grad_norm_
 from mmvec.layers import VecEmbedding, VecLinear
 from mmvec.util import format_params
 from mmvec.scheduler import AlternatingStepLR
-from torch.optim.lr_scheduler import StepLR
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds
 from tensorboardX import SummaryWriter
@@ -157,9 +156,8 @@ class MMvec(torch.nn.Module):
         Ub = self.encoder.bias.weight.cpu().detach().numpy()
         V = self.decoder.weight.cpu().detach().numpy()
         Vb = self.decoder.bias.cpu().detach().numpy()
-        #res = Ub.reshape(-1, 1) + (U @ V.T) + Vb
-        n, p = U.shape
-        m, p = V.shape
+        n, _ = U.shape
+        m, _ = V.shape
         U_ = np.hstack(
             (np.ones((n, 1)), Ub.reshape(-1, 1), U))
         V_ = np.vstack(

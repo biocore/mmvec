@@ -2,9 +2,8 @@ from mmvec.scheduler import AlternatingStepLR
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
-
 import unittest
+
 
 class TestScheduler(unittest.TestCase):
 
@@ -16,7 +15,6 @@ class TestScheduler(unittest.TestCase):
         layers.append(nn.Sigmoid())
 
         self.net = nn.Sequential(*layers)
-
 
     def test_scheduler(self):
         optimizer = optim.Adam([
