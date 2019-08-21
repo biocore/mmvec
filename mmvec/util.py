@@ -89,6 +89,16 @@ def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,
     probs = softmax(phi)
     microbe_counts = np.zeros((num_samples, num_microbes))
     metabolite_counts = np.zeros((num_samples, num_metabolites))
+
+    # n1 = microbe_total
+    # n2 = metabolite_total // microbe_total
+    # for n in range(num_samples):
+    #     otu = state.multinomial(n1, microbes[n, :])
+    #     for i in range(num_microbes):
+    #         ms = state.multinomial(otu[i] * n2, probs[i, :])
+    #         metabolite_counts[n, :] += ms
+    #     microbe_counts[n, :] += otu
+
     for n in range(num_samples):
         p = np.zeros(num_metabolites)
         pm = closure(microbes[n, :])

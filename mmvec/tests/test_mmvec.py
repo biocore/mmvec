@@ -13,6 +13,7 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
+from mmvec.scheduler import AlternatingStepLR
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -30,7 +31,7 @@ class TestMMvecTrack(unittest.TestCase):
         res = random_multimodal(
             num_microbes=self.num_microbes,
             num_metabolites=self.num_metabolites, num_samples=220,
-            latent_dim=self.latent_dim, sigmaQ=0.1, sigmaU=3, sigmaV=3,
+            latent_dim=self.latent_dim, sigmaQ=1.0, sigmaU=1, sigmaV=1,
             microbe_total=100, metabolite_total=1000, seed=1
         )
         (self.microbes, self.metabolites, self.X, self.B,
@@ -43,13 +44,20 @@ class TestMMvecTrack(unittest.TestCase):
             iterable=False,
             min_samples=min_feature_count)
 
+        U_ = np.hstack(
+            (np.ones((self.num_microbes, 1)), self.Ubias, self.U))
+        V_ = np.vstack(
+            (self.Vbias, np.ones((1, self.num_metabolites - 1)), self.V))
+        self.exp_ranks = np.hstack((np.zeros((self.num_microbes, 1)), U_ @ V_))
+
+
     def test_track(self):
-        batch = 100
-        epochs = 300
+        batch = 50
+        epochs = 100
         learning_rate = 0.1
-        step_size = 100
+        step_size = 10
         beta1 = 0.9
-        beta2 = 0.95
+        beta2 = 0.999
         clip_norm = 10
         train_dataloader = DataLoader(self.train_dataset, batch_size=batch,
                                       shuffle=True, num_workers=0)
@@ -77,7 +85,7 @@ class TestMMvecTrack(unittest.TestCase):
             ],
             betas=(beta1, beta2))
 
-        scheduler = StepLR(optimizer, step_size)
+        scheduler = AlternatingStepLR(optimizer, step_size)
         for iteration in range(epochs):
             model.train()
             for inp, out in train_dataloader:
@@ -128,19 +136,12 @@ class TestMMvecTrack(unittest.TestCase):
             res_ranks = model.ranks(np.arange(self.num_microbes),
                                     np.arange(self.num_metabolites))
 
-            U_ = np.hstack(
-                (np.ones((self.num_microbes, 1)), ubias, u))
-            V_ = np.vstack(
-                (vbias, np.ones((1, self.num_metabolites - 1)), v.T))
-
-            exp_ranks = np.hstack((np.zeros((self.num_microbes, 1)), U_ @ V_))
-
-            res = spearmanr(exp_ranks.ravel(), res_ranks.values.ravel())
+            res = spearmanr(self.exp_ranks.ravel(), res_ranks.values.ravel())
             writer.add_scalar('sim_rank_err', res[0], iteration)
 
         print('U', spearmanr(pdist(self.U), pdist(u)))
         print('V', spearmanr(pdist(self.V.T), pdist(v)))
-        print('ranks', spearmanr(exp_ranks.ravel(), res_ranks.values.ravel()))
+        print('ranks', spearmanr(self.exp_ranks.ravel(), res_ranks.values.ravel()))
 
 
 class TestMMvecSim(unittest.TestCase):
@@ -166,6 +167,12 @@ class TestMMvecSim(unittest.TestCase):
             num_test=num_test,
             min_samples=min_feature_count)
 
+        U_ = np.hstack(
+            (np.ones((self.num_microbes, 1)), self.Ubias, self.U))
+        V_ = np.vstack(
+            (self.Vbias, np.ones((1, self.num_metabolites - 1)), self.V))
+        self.exp_ranks = np.hstack((np.zeros((self.num_microbes, 1)), U_ @ V_))
+
     def tearDown(self):
         # remove all log directories
         for r in glob.glob("logdir*"):
@@ -189,7 +196,7 @@ class TestMMvecSim(unittest.TestCase):
                       device='cpu')
         model.fit(train_dataloader,
                   test_dataloader,
-                  epochs=10, learning_rate=.1,
+                  epochs=100, learning_rate=.1,
                   beta1=0.9, beta2=0.999)
 
         u = model.encoder.embedding.weight.detach().numpy()
@@ -200,15 +207,9 @@ class TestMMvecSim(unittest.TestCase):
         res_ranks = model.ranks(np.arange(self.num_microbes),
                                 np.arange(self.num_metabolites))
 
-        U_ = np.hstack(
-            (np.ones((self.num_microbes, 1)), ubias, u))
-        V_ = np.vstack(
-            (vbias, np.ones((1, self.num_metabolites - 1)), v.T))
-
-        exp_ranks = np.hstack((np.zeros((self.num_microbes, 1)), U_ @ V_))
-        res = spearmanr(exp_ranks.ravel(), res_ranks.values.ravel())
-        self.assertGreater(res.correlation, 0.9)
-        self.assertLess(res.pvalue, 1e-100)
+        res = spearmanr(self.exp_ranks.ravel(), res_ranks.values.ravel())
+        self.assertGreater(res.correlation, 0.25)
+        self.assertLess(res.pvalue, 1e-4)
 
 
 class TestMMvecSimIterable(unittest.TestCase):
@@ -235,6 +236,12 @@ class TestMMvecSimIterable(unittest.TestCase):
             num_test=num_test, iterable=True,
             min_samples=min_feature_count)
 
+        U_ = np.hstack(
+            (np.ones((self.num_microbes, 1)), self.Ubias, self.U))
+        V_ = np.vstack(
+            (self.Vbias, np.ones((1, self.num_metabolites - 1)), self.V))
+        self.exp_ranks = np.hstack((np.zeros((self.num_microbes, 1)), U_ @ V_))
+
     def test_fit_iterable(self):
         np.random.seed(1)
         torch.manual_seed(1)
@@ -253,7 +260,7 @@ class TestMMvecSimIterable(unittest.TestCase):
                       clip_norm=20, device='cpu')
         model.fit(train_dataloader,
                   test_dataloader,
-                  epochs=1, learning_rate=.1,
+                  epochs=3, learning_rate=.1,
                   beta1=0.9, beta2=0.999)
 
         u = model.encoder.embedding.weight.detach().numpy()
@@ -264,15 +271,9 @@ class TestMMvecSimIterable(unittest.TestCase):
         res_ranks = model.ranks(np.arange(self.num_microbes),
                                 np.arange(self.num_metabolites))
 
-        U_ = np.hstack(
-            (np.ones((self.num_microbes, 1)), ubias, u))
-        V_ = np.vstack(
-            (vbias, np.ones((1, self.num_metabolites - 1)), v.T))
-
-        exp_ranks = np.hstack((np.zeros((self.num_microbes, 1)), U_ @ V_))
-        res = spearmanr(exp_ranks.ravel(), res_ranks.values.ravel())
-        self.assertGreater(res.correlation, 0.9)
-        self.assertLess(res.pvalue, 1e-100)
+        res = spearmanr(self.exp_ranks.ravel(), res_ranks.values.ravel())
+        self.assertGreater(res.correlation, 0.25)
+        self.assertLess(res.pvalue, 1e-4)
 
 
 class TestMMvecSoils(unittest.TestCase):
@@ -313,7 +314,7 @@ class TestMMvecSoils(unittest.TestCase):
                       clip_norm=20, device='cpu')
         model.fit(
             train_dataloader, test_dataloader,
-            epochs=1000, step_size=300, learning_rate=0.1,
+            epochs=1000, step_size=250, learning_rate=1.0,
             beta1=0.9, beta2=0.95)
         rowids = np.arange(d1)
         colids = np.arange(d2)

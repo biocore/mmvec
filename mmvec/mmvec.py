@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from mmvec.layers import VecEmbedding, VecLinear
 from mmvec.util import format_params
+from mmvec.scheduler import AlternatingStepLR
 from torch.optim.lr_scheduler import StepLR
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds
@@ -106,7 +107,7 @@ class MMvec(torch.nn.Module):
             ],
             betas=(beta1, beta2))
 
-        scheduler = StepLR(optimizer, step_size)
+        scheduler = AlternatingStepLR(optimizer, step_size)
         for iteration in tqdm(range(epochs)):
             now = time.time()
             self.train()
@@ -140,8 +141,6 @@ class MMvec(torch.nn.Module):
                 'cv_mae', err, iteration)
             writer.add_scalar(
                 'log_likelihood', loss, iteration)
-            writer.add_scalar(
-                'lr', optimizer.param_groups[0]['lr'], iteration)
 
             # write down checkpoint after end of epoch
             now = time.time()
@@ -156,9 +155,17 @@ class MMvec(torch.nn.Module):
     def ranks(self, rowids, columnids):
         U = self.encoder.embedding.weight.cpu().detach().numpy()
         Ub = self.encoder.bias.weight.cpu().detach().numpy()
-        V = self.decoder.weight_.cpu().detach().numpy()
-        Vb = self.decoder.bias_.cpu().detach().numpy()
-        res = Ub.reshape(-1, 1) + (U @ V.T) + Vb
+        V = self.decoder.weight.cpu().detach().numpy()
+        Vb = self.decoder.bias.cpu().detach().numpy()
+        #res = Ub.reshape(-1, 1) + (U @ V.T) + Vb
+        n, p = U.shape
+        m, p = V.shape
+        U_ = np.hstack(
+            (np.ones((n, 1)), Ub.reshape(-1, 1), U))
+        V_ = np.vstack(
+            (Vb.reshape(1, -1), np.ones((1, m)), V.T))
+
+        res = np.hstack((np.zeros((n, 1)), U_ @ V_))
         return pd.DataFrame(res, index=rowids, columns=columnids)
 
     def embeddings(self, rowids, columnids):
