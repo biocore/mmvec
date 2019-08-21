@@ -41,8 +41,6 @@ plugin.methods.register_function(
         'epochs': Int,
         'batch_size': Int,
         'latent_dim': Int,
-        'input_prior': Float,
-        'output_prior': Float,
         'num_workers': Int,
         'learning_rate': Float,
         'arm_the_gpu': Bool
@@ -71,14 +69,6 @@ plugin.methods.register_function(
                    'over the entire dataset'),
         'batch_size': ('The number of samples to be evaluated per '
                        'training iteration'),
-        'input_prior': ('Width of normal prior for the microbial '
-                        'coefficients .Smaller values will regularize '
-                        'parameters towards zero. Values must be greater '
-                        'than 0.'),
-        'output_prior': ('Width of normal prior for the metabolite '
-                         'coefficients. Smaller values will regularize '
-                         'parameters towards zero. Values must be greater '
-                         'than 0.'),
         'num_workers': ('Number of worker processes for training'),
         'learning_rate': ('Gradient descent decay rate.'),
         'arm_the_gpu': ('Enable the GPU for computation.')

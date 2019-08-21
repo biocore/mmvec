@@ -40,7 +40,7 @@ def mmvec():
               default=None)
 @click.option('--num-testing-examples',
               help=('Number of samples to randomly select for testing'),
-              default=10)
+              default=5)
 @click.option('--min-feature-count',
               help=('Minimum number of samples a microbe needs to be observed '
                     'in order to not filter out'),
@@ -73,7 +73,7 @@ def mmvec():
               default=1e-1)
 @click.option('--num-steps',
               help=('Number of steps for learning rate decay.'),
-              default=10)
+              default=5)
 @click.option('--decay-rate',
               help=('Decay rate for learning'),
               default=0.1)
@@ -82,7 +82,7 @@ def mmvec():
               default=0.9)
 @click.option('--beta2',
               help=('Gradient decay rate for second Adam momentum estimates'),
-              default=0.95)
+              default=0.999)
 @click.option('--clip-norm',
               help=('Normalization constant for gradient clipping.'),
               default=10)
