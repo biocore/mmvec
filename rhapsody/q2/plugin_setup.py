@@ -10,14 +10,14 @@ import qiime2.plugin
 import qiime2.sdk
 from rhapsody import __version__, _heatmap_choices, _cmaps
 from qiime2.plugin import (Str, Properties, Int, Float, Metadata, Bool,
-                           MetadataColumn, Categorical, Range, Choices)
+                           MetadataColumn, Categorical, Range, Choices, List)
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults
 
 from rhapsody.q2 import (
     Conditional, ConditionalFormat, ConditionalDirFmt,
-    mmvec, heatmap
+    mmvec, heatmap, paired_heatmap
 )
 
 plugin = qiime2.plugin.Plugin(
@@ -119,6 +119,41 @@ plugin.visualizers.register_function(
     },
     name='Conditional probability heatmap',
     description="Generate heatmap depicting mmvec conditional probabilities.",
+    citations=[]
+)
+
+plugin.visualizers.register_function(
+    function=paired_heatmap,
+    inputs={'ranks': FeatureData[Conditional],
+            'microbes_table': FeatureTable[Frequency],
+            'metabolites_table': FeatureTable[Frequency]},
+    parameters={
+        'microbe_metadata': MetadataColumn[Categorical],
+        'features': List[Str],
+        'color_palette': Str % Choices(_cmaps['heatmap']),
+        'normalize': Str % Choices(['log10', 'z_score']),
+        'level': Int % Range(-1, None),
+    },
+    input_descriptions={'ranks': 'Conditional probabilities.',
+                        'microbes_table': 'Microbial feature abundances.',
+                        'metabolites_table': 'Metabolite feature abundances.'},
+    parameter_descriptions={
+        'microbe_metadata': 'Optional microbe metadata for annotating plots.',
+        'features': 'Microbial feature IDs to display in heatmap.',
+        'color_palette': 'Color palette for clustermap.',
+        'normalize': 'Optional normalize heatmap values by column values.',
+        'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
+                 'parsing semicolon-delimited taxonomies or wish to print '
+                 'entire annotation.',
+    },
+    name='Paired feature abundance heatmaps',
+    description="Generate paired heatmaps that depict microbial and "
+                "metabolite feature abundances. The left panel displays the "
+                "abundance of each selected microbial feature in each sample. "
+                "The right panel displays the abundances of the top 50 "
+                "metabolites most highly correlated with these microbes in "
+                "each sample. The y-axis (sample axis) is shared between each "
+                "panel.",
     citations=[]
 )
 

@@ -1,5 +1,6 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 import warnings
 
 
@@ -105,6 +106,96 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
     return hotmap
 
 
+def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
+                    features, level, normalize='log10', color_palette='magma'):
+    '''
+    ranks: pd.DataFrame of conditional probabilities.
+        Microbes (rows) X metabolites (columns).
+    microbes_table: biom.Table
+        Microbe feature abundances per sample.
+    metabolites_table: biom.Table
+        Metabolite feature abundances per sample.
+    microbe_metadata: pd.Series
+        Microbe metadata for annotating plots
+    features: list
+        Select microbial feature IDs to display on paired heatmap.
+    level: int
+        taxonomic level for annotating clustermap.
+        Set to -1 if not parsing semicolon-delimited taxonomies.
+    normalize: str
+        Column normalization strategy to use for heatmaps. Must
+        be "log10", "z_score", or None
+    color_palette: str
+        Color palette for heatmaps.
+    '''
+    # validate microbes
+    missing_microbes = set(features) - set(microbes_table.ids('observation'))
+    if len(missing_microbes) > 0:
+        raise ValueError('features must represent feature IDs in '
+                         'microbes_table. Missing microbe(s): {0}'.format(
+                            missing_microbes))
+
+    # filter select microbes from microbe table and sort by abundance
+    sort_orders = [False] + [True] * (len(features) - 1)
+    select_microbes = microbes_table.copy().filter(features, 'observation')
+    select_microbes = select_microbes.to_dataframe().T
+    select_microbes = select_microbes[features]  # sort cols by features order
+    select_microbes = select_microbes.sort_values(
+        features[::-1], ascending=sort_orders)
+
+    # find top 50 metabolites (highest positive ranks)
+    microb_ranks = ranks.loc[features]
+    top_metabolites = microb_ranks.max()
+    top_metabolites = top_metabolites.sort_values(ascending=False)[:50].index
+
+    # grab top 50 metabolites in metabolite table
+    select_metabolites = metabolites_table.copy().filter(
+        top_metabolites, 'observation').to_dataframe().T
+
+    # sort metabolite columns by rank
+    select_metabolites = select_metabolites.reindex(
+        microb_ranks[top_metabolites].sort_values(
+            features[::-1], ascending=sort_orders, axis=1).columns, axis=1)
+
+    # align sample IDs across tables
+    select_microbes, select_metabolites = select_microbes.align(
+        select_metabolites, join='inner', axis=0)
+
+    # optionally annotate microbe data with taxonomy
+    if microbe_metadata is not None:
+        annotations = microbe_metadata.reindex(select_microbes.columns)
+        # parse semicolon-delimited taxonomy
+        if level > -1:
+            annotations = _parse_taxonomy_strings(annotations, level)
+    else:
+        annotations = select_microbes.columns
+
+    # optionally normalize data
+    if normalize is not None:
+        select_microbes = _normalize_by_column(select_microbes, normalize)
+        select_metabolites = _normalize_by_column(select_metabolites,
+                                                  normalize)
+        cbar_label = normalize + ' Frequency'
+    else:
+        cbar_label = 'Frequency'
+
+    # generate heatmaps
+    heatmaps, axes = plt.subplots(
+        nrows=1, ncols=2, sharey=True, figsize=(12, 6))
+
+    sns.heatmap(select_microbes.values, cmap=color_palette,
+                cbar_kws={'label': cbar_label}, ax=axes[0],
+                xticklabels=annotations, yticklabels=False)
+    sns.heatmap(select_metabolites.values, cmap=color_palette,
+                cbar_kws={'label': cbar_label}, ax=axes[1],
+                xticklabels=False, yticklabels=False)
+    axes[0].set_ylabel('Samples')
+    axes[0].set_xlabel('Microbes')
+    axes[1].set_xlabel('Metabolites')
+
+    return heatmaps
+
+
 def _parse_heatmap_metadata_annotations(metadata_column, margin_palette):
     '''
     Transform feature or sample metadata into color vector for annotating
@@ -184,3 +275,20 @@ def _warn_metadata_filtering(metadata_type):
                'present in both the table and the metadata '
                'file'.format(metadata_type))
     warnings.warn(warning, UserWarning)
+
+
+def _normalize_by_column(table, method):
+    '''
+    Normalize column data in a dataframe for plotting in clustermap.
+
+    table: pd.DataFrame
+        Input data.
+    method: str
+        Normalization method to use.
+
+    Returns normalized table as pd.DataFrame
+    '''
+    if method == 'z_score':
+        return (table - table.mean()) / table.std()
+    elif method == 'log10':
+        return table.apply(lambda x: np.log10(x + 1))
