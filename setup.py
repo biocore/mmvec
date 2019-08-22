@@ -2,7 +2,7 @@
 
 # ----------------------------------------------------------------------------
 # Copyright (c) 2016--, gneiss development team.
-#
+n#
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file COPYING.txt, distributed with this software.
@@ -54,7 +54,9 @@ setup(name='mmvec',
           'scipy >= 0.15.1',
           'nose >= 1.3.7',
           'scikit-bio >= 0.5.1',
-          'pytorch'
+          'pytorch',
+          'tensorboardX',
+          'tqdm'
       ],
       classifiers=classifiers,
       entry_points={
