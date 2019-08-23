@@ -1,4 +1,4 @@
-# rhapsody
+# mmvec
 Neural networks for estimating microbe-metabolite co-occurence probabilities.
 
 # Installation
@@ -6,7 +6,7 @@ Neural networks for estimating microbe-metabolite co-occurence probabilities.
 Rhapsody can be installed on conda-forge as follows
 
 ```
-conda create -n rhapsody_env rhapsody -c conda-forge
+conda create -n mmvec_env mmvec -c conda-forge
 ```
 
 
@@ -16,7 +16,7 @@ To get started you can run a quick example as follows.  This will learn microbe-
 which can be used to estimate microbe-metabolite conditional probabilities that are accurate up to rank.
 
 ```
-rhapsody mmvec \
+mmvec mmvec \
 	--otu-file data/otus.biom \
 	--metabolite-file data/ms.biom \
 	--summary-dir summary \
@@ -32,7 +32,7 @@ See the following url for a more complete tutorial with real datasets.
 
 https://github.com/knightlab-analyses/multiomic-cooccurences
 
-More information can found under `rhapsody --help`
+More information can found under `mmvec --help`
 
 # Qiime2 plugin
 
@@ -40,11 +40,11 @@ If you want to make this qiime2 compatible, install this in your
 qiime2 conda environment (see qiime2 installation instructions [here](https://qiime2.org/)) and run the following
 
 ```
-pip install git+https://github.com/biocore/rhapsody.git
+pip install git+https://github.com/biocore/mmvec.git
 qiime dev refresh-cache
 ```
 
-This should allow your q2 environment to recognize rhapsody. Before we test
+This should allow your q2 environment to recognize mmvec. Before we test
 the qiime2 plugin, run the following commands to import an example dataset
 
 ```
@@ -61,7 +61,7 @@ qiime tools import \
 
 Then you can run mmvec
 ```
-qiime rhapsody mmvec \
+qiime mmvec mmvec \
 	--i-microbes otus.qza \
 	--i-metabolites ms.qza \
 	--output-dir results
@@ -102,7 +102,7 @@ Here, the samples are metabolites and the arrows are microbes.  The distance bet
 [proportionality](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004075)).  The distance between arrow tips is the Aitchison distance between microbes.
 
 
-More information behind the parameters can found under `qiime rhapsody --help`
+More information behind the parameters can found under `qiime mmvec --help`
 
 # FAQs
 
@@ -139,7 +139,7 @@ At the moment, these capabilities are only available for the standalone CLI due 
 
 **Q** : I'm confused, what is Tensorboard?
 
-**A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the rhapsody environment and cd into the folder you are running the script above from. Then run:
+**A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the mmvec environment and cd into the folder you are running the script above from. Then run:
 
 ```
 tensorboard --logdir .
@@ -150,11 +150,11 @@ Returning line will look something like:
 ```
 TensorBoard 1.9.0 at http://Lisas-MacBook-Pro-2.local:6006 (Press CTRL+C to quit)
 ```
-Open the website (highlighted in red) in a browser. (Hint; if that doesn’t work try putting only the port number (here it is 6006), adding localhost, localhost:6006). Leave this tab alone. Now any rhapsody output directories that you add to the folder that tensorflow is running in will be added to the webpage.
+Open the website (highlighted in red) in a browser. (Hint; if that doesn’t work try putting only the port number (here it is 6006), adding localhost, localhost:6006). Leave this tab alone. Now any mmvec output directories that you add to the folder that tensorflow is running in will be added to the webpage.
 
 
 If working properly, it will look something like this
-![tensorboard](https://github.com/biocore/rhapsody/raw/master/img/tensorboard.png "Tensorboard")
+![tensorboard](https://github.com/biocore/mmvec/raw/master/img/tensorboard.png "Tensorboard")
 
 FIRST graph in Tensorflow; 'Prediction accuracy'. Labelled `cv_rmse`
 

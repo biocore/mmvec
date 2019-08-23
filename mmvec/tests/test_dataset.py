@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 import pandas as pd
 from biom import Table
-from rhapsody.dataset import PairedDataset
-from rhapsody.dataset import split_tables
+from mmvec.dataset import PairedDataset
+from mmvec.dataset import split_tables
 import numpy.testing as npt
 
 
@@ -65,9 +65,9 @@ class TestSplitTables(unittest.TestCase):
             [59, 9, 0, 0, 33]
         ]) * 10e6
 
-        oids = list(map(lambda x: 'o'+str(x), np.arange(omat.shape[0])))
-        mids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[0])))
-        sids = list(map(lambda x: 'm'+str(x), np.arange(mmat.shape[1])))
+        oids = list(map(lambda x: 'o' + str(x), np.arange(omat.shape[0])))
+        mids = list(map(lambda x: 'm' + str(x), np.arange(mmat.shape[0])))
+        sids = list(map(lambda x: 'm' + str(x), np.arange(mmat.shape[1])))
 
         self.otu_table = Table(omat, oids, sids)
         self.metabolite_table = Table(mmat, mids, sids)
@@ -92,12 +92,14 @@ class TestSplitTables(unittest.TestCase):
         npt.assert_allclose(test.metabolites.shape, np.array([9, 2]))
 
     def test_split_tables_bad_column(self):
+
         with self.assertRaises(Exception):
             split_tables(self.otu_table, self.metabolite_table,
                          metadata=self.metadata, training_column='bad',
                          num_test=10, min_samples=0)
 
     def test_split_tables_random(self):
+
         train, test = split_tables(self.otu_table, self.metabolite_table,
                                    num_test=2, min_samples=0)
 

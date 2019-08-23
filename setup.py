@@ -31,12 +31,12 @@ description = ('Microbe-metabolite interactions through neural networks')
 # version parsing from __init__ pulled from Flask's setup.py
 # https://github.com/mitsuhiko/flask/blob/master/setup.py
 _version_re = re.compile(r'__version__\s+=\s+(.*)')
-with open('rhapsody/__init__.py', 'rb') as f:
+with open('mmvec/__init__.py', 'rb') as f:
     hit = _version_re.search(f.read().decode('utf-8')).group(1)
     version = str(ast.literal_eval(hit))
 
 
-setup(name='rhapsody',
+setup(name='mmvec',
       version=version,
       license='BSD-3-Clause',
       description=description,
@@ -46,7 +46,7 @@ setup(name='rhapsody',
       maintainer="gneiss development team",
       maintainer_email="jamietmorton@gmail.com",
       packages=find_packages(),
-      scripts=glob('scripts/rhapsody'),
+      scripts=glob('scripts/mmvec'),
       install_requires=[
           'biom-format',
           'numpy >= 1.9.2',
@@ -54,10 +54,13 @@ setup(name='rhapsody',
           'scipy >= 0.15.1',
           'nose >= 1.3.7',
           'scikit-bio >= 0.5.1',
+          'torch',
+          'tensorboardX',
+          'tqdm'
       ],
       classifiers=classifiers,
       entry_points={
-          'qiime2.plugins': ['q2-rhapsody=rhapsody.q2.plugin_setup:plugin']
+          'qiime2.plugins': ['q2-mmvec=mmvec.q2.plugin_setup:plugin']
       },
       package_data={},
       zip_safe=False)

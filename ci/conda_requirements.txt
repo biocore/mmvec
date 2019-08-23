@@ -2,7 +2,7 @@ biom-format
 nose
 scikit-bio >0.5.1
 tqdm
-tensorflow >1.2
+pytorch
 coveralls
 pycodestyle
 flake8

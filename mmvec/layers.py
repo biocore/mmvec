@@ -46,7 +46,7 @@ class VecLinear(torch.nn.Linear):
         """
         In the constructor we just inherit
         """
-        super(VecLinear, self).__init__(in_features, out_features-1)
+        super(VecLinear, self).__init__(in_features, out_features - 1)
 
     def forward(self, x):
         """

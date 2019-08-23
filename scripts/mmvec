@@ -12,26 +12,22 @@ from skbio.stats.composition import clr, centralize, closure
 from skbio.stats.composition import clr_inv as softmax
 from scipy.stats import entropy, spearmanr
 from scipy.sparse import csr_matrix
-from rhapsody.mmvec import run_mmvec
-from rhapsody.dataset import PairedDataset, split_tables
+from mmvec.mmvec import run_mmvec
+from mmvec.dataset import PairedDataset, split_tables
 from torch.utils.data import DataLoader
 from decimal import Decimal
 
 
 @click.group()
-def rhapsody():
+def mmvec():
     pass
 
 
-@rhapsody.command()
-@click.option('--input-abundances',
-              help=('Input abundances to use for prediction. '
-                    'These could be metabolite intensities or sequence counts.'
-              ))
-@click.option('--output-abundances',
-              help=('Output abundances to predict from input abundances. '
-                    'These could be metabolite intensities or sequence counts.'
-              ))
+@mmvec.command()
+@click.option('--microbe-file',
+              help='Input microbial abundances')
+@click.option('--metabolite-file',
+              help='Input metabolite abundances')
 @click.option('--metadata-file', default=None,
               help='Input sample metadata file')
 @click.option('--training-column',
@@ -40,7 +36,7 @@ def rhapsody():
               default=None)
 @click.option('--num-testing-examples',
               help=('Number of samples to randomly select for testing'),
-              default=10)
+              default=5)
 @click.option('--min-feature-count',
               help=('Minimum number of samples a microbe needs to be observed '
                     'in order to not filter out'),
@@ -71,20 +67,26 @@ def rhapsody():
 @click.option('--learning-rate',
               help=('Gradient descent learning rate.'),
               default=1e-1)
+@click.option('--num-steps',
+              help=('Number of steps for learning rate decay.'),
+              default=5)
+@click.option('--decay-rate',
+              help=('Decay rate for learning'),
+              default=0.1)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
               default=0.9)
 @click.option('--beta2',
               help=('Gradient decay rate for second Adam momentum estimates'),
-              default=0.95)
+              default=0.999)
+@click.option('--clip-norm',
+              help=('Normalization constant for gradient clipping.'),
+              default=10)
 @click.option('--seed',
               help=('Random seed for the sake of reproducibility (optional).'),
               default=None)
 @click.option('--checkpoint-interval',
               help=('Number of seconds before a storing a checkpoint.'),
-              default=1000)
-@click.option('--summary-interval',
-              help=('Number of seconds before a storing a summary.'),
               default=1000)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
@@ -100,23 +102,23 @@ def rhapsody():
               help=('Path to save the ordination learned from the model. '
                     'If this is not specified, then this will be saved under '
                     '`--summary-dir`.'))
-def mmvec(input_abundances, output_abundances,
+def mmvec(microbe_file, metabolite_file,
           metadata_file, training_column,
           num_testing_examples, min_feature_count,
           epochs, batch_size,  latent_dim,
           input_prior, output_prior,
           arm_the_gpu, num_workers, learning_rate,
-          beta1, beta2, seed,
-          checkpoint_interval, summary_interval, summary_dir,
+          num_steps, decay_rate,
+          beta1, beta2, clip_norm, seed,
+          checkpoint_interval, summary_dir,
           embeddings_file, ranks_file, ordination_file):
     # set random seed if specified
     if seed is not None:
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-    # TODO: rename from microbes/metabolites to something more general
-    microbes = load_table(input_abundances)
-    metabolites = load_table(output_abundances)
+    microbes = load_table(microbe_file)
+    metabolites = load_table(metabolite_file)
 
     if metadata_file is not None:
         metadata = pd.read_table(metadata_file, index_col=0)
@@ -124,14 +126,25 @@ def mmvec(input_abundances, output_abundances,
         metadata = None
 
     embeds, ranks, ordination = run_mmvec(
-        microbes, metabolites, metadata,
-        training_column, num_testing_examples,
-        min_feature_count, epochs,
-        batch_size, latent_dim,
-        input_prior, output_prior,
-        beta1, beta2,
-        num_workers, learning_rate, arm_the_gpu,
-        summary_interval, checkpoint_interval, summary_dir)
+        microbes=microbes, metabolites=metabolites,
+        metadata=metadata,
+        training_column=training_column,
+        num_testing_examples=num_testing_examples,
+        min_feature_count=min_feature_count,
+        epochs=epochs,
+        batch_size=batch_size,
+        latent_dim=latent_dim,
+        input_prior=input_prior,
+        output_prior=output_prior,
+        beta1=0.9, beta2=0.99,
+        num_workers=num_workers,
+        clip_norm=clip_norm,
+        num_steps=num_steps,
+        decay_rate=decay_rate,
+        learning_rate=learning_rate,
+        arm_the_gpu=arm_the_gpu,
+        checkpoint_interval=checkpoint_interval,
+        summary_dir=summary_dir)
 
     files = []
     for f, ext in [(embeddings_file, 'embeddings.txt'),
@@ -140,10 +153,11 @@ def mmvec(input_abundances, output_abundances,
         if f is None:
             sname = '_'.join(
                 ['log_PC%d' % latent_dim,
-                 'samp%d' % batch_size,
                  'lr%s' % "{:.2E}".format(Decimal(learning_rate)),
-                 'Bone%.2f' % beta1,
-                 'Btwo%.2f' % beta2]
+                 'ipr%.2f' % input_prior,
+                 'opr%.2f' % output_prior,
+                 'b%.2f' % beta1,
+                 'bb%.2f' % beta2]
             )
             files.append(os.path.join(summary_dir, sname + '_' + ext))
 
@@ -153,4 +167,4 @@ def mmvec(input_abundances, output_abundances,
 
 
 if __name__ == '__main__':
-    rhapsody()
+    mmvec()
