@@ -108,7 +108,11 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
 
 def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
                     features, level, normalize='log10', color_palette='magma'):
+    Creates two matched heatmaps of microbe abundances and metabolite abundances.
+    
     '''
+    Parameters
+    ----------
     ranks: pd.DataFrame of conditional probabilities.
         Microbes (rows) X metabolites (columns).
     microbes_table: biom.Table
