@@ -107,10 +107,11 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
 
 
 def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
-                    features, level, normalize='log10', color_palette='magma'):
-    Creates two matched heatmaps of microbe abundances and metabolite abundances.
-    
+                    features, top_k_metabolites=50, level=-1,
+                    normalize='log10', color_palette='magma'):
     '''
+    Creates paired heatmaps of microbe abundances and metabolite abundances.
+
     Parameters
     ----------
     ranks: pd.DataFrame of conditional probabilities.
@@ -123,6 +124,9 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
         Microbe metadata for annotating plots
     features: list
         Select microbial feature IDs to display on paired heatmap.
+    top_k_metabolites: int
+        Select top k metabolites associated with the chosen features to
+        display on heatmap.
     level: int
         taxonomic level for annotating clustermap.
         Set to -1 if not parsing semicolon-delimited taxonomies.
@@ -150,7 +154,8 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     # find top 50 metabolites (highest positive ranks)
     microb_ranks = ranks.loc[features]
     top_metabolites = microb_ranks.max()
-    top_metabolites = top_metabolites.sort_values(ascending=False)[:50].index
+    top_metabolites = top_metabolites.sort_values(ascending=False)
+    top_metabolites = top_metabolites[:top_k_metabolites].index
 
     # grab top 50 metabolites in metabolite table
     select_metabolites = metabolites_table.copy().filter(

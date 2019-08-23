@@ -132,6 +132,7 @@ plugin.visualizers.register_function(
         'features': List[Str],
         'color_palette': Str % Choices(_cmaps['heatmap']),
         'normalize': Str % Choices(['log10', 'z_score']),
+        'top_k_metabolites': Int % Range(1, None),
         'level': Int % Range(-1, None),
     },
     input_descriptions={'ranks': 'Conditional probabilities.',
@@ -142,6 +143,8 @@ plugin.visualizers.register_function(
         'features': 'Microbial feature IDs to display in heatmap.',
         'color_palette': 'Color palette for clustermap.',
         'normalize': 'Optional normalize heatmap values by column values.',
+        'top_k_metabolites': 'Select top k metabolites associated with the '
+                             'chosen features to display on heatmap.',
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '
                  'entire annotation.',
@@ -150,7 +153,7 @@ plugin.visualizers.register_function(
     description="Generate paired heatmaps that depict microbial and "
                 "metabolite feature abundances. The left panel displays the "
                 "abundance of each selected microbial feature in each sample. "
-                "The right panel displays the abundances of the top 50 "
+                "The right panel displays the abundances of the top k "
                 "metabolites most highly correlated with these microbes in "
                 "each sample. The y-axis (sample axis) is shared between each "
                 "panel.",
