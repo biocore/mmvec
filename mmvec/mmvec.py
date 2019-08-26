@@ -94,6 +94,8 @@ class MMvec(torch.nn.Module):
         # custom make scheduler for alternating minimization
         writer = SummaryWriter(self.save_path)
         last_checkpoint_time = 0
+        num_histograms = 100
+        hist_step = max(1, epochs // num_histograms)
         optimizer = optim.Adamax(
             [
                 {'params': self.encoder.parameters(), 'lr': learning_rate},
@@ -137,17 +139,17 @@ class MMvec(torch.nn.Module):
                 'log_likelihood', loss, iteration)
 
             # add histograms per step
-            if iteration % step_size == 0:
+            if iteration % hist_step  == 0:
                 names = ['encoder_embedding', 'encoder_bias',
                          'decoder_embedding', 'decoder_bias']
                 for i, param in enumerate(self.parameters()):
                     writer.add_histogram(
                         '/parameter/%s' % names[i],
-                        param.data.detach().numpy(),
+                        param.data.detach().cpu().numpy(),
                         iteration)
                     writer.add_histogram(
                         '/gradient/%s' % names[i],
-                        param.grad.detach().numpy(),
+                        param.grad.detach().cpu().numpy(),
                         iteration)
 
             # write down checkpoint after end of epoch
