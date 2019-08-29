@@ -5,4 +5,6 @@ mmvec \
 	 --min-feature-count 0 \
 	 --latent-dim 1 \
 	 --learning-rate 1e-3 \
-	 --epochs 3000
+	 --summary-dir summary \
+	 --ranks-file ranks.csv \
+	 --epochs 1

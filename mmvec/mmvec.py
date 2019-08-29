@@ -88,17 +88,14 @@ class MMvec(torch.nn.Module):
             First ADAM momentum constant
         beta2 : float
             Second ADAM momentum constant
-
-        Returns
-        -------
-        losses : list of float
-            Log likelihood of model
-        errs : list of float
-            Cross validation error between model and testing dataset
+        checkpoint_interval : int
+            Number of seconds until checkpoint is recorded.
         """
         # custom make scheduler for alternating minimization
         writer = SummaryWriter(self.save_path)
         last_checkpoint_time = 0
+        num_histograms = 100
+        hist_step = max(1, epochs // num_histograms)
         optimizer = optim.Adamax(
             [
                 {'params': self.encoder.parameters(), 'lr': learning_rate},
@@ -140,6 +137,20 @@ class MMvec(torch.nn.Module):
                 'cv_mae', err, iteration)
             writer.add_scalar(
                 'log_likelihood', loss, iteration)
+
+            # add histograms per step
+            if iteration % hist_step == 0:
+                names = ['encoder_embedding', 'encoder_bias',
+                         'decoder_embedding', 'decoder_bias']
+                for i, param in enumerate(self.parameters()):
+                    writer.add_histogram(
+                        '/parameter/%s' % names[i],
+                        param.data.detach().cpu().numpy(),
+                        iteration)
+                    writer.add_histogram(
+                        '/gradient/%s' % names[i],
+                        param.grad.detach().cpu().numpy(),
+                        iteration)
 
             # write down checkpoint after end of epoch
             now = time.time()
