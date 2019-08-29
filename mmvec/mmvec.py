@@ -139,7 +139,7 @@ class MMvec(torch.nn.Module):
                 'log_likelihood', loss, iteration)
 
             # add histograms per step
-            if iteration % hist_step  == 0:
+            if iteration % hist_step == 0:
                 names = ['encoder_embedding', 'encoder_bias',
                          'decoder_embedding', 'decoder_bias']
                 for i, param in enumerate(self.parameters()):
