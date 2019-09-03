@@ -4,25 +4,25 @@ import numpy as np
 import tensorflow as tf
 from skbio import OrdinationResults
 from qiime2.plugin import Metadata
-from rhapsody.multimodal import MMvec
-from rhapsody.util import split_tables
+from mmvec.multimodal import MMvec
+from mmvec.util import split_tables
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import svds
 
 
-def mmvec(microbes: biom.Table,
-          metabolites: biom.Table,
-          metadata: Metadata = None,
-          training_column: str = None,
-          num_testing_examples: int = 5,
-          min_feature_count: int = 10,
-          epochs: int = 100,
-          batch_size: int = 50,
-          latent_dim: int = 3,
-          input_prior: float = 1,
-          output_prior: float = 1,
-          learning_rate: float = 0.001,
-          summary_interval: int = 60) -> (pd.DataFrame, OrdinationResults):
+def paired_omics(microbes: biom.Table,
+                 metabolites: biom.Table,
+                 metadata: Metadata = None,
+                 training_column: str = None,
+                 num_testing_examples: int = 5,
+                 min_feature_count: int = 10,
+                 epochs: int = 100,
+                 batch_size: int = 50,
+                 latent_dim: int = 3,
+                 input_prior: float = 1,
+                 output_prior: float = 1,
+                 learning_rate: float = 0.001,
+                 summary_interval: int = 60) -> (pd.DataFrame, OrdinationResults):
 
     if metadata is not None:
         metadata = metadata.to_dataframe()

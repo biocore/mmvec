@@ -9,8 +9,8 @@ from skbio.util import get_data_path
 from scipy.stats import spearmanr
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import pdist
-from rhapsody.multimodal import MMvec
-from rhapsody.util import random_multimodal
+from mmvec.multimodal import MMvec
+from mmvec.util import random_multimodal
 from tensorflow import set_random_seed
 import tensorflow as tf
 

@@ -3,10 +3,10 @@ import pandas as pd
 import qiime2
 import pkg_resources
 import q2templates
-from rhapsody.heatmap import ranks_heatmap
+from mmvec.heatmap import ranks_heatmap
 
 
-TEMPLATES = pkg_resources.resource_filename('rhapsody.q2', 'assets')
+TEMPLATES = pkg_resources.resource_filename('mmvec.q2', 'assets')
 
 
 def heatmap(output_dir: str,
