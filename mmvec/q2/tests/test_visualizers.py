@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 from qiime2 import Artifact, CategoricalMetadataColumn
-from qiime2.plugins import rhapsody
+from qiime2.plugins import mmvec
 
 
 # these tests just make sure the visualizer runs; nuts + bolts are tested in
