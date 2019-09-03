@@ -1,10 +1,7 @@
 import os
 import time
 from tqdm import tqdm
-import pandas as pd
 import numpy as np
-from skbio.stats.composition import clr_inv as softmax
-from scipy.stats import spearmanr
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
 import datetime
