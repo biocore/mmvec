@@ -177,31 +177,6 @@ def split_tables(otu_table, metabolite_table,
     return train_microbes, test_microbes, train_metabolites, test_metabolites
 
 
-def onehot(microbes):
-    """ One hot encoding for microbes.
-
-    Parameters
-    ----------
-    microbes : np.array
-       Table of microbe abundances (counts)
-
-    Returns
-    -------
-    otu_hits : np.array
-       One hot encodings of microbes
-    sample_ids : np.array
-       Sample ids
-    """
-    coo = coo_matrix(microbes)
-    data = coo.data.astype(np.int64)
-    otu_ids = coo.col
-    sample_ids = coo.row
-    otu_hits = np.repeat(otu_ids, data)
-    sample_ids = np.repeat(sample_ids, data)
-
-    return otu_hits.astype(np.int32), sample_ids
-
-
 def rank_hits(ranks, k, pos=True):
     """ Creates an edge list based on rank matrix.
 

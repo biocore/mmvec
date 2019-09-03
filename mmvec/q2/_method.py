@@ -1,4 +1,4 @@
-import biom
+5import biom
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -22,7 +22,9 @@ def paired_omics(microbes: biom.Table,
                  input_prior: float = 1,
                  output_prior: float = 1,
                  learning_rate: float = 0.001,
-                 summary_interval: int = 60) -> (pd.DataFrame, OrdinationResults):
+                 summary_interval: int = 60) -> (
+                     pd.DataFrame, OrdinationResults
+                 ):
 
     if metadata is not None:
         metadata = metadata.to_dataframe()
