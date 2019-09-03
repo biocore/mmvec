@@ -3,7 +3,6 @@ import pandas as pd
 from sklearn.utils import check_random_state
 from skbio.stats.composition import ilr_inv
 from skbio.stats.composition import clr_inv as softmax
-from scipy.sparse import coo_matrix
 
 
 def random_multimodal(num_microbes=20, num_metabolites=100, num_samples=100,

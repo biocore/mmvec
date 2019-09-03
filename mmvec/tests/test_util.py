@@ -2,8 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 from biom import Table
-from mmvec.util import rank_hits, random_multimodal, split_tables
-from skbio.util import get_data_path
+from mmvec.util import rank_hits, split_tables
 import numpy.testing as npt
 import pandas.util.testing as pdt
 
