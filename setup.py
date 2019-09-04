@@ -58,6 +58,7 @@ setup(name='mmvec',
           'scipy >= 0.15.1',
           'nose >= 1.3.7',
           'scikit-bio >= 0.5.1',
+          'seaborn',
           'tqdm',
           'tensorflow'
       ],
