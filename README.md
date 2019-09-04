@@ -5,7 +5,7 @@ Neural networks for estimating microbe-metabolite interactions through their co-
 
 # Installation
 
-Rhapsody can be installed via pypi as follows
+MMvec can be installed via pypi as follows
 
 ```
 pip install mmvec
@@ -13,7 +13,7 @@ pip install mmvec
 
 If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
 
-Rhapsody can also be installed via conda as follows
+MMvec can also be installed via conda as follows
 
 ```
 conda install mmvec -c conda-forge
