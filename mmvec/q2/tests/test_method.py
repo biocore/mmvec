@@ -2,8 +2,8 @@ import biom
 import unittest
 import numpy as np
 import tensorflow as tf
-from rhapsody.q2._method import mmvec
-from rhapsody.util import random_multimodal
+from mmvec.q2._method import mmvec
+from mmvec.util import random_multimodal
 from skbio.stats.composition import clr_inv
 from scipy.stats import spearmanr
 import numpy.testing as npt
