@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.org/biocore/rhapsody.svg?branch=master)](https://travis-ci.org/biocore/rhapsody)
+[![Build Status](https://travis-ci.org/biocore/mmvec.svg?branch=master)](https://travis-ci.org/biocore/mmvec)
 
-# rhapsody
+# mmvec
 Neural networks for estimating microbe-metabolite interactions through their co-occurence probabilities.
 
 # Installation
@@ -8,7 +8,7 @@ Neural networks for estimating microbe-metabolite interactions through their co-
 Rhapsody can be installed via pypi as follows
 
 ```
-pip install rhapsody
+pip install mmvec
 ```
 
 If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
@@ -16,10 +16,10 @@ If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
 Rhapsody can also be installed via conda as follows
 
 ```
-conda install rhapsody -c conda-forge
+conda install mmvec -c conda-forge
 ```
 
-Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install rhapsody within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
+Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
 # Getting started
 
@@ -27,7 +27,7 @@ To get started you can run a quick example as follows.  This will learn microbe-
 which can be used to estimate microbe-metabolite conditional probabilities that are accurate up to rank.
 
 ```
-rhapsody mmvec \
+mmvec paired-omics \
 	--otu-file data/otus.biom \
 	--metabolite-file data/ms.biom \
 	--summary-dir summary
@@ -41,7 +41,7 @@ See the following url for a more complete tutorial with real datasets.
 
 https://github.com/knightlab-analyses/multiomic-cooccurences
 
-More information can found under `rhapsody --help`
+More information can found under `mmvec --help`
 
 # Qiime2 plugin
 
@@ -49,11 +49,11 @@ If you want to make this qiime2 compatible, install this in your
 qiime2 conda environment (see qiime2 installation instructions [here](https://qiime2.org/)) and run the following
 
 ```
-pip install git+https://github.com/biocore/rhapsody.git
+pip install git+https://github.com/biocore/mmvec.git
 qiime dev refresh-cache
 ```
 
-This should allow your q2 environment to recognize rhapsody. Before we test
+This should allow your q2 environment to recognize mmvec. Before we test
 the qiime2 plugin, run the following commands to import an example dataset
 
 ```
@@ -70,7 +70,7 @@ qiime tools import \
 
 Then you can run mmvec
 ```
-qiime rhapsody mmvec \
+qiime mmvec paired-omics \
 	--i-microbes otus_nt.qza \
 	--i-metabolites lcms_nt.qza \
 	--o-conditionals ranks.qza \
@@ -110,14 +110,14 @@ qiime emperor biplot \
 
 The resulting biplot should look like something as follows
 
-![biplot](https://github.com/biocore/rhapsody/raw/master/img/biplot.png "Biplot")
+![biplot](https://github.com/biocore/mmvec/raw/master/img/biplot.png "Biplot")
 
 Here, the metabolite represent points and the arrows represent microbes.  The points close together are indicative of metabolites that
 frequently co-occur with each other.  Furthermore, arrows that have a small angle between them are indicative of microbes that co-occur with each other.
 Arrows that point in the same direction as the metabolites are indicative of microbe-metabolite co-occurrences.  In the biplot above, the red arrows
 correspond to Pseudomonas aeruginosa, and the red points correspond to Rhamnolipids that are likely produced by Pseudomonas aeruginosa.
 
-More information behind the parameters can found under `qiime rhapsody --help`
+More information behind the parameters can found under `qiime mmvec --help`
 
 # FAQs
 
@@ -143,7 +143,7 @@ At the moment, these capabilities are only available for the standalone CLI due 
 
 **Q** : I'm confused, what is Tensorboard?
 
-**A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the rhapsody environment and cd into the folder you are running the script above from. Then run:
+**A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the mmvec environment and cd into the folder you are running the script above from. Then run:
 
 ```
 tensorboard --logdir .
@@ -154,11 +154,11 @@ Returning line will look something like:
 ```
 TensorBoard 1.9.0 at http://Lisas-MacBook-Pro-2.local:6006 (Press CTRL+C to quit)
 ```
-Open the website (highlighted in red) in a browser. (Hint; if that doesn’t work try putting only the port number (here it is 6006), adding localhost, localhost:6006). Leave this tab alone. Now any rhapsody output directories that you add to the folder that tensorflow is running in will be added to the webpage.
+Open the website (highlighted in red) in a browser. (Hint; if that doesn’t work try putting only the port number (here it is 6006), adding localhost, localhost:6006). Leave this tab alone. Now any mmvec output directories that you add to the folder that tensorflow is running in will be added to the webpage.
 
 
 If working properly, it will look something like this
-![tensorboard](https://github.com/biocore/rhapsody/raw/master/img/tensorboard.png "Tensorboard")
+![tensorboard](https://github.com/biocore/mmvec/raw/master/img/tensorboard.png "Tensorboard")
 
 FIRST graph in Tensorflow; 'Prediction accuracy'. Labelled `cv_rmse`
 

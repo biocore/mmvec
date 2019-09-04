@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 from qiime2 import Artifact, CategoricalMetadataColumn
-from qiime2.plugins import rhapsody
+from qiime2.plugins import mmvec
 
 
 # these tests just make sure the visualizer runs; nuts + bolts are tested in
@@ -30,19 +30,19 @@ class TestHeatmap(unittest.TestCase):
             name='Super Pathway'))
 
     def test_heatmap_default(self):
-        rhapsody.actions.heatmap(self.ranks, self.taxa, self.metabolites)
+        mmvec.actions.heatmap(self.ranks, self.taxa, self.metabolites)
 
     def test_heatmap_no_metadata(self):
-        rhapsody.actions.heatmap(self.ranks)
+        mmvec.actions.heatmap(self.ranks)
 
     def test_heatmap_one_metadata(self):
-        rhapsody.actions.heatmap(self.ranks, self.taxa, None)
+        mmvec.actions.heatmap(self.ranks, self.taxa, None)
 
     def test_heatmap_no_taxonomy_parsing(self):
-        rhapsody.actions.heatmap(self.ranks, self.taxa, None, level=-1)
+        mmvec.actions.heatmap(self.ranks, self.taxa, None, level=-1)
 
     def test_heatmap_plot_axis_labels(self):
-        rhapsody.actions.heatmap(self.ranks, x_labels=True, y_labels=True)
+        mmvec.actions.heatmap(self.ranks, x_labels=True, y_labels=True)
 
 
 if __name__ == "__main__":

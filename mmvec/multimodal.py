@@ -1,14 +1,10 @@
 import os
 import time
 from tqdm import tqdm
-import pandas as pd
 import numpy as np
-from skbio.stats.composition import clr_inv as softmax
-from scipy.stats import spearmanr
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
 import datetime
-from .util import onehot
 
 
 class MMvec(object):
@@ -271,128 +267,3 @@ class MMvec(object):
         self.Vbias = rVb
 
         return loss, cv
-
-    def predict(self, X):
-        """ Performs a prediction
-
-        Parameters
-        ----------
-        X : np.array
-           Input table (likely OTUs).
-
-        Returns
-        -------
-        np.array :
-           Predicted abundances.
-        """
-        X_hits, _ = onehot(X)
-
-        d1 = X_hits.shape[0]
-        U_ = np.hstack(
-            (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))
-        V_ = np.vstack(
-            (self.Vbias, np.ones((1, self.V.shape[1])), self.V))
-        r = U_[X_hits] @ V_
-        res = softmax(np.hstack(
-            (np.zeros((d1, 1)), r)))
-        return res
-
-
-def cross_validation(model, microbes, metabolites, top_N=50):
-    """ Running cross validation on test data.
-
-    Parameters
-    ----------
-    model : MMvec
-       Pre-trained tensorflow model
-    microbes : pd.DataFrame
-       Microbe abundances (counts) on test dataset
-    metabolites : pd.DataFrame
-       Metabolite abundances (proportions) on test dataset
-    top_N : int
-       Number of top hits to evaluate
-
-    Returns
-    -------
-    params : pd.Series
-       List of cross-validation statistics
-    rank_stats : pd.DataFrame
-       List of OTUs along with their spearman predictive accuracy
-    """
-    # a little redundant
-    otu_hits, sample_ids = onehot(microbes.values)
-    res = model.predict(microbes.values)
-    exp = metabolites.values[sample_ids]
-
-    prec = []
-    recall = []
-    tps = fps = fns = tns = 0
-    ids = set(range(len(metabolites.columns)))
-
-    n, d = res.shape
-    rank_stats, rank_pvals = [], []
-    tp_stats, fn_stats, fp_stats, tn_stats = [], [], [], []
-
-    for i in range(n):
-        exp_names = np.argsort(exp[i, :])[-top_N:]
-        res_names = np.argsort(res[i, :])[-top_N:]
-        result = spearmanr(exp[i, res_names],
-                           res[i, res_names])
-        r = result.correlation
-        pval = result.pvalue
-
-        if np.isnan(r):
-            print(exp[i, exp_names])
-            print(res[i, exp_names])
-
-        rank_stats.append(r)
-        rank_pvals.append(pval)
-
-        hits = set(res_names)
-        truth = set(exp_names)
-
-        tp_stats.append(len(hits & truth))
-        fn_stats.append(len(truth - hits))
-        fp_stats.append(len(hits - truth))
-        tn_stats.append(len((ids - hits) & (ids - truth)))
-
-        tps += len(hits & truth)
-        fns += len(truth - hits)
-        fps += len(hits - truth)
-        tns += len((ids - hits) & (ids - truth))
-
-        p = len(hits & truth) / top_N
-        r = len(hits & truth) / d
-        prec.append(p)
-        recall.append(r)
-
-    r = np.mean(recall)
-    p = np.mean(prec)
-    params = pd.Series({
-        'TP': tps,
-        'FP': fps,
-        'FN': fns,
-        'TN': tns,
-        'precision': np.mean(prec),
-        'recall': np.mean(recall),
-        'f1_score': 2 * (p * r) / (p + r),
-        'meanRK': np.mean(rank_stats)
-    })
-    otu_names = [microbes.columns[o] for o in otu_hits]
-
-    rank_stats = pd.DataFrame(
-        {
-            'spearman_r': rank_stats,
-            'pvalue': rank_pvals,
-            'OTU': otu_names,
-            'sample_ids': microbes.index[sample_ids],
-            'TP': tp_stats,
-            'FN': fn_stats,
-            'FP': fp_stats,
-            'TN': tn_stats
-        }
-    )
-
-    rank_stats = rank_stats.groupby(by=['OTU', 'sample_ids']).mean()
-
-    return params, rank_stats

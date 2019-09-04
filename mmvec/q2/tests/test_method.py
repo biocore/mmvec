@@ -2,8 +2,8 @@ import biom
 import unittest
 import numpy as np
 import tensorflow as tf
-from rhapsody.q2._method import mmvec
-from rhapsody.util import random_multimodal
+from mmvec.q2._method import paired_omics
+from mmvec.util import random_multimodal
 from skbio.stats.composition import clr_inv
 from scipy.stats import spearmanr
 import numpy.testing as npt
@@ -42,7 +42,7 @@ class TestMMvec(unittest.TestCase):
         tf.reset_default_graph()
         latent_dim = 2
         tf.set_random_seed(0)
-        res_ranks, res_biplot = mmvec(
+        res_ranks, res_biplot = paired_omics(
             self.microbes, self.metabolites,
             epochs=1000, latent_dim=latent_dim
         )
