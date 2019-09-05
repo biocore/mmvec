@@ -1,5 +1,14 @@
 # mmvec changelog
 
+## Version 0.6.0 (2019-09-05)
+
+# Enhancements
+ - Ranks from CLI can now be imported into qiime2 [#84](https://github.com/biocore/mmvec/pull/84)
+ - Ranks can be visualized as heatmaps [#69](https://github.com/biocore/mmvec/pull/69)
+
+# Bug fixes
+ - ConditionalFormat has been fixed [#68](https://github.com/biocore/mmvec/pull/68)
+
 ## Version 0.4.0 (2019-07-22)
 
 # Enhancements
