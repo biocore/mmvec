@@ -134,9 +134,9 @@ def paired_omics(microbe_file, metabolite_file,
 
     sname = os.path.join(summary_dir, sname)
     if embeddings_file is None:
-        embeddings_file = sname + "_embedding.csv"
+        embeddings_file = sname + "_embedding.txt"
     if ranks_file is None:
-        ranks_file = sname + "_ranks.csv"
+        ranks_file = sname + "_ranks.txt"
     if ordination_file is None:
         ordination_file = sname + "_ordination.txt"
 
@@ -192,7 +192,8 @@ def paired_omics(microbe_file, metabolite_file,
         ranks = pd.DataFrame(model.U @ V.T, index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
         ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
-        ranks.to_csv(ranks_file)
+        ranks.index.name = 'featureid'
+        ranks.to_csv(ranks_file, sep='\t')
 
         # Save to an ordination file
         ranks = ranks - ranks.mean(axis=0)
