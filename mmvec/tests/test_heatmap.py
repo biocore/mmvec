@@ -1,6 +1,6 @@
 import unittest
 import pandas as pd
-from rhapsody.heatmap import (
+from mmvec.heatmap import (
     _parse_taxonomy_strings, _parse_heatmap_metadata_annotations,
     _process_microbe_metadata, _process_metabolite_metadata,
     _normalize_by_column)

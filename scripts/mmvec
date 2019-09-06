@@ -16,16 +16,16 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import svds
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
-from rhapsody.multimodal import MMvec, cross_validation
-from rhapsody.util import split_tables, format_params
+from mmvec.multimodal import MMvec
+from mmvec.util import split_tables, format_params
 import matplotlib.pyplot as plt
 
 @click.group()
-def rhapsody():
+def mmvec():
     pass
 
 
-@rhapsody.command()
+@mmvec.command()
 @click.option('--microbe-file',
               help='Input microbial abundances')
 @click.option('--metabolite-file',
@@ -96,14 +96,14 @@ def rhapsody():
               help=('Path to save the ordination learned from the model. '
                     'If this is not specified, then this will be saved under '
                     '`--summary-dir`.'))
-def mmvec(microbe_file, metabolite_file,
-          metadata_file, training_column,
-          num_testing_examples, min_feature_count,
-          epochs, batch_size, latent_dim,
-          input_prior, output_prior, arm_the_gpu,
-          learning_rate, beta1, beta2, clipnorm,
-          checkpoint_interval, summary_interval,
-          summary_dir, embeddings_file, ranks_file, ordination_file):
+def paired_omics(microbe_file, metabolite_file,
+                 metadata_file, training_column,
+                 num_testing_examples, min_feature_count,
+                 epochs, batch_size, latent_dim,
+                 input_prior, output_prior, arm_the_gpu,
+                 learning_rate, beta1, beta2, clipnorm,
+                 checkpoint_interval, summary_interval,
+                 summary_dir, embeddings_file, ranks_file, ordination_file):
 
     microbes = load_table(microbe_file)
     metabolites = load_table(metabolite_file)
@@ -134,9 +134,9 @@ def mmvec(microbe_file, metabolite_file,
 
     sname = os.path.join(summary_dir, sname)
     if embeddings_file is None:
-        embeddings_file = sname + "_embedding.csv"
+        embeddings_file = sname + "_embedding.txt"
     if ranks_file is None:
-        ranks_file = sname + "_ranks.csv"
+        ranks_file = sname + "_ranks.txt"
     if ordination_file is None:
         ordination_file = sname + "_ordination.txt"
 
@@ -192,7 +192,8 @@ def mmvec(microbe_file, metabolite_file,
         ranks = pd.DataFrame(model.U @ V.T, index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
         ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
-        ranks.to_csv(ranks_file)
+        ranks.index.name = 'featureid'
+        ranks.to_csv(ranks_file, sep='\t')
 
         # Save to an ordination file
         ranks = ranks - ranks.mean(axis=0)
@@ -218,4 +219,4 @@ def mmvec(microbe_file, metabolite_file,
 
 
 if __name__ == '__main__':
-    rhapsody()
+    mmvec()

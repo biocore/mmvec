@@ -4,10 +4,10 @@ import qiime2
 import biom
 import pkg_resources
 import q2templates
-from rhapsody.heatmap import ranks_heatmap, paired_heatmaps
+from mmvec.heatmap import ranks_heatmap, paired_heatmaps
 
 
-TEMPLATES = pkg_resources.resource_filename('rhapsody.q2', 'assets')
+TEMPLATES = pkg_resources.resource_filename('mmvec.q2', 'assets')
 
 
 def heatmap(output_dir: str,
