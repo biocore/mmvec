@@ -12,9 +12,10 @@ from torch.distributions.multinomial import Multinomial
 from mmvec.dataset import split_tables
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
+from torch.optim.lr_scheduler import StepLR
 from mmvec.layers import VecEmbedding, VecLinear
 from mmvec.util import format_params
-from mmvec.scheduler import AlternatingStepLR
+# from mmvec.scheduler import AlternatingStepLR
 from skbio import OrdinationResults
 from scipy.sparse.linalg import svds
 from tensorboardX import SummaryWriter
@@ -103,7 +104,7 @@ class MMvec(torch.nn.Module):
             ],
             betas=(beta1, beta2))
 
-        scheduler = AlternatingStepLR(optimizer, step_size)
+        scheduler = StepLR(optimizer, step_size)
         for iteration in tqdm(range(epochs)):
             now = time.time()
             self.train()
