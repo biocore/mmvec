@@ -52,15 +52,22 @@ def paired_heatmap(output_dir: str,
                    level: int = -1) -> None:
     if microbe_metadata is not None:
         microbe_metadata = microbe_metadata.to_series()
-    hotmaps = paired_heatmaps(ranks, microbes_table, metabolites_table,
-                              microbe_metadata, features, top_k_metabolites,
-                              level, normalize, color_palette)
+    select_microbes, select_metabolites, hotmaps = paired_heatmaps(
+        ranks, microbes_table, metabolites_table, microbe_metadata, features,
+        top_k_metabolites, level, normalize, color_palette)
 
     hotmaps.savefig(join(output_dir, 'heatmap.pdf'), bbox_inches='tight')
     hotmaps.savefig(join(output_dir, 'heatmap.png'), bbox_inches='tight')
+    select_microbes.to_csv(join(output_dir, 'select_microbes.tsv'), sep='\t')
+    select_metabolites.to_csv(
+        join(output_dir, 'select_metabolites.tsv'), sep='\t')
 
     index = join(TEMPLATES, 'index.html')
     q2templates.render(index, output_dir, context={
         'title': 'Paired Feature Abundance Heatmaps',
         'pdf_fp': 'heatmap.pdf',
-        'png_fp': 'heatmap.png'})
+        'png_fp': 'heatmap.png',
+        'table1_fp': 'select_microbes.tsv',
+        'download1_text': 'Download microbe abundances as TSV',
+        'table2_fp': 'select_metabolites.tsv',
+        'download2_text': 'Download top k metabolite abundances as TSV'})

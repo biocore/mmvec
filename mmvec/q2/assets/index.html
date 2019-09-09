@@ -14,6 +14,14 @@
       <br>
       <p>Download as PDF</p>
     </a>
+    {% if table1_fp %}
+    <a href={{ table1_fp }}>
+      <p>{{ download1_text }}</p>
+    </a>
+    <a href={{ table2_fp }}>
+      <p>{{ download2_text }}</p>
+    </a>
+    {% endif %}
   </div>
 </div>
 

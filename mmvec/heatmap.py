@@ -202,7 +202,7 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     axes[0].set_xlabel('Microbes')
     axes[1].set_xlabel('Metabolites')
 
-    return heatmaps
+    return select_microbes, select_metabolites, heatmaps
 
 
 def _parse_heatmap_metadata_annotations(metadata_column, margin_palette):

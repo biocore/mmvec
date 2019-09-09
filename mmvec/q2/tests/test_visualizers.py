@@ -78,17 +78,17 @@ class TestPairedHeatmap(unittest.TestCase):
             'FeatureTable[Frequency]', microbes)
 
     def test_paired_heatmaps_single_feature(self):
-        rhapsody.actions.paired_heatmap(
+        mmvec.actions.paired_heatmap(
             self.ranks, self.microbes, self.metabolites, features=['C'],
             microbe_metadata=self.taxa)
 
     def test_paired_heatmaps_multifeature(self):
-        rhapsody.actions.paired_heatmap(
+        mmvec.actions.paired_heatmap(
             self.ranks, self.microbes, self.metabolites, features=['A', 'C'])
 
     def test_paired_heatmaps_fail_on_unknown_feature(self):
         with self.assertRaisesRegex(ValueError, "must represent feature IDs"):
-            rhapsody.actions.paired_heatmap(
+            mmvec.actions.paired_heatmap(
                 self.ranks, self.microbes, self.metabolites,
                 features=['A', 'barf'])
 
