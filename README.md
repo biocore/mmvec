@@ -13,14 +13,6 @@ pip install mmvec
 
 If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
 
-MMvec can also be installed via conda as follows
-
-```
-conda install mmvec -c conda-forge
-```
-
-Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
-
 # Getting started
 
 To get started you can run a quick example as follows.  This will learn microbe-metabolite vectors (mmvec)
