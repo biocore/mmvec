@@ -130,6 +130,7 @@ plugin.visualizers.register_function(
     parameters={
         'microbe_metadata': MetadataColumn[Categorical],
         'features': List[Str],
+        'top_k_microbes': Int % Range(0, None),
         'color_palette': Str % Choices(_cmaps['heatmap']),
         'normalize': Str % Choices(['log10', 'z_score']),
         'top_k_metabolites': Int % Range(1, None),
@@ -140,7 +141,15 @@ plugin.visualizers.register_function(
                         'metabolites_table': 'Metabolite feature abundances.'},
     parameter_descriptions={
         'microbe_metadata': 'Optional microbe metadata for annotating plots.',
-        'features': 'Microbial feature IDs to display in heatmap.',
+        'features': 'Microbial feature IDs to display in heatmap. Use this '
+                    'parameter to include named feature IDs in the heatmap. '
+                    'Can be used in conjunction with top_k_microbes, in which '
+                    'case named features will be displayed first, then top '
+                    'microbial features in order of log conditional '
+                    'probability maximum values.',
+        'top_k_microbes': 'Select top k microbes (those with the highest '
+                          'maximum log conditional probability values) to '
+                          'display on the heatmap.',
         'color_palette': 'Color palette for clustermap.',
         'normalize': 'Optional normalize heatmap values by column values.',
         'top_k_metabolites': 'Select top k metabolites associated with the '

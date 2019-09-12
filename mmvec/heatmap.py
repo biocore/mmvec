@@ -107,8 +107,8 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
 
 
 def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
-                    features, top_k_metabolites=50, level=-1,
-                    normalize='log10', color_palette='magma'):
+                    features=None, top_k_microbes=2, top_k_metabolites=50,
+                    level=-1, normalize='log10', color_palette='magma'):
     '''
     Creates paired heatmaps of microbe abundances and metabolite abundances.
 
@@ -136,20 +136,37 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     color_palette: str
         Color palette for heatmaps.
     '''
+    if top_k_microbes is features is None:
+        raise ValueError('Must select features by name and/or use the '
+                         'top_k_microbes parameter to select features to '
+                         'include in the heatmap.')
+
     # validate microbes
-    missing_microbes = set(features) - set(microbes_table.ids('observation'))
-    if len(missing_microbes) > 0:
-        raise ValueError('features must represent feature IDs in '
-                         'microbes_table. Missing microbe(s): {0}'.format(
-                            missing_microbes))
+    if features is not None:
+        microbe_ids = set(microbes_table.ids('observation'))
+        missing_microbes = set(features) - microbe_ids
+        if len(missing_microbes) > 0:
+            raise ValueError('features must represent feature IDs in '
+                             'microbes_table. Missing microbe(s): {0}'.format(
+                                missing_microbes))
+    else:
+        features = []
+
+    # find top k microbes (highest positive ranks)
+    if top_k_microbes is not None:
+        top_microbes = ranks.max(axis=1).sort_values(ascending=False)
+        top_microbes = top_microbes[:top_k_microbes].index
+        # merge top k microbes with selected features
+        # use list comprehension instead of casting as set to preserve order.
+        features = features + [f for f in top_microbes if f not in features]
 
     # filter select microbes from microbe table and sort by abundance
-    sort_orders = [False] + [True] * (len(features) - 1)
+    sort_orders = [True] + [False] * (len(features) - 1)
     select_microbes = microbes_table.copy().filter(features, 'observation')
     select_microbes = select_microbes.to_dataframe().T
     select_microbes = select_microbes[features]  # sort cols by features order
     select_microbes = select_microbes.sort_values(
-        features[::-1], ascending=sort_orders)
+        features, ascending=sort_orders)
 
     # find top 50 metabolites (highest positive ranks)
     microb_ranks = ranks.loc[features]
@@ -160,11 +177,6 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     # grab top 50 metabolites in metabolite table
     select_metabolites = metabolites_table.copy().filter(
         top_metabolites, 'observation').to_dataframe().T
-
-    # sort metabolite columns by rank
-    select_metabolites = select_metabolites.reindex(
-        microb_ranks[top_metabolites].sort_values(
-            features[::-1], ascending=sort_orders, axis=1).columns, axis=1)
 
     # align sample IDs across tables
     select_microbes, select_metabolites = select_microbes.align(
