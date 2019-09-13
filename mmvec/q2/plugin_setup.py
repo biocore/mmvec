@@ -132,8 +132,10 @@ plugin.visualizers.register_function(
         'features': List[Str],
         'top_k_microbes': Int % Range(0, None),
         'color_palette': Str % Choices(_cmaps['heatmap']),
-        'normalize': Str % Choices(['log10', 'z_score']),
+        'normalize': Str % Choices(['log10', 'z_score_col', 'z_score_row',
+                                    'rel_row', 'rel_col', 'None']),
         'top_k_metabolites': Int % Range(1, None),
+        'keep_top_samples': Bool,
         'level': Int % Range(-1, None),
     },
     input_descriptions={'ranks': 'Conditional probabilities.',
@@ -148,12 +150,14 @@ plugin.visualizers.register_function(
                     'microbial features in order of log conditional '
                     'probability maximum values.',
         'top_k_microbes': 'Select top k microbes (those with the highest '
-                          'maximum log conditional probability values) to '
-                          'display on the heatmap.',
+                          'relative abundances) to display on the heatmap.',
         'color_palette': 'Color palette for clustermap.',
-        'normalize': 'Optional normalize heatmap values by column values.',
+        'normalize': 'Optionally normalize heatmap values by columns or rows.',
         'top_k_metabolites': 'Select top k metabolites associated with the '
                              'chosen features to display on heatmap.',
+        'keep_top_samples': 'Display only samples in which at least one of '
+                            'the selected microbes are the most abundant '
+                            'feature.',
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '
                  'entire annotation.',

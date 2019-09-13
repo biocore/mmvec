@@ -46,6 +46,7 @@ def paired_heatmap(output_dir: str,
                    metabolites_table: biom.Table,
                    features: str = None,
                    top_k_microbes: int = 2,
+                   keep_top_samples: bool = True,
                    microbe_metadata: qiime2.CategoricalMetadataColumn = None,
                    normalize: str = 'log10',
                    color_palette: str = 'magma',
@@ -55,7 +56,8 @@ def paired_heatmap(output_dir: str,
         microbe_metadata = microbe_metadata.to_series()
     select_microbes, select_metabolites, hotmaps = paired_heatmaps(
         ranks, microbes_table, metabolites_table, microbe_metadata, features,
-        top_k_microbes, top_k_metabolites, level, normalize, color_palette)
+        top_k_microbes, top_k_metabolites, keep_top_samples, level, normalize,
+        color_palette)
 
     hotmaps.savefig(join(output_dir, 'heatmap.pdf'), bbox_inches='tight')
     hotmaps.savefig(join(output_dir, 'heatmap.png'), bbox_inches='tight')

@@ -108,7 +108,8 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
 
 def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
                     features=None, top_k_microbes=2, top_k_metabolites=50,
-                    level=-1, normalize='log10', color_palette='magma'):
+                    keep_top_samples=True, level=-1, normalize='log10',
+                    color_palette='magma'):
     '''
     Creates paired heatmaps of microbe abundances and metabolite abundances.
 
@@ -124,9 +125,14 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
         Microbe metadata for annotating plots
     features: list
         Select microbial feature IDs to display on paired heatmap.
+    top_k_microbes: int
+        Select top k microbes with highest abundances to display on heatmap.
     top_k_metabolites: int
         Select top k metabolites associated with the chosen features to
         display on heatmap.
+    keep_top_samples: bool
+        Toggle whether to display only samples in which selected microbes are
+        the most abundant ASV.
     level: int
         taxonomic level for annotating clustermap.
         Set to -1 if not parsing semicolon-delimited taxonomies.
@@ -152,9 +158,24 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     else:
         features = []
 
-    # find top k microbes (highest positive ranks)
+    microbes_table = microbes_table.to_dataframe().T
+    metabolites_table = metabolites_table.to_dataframe().T
+
+    # optionally normalize tables
+    if normalize != 'None':
+        microbes_table = _normalize_table(microbes_table, normalize)
+        metabolites_table = _normalize_table(metabolites_table, normalize)
+        cbar_label = normalize + ' Frequency'
+    else:
+        cbar_label = 'Frequency'
+
+    # find top k microbes (highest relative abundances)
     if top_k_microbes is not None:
-        top_microbes = ranks.max(axis=1).sort_values(ascending=False)
+        # select top relative abundances
+        top_microbes = microbes_table.apply(
+            lambda x: x / x.sum(), axis=1).sum().sort_values(ascending=False)
+        # TODO: add option for selecting top_k_microbes by rank
+        # top_microbes = ranks.max(axis=1).sort_values(ascending=False)
         top_microbes = top_microbes[:top_k_microbes].index
         # merge top k microbes with selected features
         # use list comprehension instead of casting as set to preserve order.
@@ -162,11 +183,14 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
 
     # filter select microbes from microbe table and sort by abundance
     sort_orders = [True] + [False] * (len(features) - 1)
-    select_microbes = microbes_table.copy().filter(features, 'observation')
-    select_microbes = select_microbes.to_dataframe().T
-    select_microbes = select_microbes[features]  # sort cols by features order
+    select_microbes = microbes_table[features]
     select_microbes = select_microbes.sort_values(
         features, ascending=sort_orders)
+
+    # select samples in which microbes are most abundant feature
+    if keep_top_samples:
+        select_microbes = select_microbes[select_microbes.apply(
+            np.argmax, axis=1).isin(features)]
 
     # find top 50 metabolites (highest positive ranks)
     microb_ranks = ranks.loc[features]
@@ -175,8 +199,7 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     top_metabolites = top_metabolites[:top_k_metabolites].index
 
     # grab top 50 metabolites in metabolite table
-    select_metabolites = metabolites_table.copy().filter(
-        top_metabolites, 'observation').to_dataframe().T
+    select_metabolites = metabolites_table[top_metabolites]
 
     # align sample IDs across tables
     select_microbes, select_metabolites = select_microbes.align(
@@ -191,15 +214,6 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     else:
         annotations = select_microbes.columns
 
-    # optionally normalize data
-    if normalize is not None:
-        select_microbes = _normalize_by_column(select_microbes, normalize)
-        select_metabolites = _normalize_by_column(select_metabolites,
-                                                  normalize)
-        cbar_label = normalize + ' Frequency'
-    else:
-        cbar_label = 'Frequency'
-
     # generate heatmaps
     heatmaps, axes = plt.subplots(
         nrows=1, ncols=2, sharey=True, figsize=(12, 6))
@@ -210,8 +224,10 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     sns.heatmap(select_metabolites.values, cmap=color_palette,
                 cbar_kws={'label': cbar_label}, ax=axes[1],
                 xticklabels=False, yticklabels=False)
+    axes[0].set_title('Microbe abundances')
     axes[0].set_ylabel('Samples')
     axes[0].set_xlabel('Microbes')
+    axes[1].set_title('Metabolite abundances')
     axes[1].set_xlabel('Metabolites')
 
     return select_microbes, select_metabolites, heatmaps
@@ -298,7 +314,7 @@ def _warn_metadata_filtering(metadata_type):
     warnings.warn(warning, UserWarning)
 
 
-def _normalize_by_column(table, method):
+def _normalize_table(table, method):
     '''
     Normalize column data in a dataframe for plotting in clustermap.
 
@@ -309,7 +325,14 @@ def _normalize_by_column(table, method):
 
     Returns normalized table as pd.DataFrame
     '''
-    if method == 'z_score':
-        return (table - table.mean()) / table.std()
+    if 'col' in method:
+        axis = 0
+    elif 'row' in method:
+        axis = 1
+    if 'z_score' in method:
+        res = table.apply(lambda x: (x - x.mean()) / x.std(), axis=axis)
+    elif 'rel' in method:
+        res = table.apply(lambda x: x / x.sum(), axis=axis)
     elif method == 'log10':
-        return table.apply(lambda x: np.log10(x + 1))
+        res = table.apply(lambda x: np.log10(x + 1))
+    return res.fillna(0)
