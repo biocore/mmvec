@@ -134,7 +134,7 @@ plugin.visualizers.register_function(
         'color_palette': Str % Choices(_cmaps['heatmap']),
         'normalize': Str % Choices(['log10', 'z_score_col', 'z_score_row',
                                     'rel_row', 'rel_col', 'None']),
-        'top_k_metabolites': Int % Range(1, None),
+        'top_k_metabolites': Int % Range(1, None) | Str % Choices(['all']),
         'keep_top_samples': Bool,
         'level': Int % Range(-1, None),
     },
@@ -156,7 +156,7 @@ plugin.visualizers.register_function(
         'top_k_metabolites': 'Select top k metabolites associated with the '
                              'chosen features to display on heatmap.',
         'keep_top_samples': 'Display only samples in which at least one of '
-                            'the selected microbes are the most abundant '
+                            'the selected microbes is the most abundant '
                             'feature.',
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '

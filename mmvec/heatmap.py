@@ -1,6 +1,7 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import warnings
 
 
@@ -181,25 +182,27 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
         # use list comprehension instead of casting as set to preserve order.
         features = features + [f for f in top_microbes if f not in features]
 
+    # select samples in which microbes are most abundant feature
+    if keep_top_samples:
+        select_microbes = microbes_table[microbes_table.apply(
+            pd.Series.idxmax, axis=1).isin(features)]
+
     # filter select microbes from microbe table and sort by abundance
-    sort_orders = [True] + [False] * (len(features) - 1)
-    select_microbes = microbes_table[features]
+    sort_orders = [False] + [True] * (len(features) - 1)
+    select_microbes = select_microbes[features]
     select_microbes = select_microbes.sort_values(
         features, ascending=sort_orders)
 
-    # select samples in which microbes are most abundant feature
-    if keep_top_samples:
-        select_microbes = select_microbes[select_microbes.apply(
-            np.argmax, axis=1).isin(features)]
-
-    # find top 50 metabolites (highest positive ranks)
-    microb_ranks = ranks.loc[features]
-    top_metabolites = microb_ranks.max()
-    top_metabolites = top_metabolites.sort_values(ascending=False)
-    top_metabolites = top_metabolites[:top_k_metabolites].index
-
-    # grab top 50 metabolites in metabolite table
-    select_metabolites = metabolites_table[top_metabolites]
+    # find top K metabolites (highest positive ranks)
+    if top_k_metabolites != 'all':
+        microb_ranks = ranks.loc[features]
+        top_metabolites = microb_ranks.max()
+        top_metabolites = top_metabolites.sort_values(ascending=False)
+        top_metabolites = top_metabolites[:top_k_metabolites].index
+        # grab top K metabolites in metabolite table
+        select_metabolites = metabolites_table[top_metabolites]
+    else:
+        select_metabolites = metabolites_table
 
     # align sample IDs across tables
     select_microbes, select_metabolites = select_microbes.align(
@@ -215,15 +218,14 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
         annotations = select_microbes.columns
 
     # generate heatmaps
-    heatmaps, axes = plt.subplots(
-        nrows=1, ncols=2, sharey=True, figsize=(12, 6))
+    heatmaps, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
     sns.heatmap(select_microbes.values, cmap=color_palette,
                 cbar_kws={'label': cbar_label}, ax=axes[0],
-                xticklabels=annotations, yticklabels=False)
+                xticklabels=annotations, yticklabels=False, robust=True)
     sns.heatmap(select_metabolites.values, cmap=color_palette,
                 cbar_kws={'label': cbar_label}, ax=axes[1],
-                xticklabels=False, yticklabels=False)
+                xticklabels=False, yticklabels=False, robust=True)
     axes[0].set_title('Microbe abundances')
     axes[0].set_ylabel('Samples')
     axes[0].set_xlabel('Microbes')
