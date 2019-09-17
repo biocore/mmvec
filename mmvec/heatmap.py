@@ -129,7 +129,7 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     top_k_microbes: int
         Select top k microbes with highest abundances to display on heatmap.
     top_k_metabolites: int
-        Select top k metabolites associated with the chosen features to
+        Select top k metabolites associated with each of the chosen features to
         display on heatmap.
     keep_top_samples: bool
         Toggle whether to display only samples in which selected microbes are
@@ -193,12 +193,15 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     select_microbes = select_microbes.sort_values(
         features, ascending=sort_orders)
 
-    # find top K metabolites (highest positive ranks)
+    # find top K metabolites (highest positive ranks) for each microbe
     if top_k_metabolites != 'all':
-        microb_ranks = ranks.loc[features]
-        top_metabolites = microb_ranks.max()
-        top_metabolites = top_metabolites.sort_values(ascending=False)
-        top_metabolites = top_metabolites[:top_k_metabolites].index
+        top_metabolites = dict.fromkeys(m for x in [ranks.loc[f].sort_values(
+            ascending=False)[:top_k_metabolites].index
+            for f in features] for m in x).keys()
+        # microb_ranks = ranks.loc[features]
+        # top_metabolites = microb_ranks.max()
+        # top_metabolites = top_metabolites.sort_values(ascending=False)
+        # top_metabolites = top_metabolites[:top_k_metabolites].index
         # grab top K metabolites in metabolite table
         select_metabolites = metabolites_table[top_metabolites]
     else:

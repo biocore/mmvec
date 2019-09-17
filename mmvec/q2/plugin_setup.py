@@ -150,11 +150,12 @@ plugin.visualizers.register_function(
                     'microbial features in order of log conditional '
                     'probability maximum values.',
         'top_k_microbes': 'Select top k microbes (those with the highest '
-                          'relative abundances) to display on the heatmap.',
+                          'relative abundances) to display on the heatmap. '
+                          'Set to "all" to display all metabolites.',
         'color_palette': 'Color palette for clustermap.',
         'normalize': 'Optionally normalize heatmap values by columns or rows.',
-        'top_k_metabolites': 'Select top k metabolites associated with the '
-                             'chosen features to display on heatmap.',
+        'top_k_metabolites': 'Select top k metabolites associated with each '
+                             'of the chosen features to display on heatmap.',
         'keep_top_samples': 'Display only samples in which at least one of '
                             'the selected microbes is the most abundant '
                             'feature.',
