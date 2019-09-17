@@ -198,11 +198,6 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
         top_metabolites = dict.fromkeys(m for x in [ranks.loc[f].sort_values(
             ascending=False)[:top_k_metabolites].index
             for f in features] for m in x).keys()
-        # microb_ranks = ranks.loc[features]
-        # top_metabolites = microb_ranks.max()
-        # top_metabolites = top_metabolites.sort_values(ascending=False)
-        # top_metabolites = top_metabolites[:top_k_metabolites].index
-        # grab top K metabolites in metabolite table
         select_metabolites = metabolites_table[top_metabolites]
     else:
         select_metabolites = metabolites_table
