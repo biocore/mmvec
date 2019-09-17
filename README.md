@@ -138,26 +138,47 @@ values indicate no relationship, not necessarily a negative correlation. Rows
 (microbial features) can be annotated according to feature metadata, as shown
 in this example; we provide a taxonomic classification file and the semicolon-
 delimited taxonomic rank (`level`) that should be displayed in the color-coded
-margin annotation. Set `level` to `-1` to display the full annotation (including of non-delimited feature metadata). Separate parameters are available to annotate the x-axis (metabolites) in a similar fashion. Row and column clustering can be adjusted using the `method` and `metric` parameters. This action will generate a heatmap that looks similar to this:
+margin annotation. Set `level` to `-1` to display the full annotation
+(including of non-delimited feature metadata). Separate parameters are
+available to annotate the x-axis (metabolites) in a similar fashion. Row and
+column clustering can be adjusted using the `method` and `metric` parameters.
+This action will generate a heatmap that looks similar to this:
 
 ![heatmap](https://github.com/biocore/mmvec/raw/master/img/heatmap.png "Heatmap")
 
-Biplots and heatmaps give a great overview of co-occurrence associations, but do not provide information about the abundance of these co-occurring features in each sample. This can be done with the `paired-heatmap` action:
+Biplots and heatmaps give a great overview of co-occurrence associations, but
+do not provide information about the abundances of these co-occurring features
+in each sample. This can be done with the `paired-heatmap` action:
 
 ```
 qiime mmvec paired-heatmap \
   --i-ranks ranks.qza \
   --i-microbes-table otus_nt.qza \
   --i-metabolites-table lcms_nt.qza \
-  --p-top-k-microbes 2 \
-  --m-microbe-metadata-file taxonomy.tsv \
+	--m-microbe-metadata-file taxonomy.tsv \
   --m-microbe-metadata-column Taxon \
-  --p-top-k-metabolites 25 \
-  --p-level 5 \
+	--p-features TACGAAGGGTGCAAGCGTTAATCGGAATTACTGGGCGTAAAGCGCGCGTAGGTGGTTCAGCAAGTTGGATGTGAAATCCCCGGGCTCAACCTGGGAACTGCATCCAAAACTACTGAGCTAGAGTACGGTAGAGGGTGGTGGAATTTCCTG \
+  --p-features TACGTAGGTCCCGAGCGTTGTCCGGATTTATTGGGCGTAAAGCGAGCGCAGGCGGTTAGATAAGTCTGAAGTTAAAGGCTGTGGCTTAACCATAGTAGGCTTTGGAAACTGTTTAACTTGAGTGCAAGAGGGGAGAGTGGAATTCCATGT \
+  --p-top-k-microbes 0 \
+	--p-normalize rel_row \
+  --p-top-k-metabolites 100 \
+  --p-level 6 \
   --o-visualization paired-heatmap-top2.qzv
 ```
 
-This action generates paired heatmaps that are aligned on the y-axis (sample IDs): the left panel displays the abundances of each selected microbial feature in each sample, and the right panel displays the abundances of the top k metabolite features associated with these microbes in each sample. Microbes can be selected automatically using the `top-k-microbes` parameter (which selects the microbes with the top k highest log conditional probability scores) or they can be selected by name using the `features` parameter (if using the QIIME 2 plugin command-line interface as shown in this example, multiple features are selected by passing this parameter multiple times, e.g., `--p-features feature1 --p-features feature2`; for python interfaces, pass a list of features: `features=[feature1, feature2]`). As with the `heatmap` action, microbial features can be annotated by passing in `microbe-metadata` and specifying a taxonomic `level` to display. The output looks something like this:
+This action generates paired heatmaps that are aligned on the y-axis (sample
+IDs): the left panel displays the abundances of each selected microbial feature
+in each sample, and the right panel displays the abundances of the top k
+metabolite features associated with each of these microbes in each sample.
+Microbes can be selected automatically using the `top-k-microbes` parameter
+(which selects the microbes with the top k highest relative abundances) or they
+can be selected by name using the `features` parameter (if using the QIIME 2
+plugin command-line interface as shown in this example, multiple features are
+selected by passing this parameter multiple times, e.g., `--p-features feature1
+--p-features feature2`; for python interfaces, pass a list of features:
+`features=[feature1, feature2]`). As with the `heatmap` action, microbial
+features can be annotated by passing in `microbe-metadata` and specifying a
+taxonomic `level` to display. The output looks something like this:
 
 ![paired-heatmap](https://github.com/biocore/mmvec/raw/master/img/paired-heatmap.png "Paired Heatmap")
 
