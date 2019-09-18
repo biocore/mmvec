@@ -10,14 +10,14 @@ import qiime2.plugin
 import qiime2.sdk
 from mmvec import __version__, _heatmap_choices, _cmaps
 from qiime2.plugin import (Str, Properties, Int, Float, Metadata, Bool,
-                           MetadataColumn, Categorical, Range, Choices)
+                           MetadataColumn, Categorical, Range, Choices, List)
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
 from q2_types.ordination import PCoAResults
 
 from mmvec.q2 import (
     Conditional, ConditionalFormat, ConditionalDirFmt,
-    paired_omics, heatmap
+    paired_omics, heatmap, paired_heatmap
 )
 
 plugin = qiime2.plugin.Plugin(
@@ -119,6 +119,58 @@ plugin.visualizers.register_function(
     },
     name='Conditional probability heatmap',
     description="Generate heatmap depicting mmvec conditional probabilities.",
+    citations=[]
+)
+
+plugin.visualizers.register_function(
+    function=paired_heatmap,
+    inputs={'ranks': FeatureData[Conditional],
+            'microbes_table': FeatureTable[Frequency],
+            'metabolites_table': FeatureTable[Frequency]},
+    parameters={
+        'microbe_metadata': MetadataColumn[Categorical],
+        'features': List[Str],
+        'top_k_microbes': Int % Range(0, None),
+        'color_palette': Str % Choices(_cmaps['heatmap']),
+        'normalize': Str % Choices(['log10', 'z_score_col', 'z_score_row',
+                                    'rel_row', 'rel_col', 'None']),
+        'top_k_metabolites': Int % Range(1, None) | Str % Choices(['all']),
+        'keep_top_samples': Bool,
+        'level': Int % Range(-1, None),
+    },
+    input_descriptions={'ranks': 'Conditional probabilities.',
+                        'microbes_table': 'Microbial feature abundances.',
+                        'metabolites_table': 'Metabolite feature abundances.'},
+    parameter_descriptions={
+        'microbe_metadata': 'Optional microbe metadata for annotating plots.',
+        'features': 'Microbial feature IDs to display in heatmap. Use this '
+                    'parameter to include named feature IDs in the heatmap. '
+                    'Can be used in conjunction with top_k_microbes, in which '
+                    'case named features will be displayed first, then top '
+                    'microbial features in order of log conditional '
+                    'probability maximum values.',
+        'top_k_microbes': 'Select top k microbes (those with the highest '
+                          'relative abundances) to display on the heatmap. '
+                          'Set to "all" to display all metabolites.',
+        'color_palette': 'Color palette for clustermap.',
+        'normalize': 'Optionally normalize heatmap values by columns or rows.',
+        'top_k_metabolites': 'Select top k metabolites associated with each '
+                             'of the chosen features to display on heatmap.',
+        'keep_top_samples': 'Display only samples in which at least one of '
+                            'the selected microbes is the most abundant '
+                            'feature.',
+        'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
+                 'parsing semicolon-delimited taxonomies or wish to print '
+                 'entire annotation.',
+    },
+    name='Paired feature abundance heatmaps',
+    description="Generate paired heatmaps that depict microbial and "
+                "metabolite feature abundances. The left panel displays the "
+                "abundance of each selected microbial feature in each sample. "
+                "The right panel displays the abundances of the top k "
+                "metabolites most highly correlated with these microbes in "
+                "each sample. The y-axis (sample axis) is shared between each "
+                "panel.",
     citations=[]
 )
 

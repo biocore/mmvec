@@ -2,7 +2,8 @@ import unittest
 import pandas as pd
 from mmvec.heatmap import (
     _parse_taxonomy_strings, _parse_heatmap_metadata_annotations,
-    _process_microbe_metadata, _process_metabolite_metadata)
+    _process_microbe_metadata, _process_metabolite_metadata,
+    _normalize_table)
 import pandas.util.testing as pdt
 
 
@@ -125,3 +126,46 @@ class TestMetadataProcessing(unittest.TestCase):
                 ranks_filtered, self.metabolites, 'magma')
         ranks_filtered = ranks_filtered[[c for c in 'abc']]
         pdt.assert_frame_equal(ranks_filtered, res[1])
+
+
+class TestNormalize(unittest.TestCase):
+
+    def setUp(self):
+        self.tab = pd.DataFrame({'a': [1, 2, 3], 'b': [3, 4, 3]})
+
+    def test_normalize_table_log10(self):
+        res = _normalize_table(self.tab, 'log10')
+        exp = pd.DataFrame(
+            {'a': {0: 0.3010299956639812, 1: 0.47712125471966244,
+                   2: 0.6020599913279624},
+             'b': {0: 0.6020599913279624, 1: 0.6989700043360189,
+                   2: 0.6020599913279624}})
+        pdt.assert_frame_equal(res, exp)
+
+    def test_normalize_table_z_score_col(self):
+        res = _normalize_table(self.tab, 'z_score_col')
+        exp = pd.DataFrame({'a': {0: -1.0, 1: 0.0, 2: 1.0},
+                            'b': {0: -0.577350269189626, 1: 1.154700538379251,
+                                  2: -0.577350269189626}})
+        pdt.assert_frame_equal(res, exp)
+
+    def test_normalize_table_rel_col(self):
+        res = _normalize_table(self.tab, 'rel_col')
+        exp = pd.DataFrame({'a': {0: 0.16666666666666666,
+                                  1: 0.3333333333333333, 2: 0.5},
+                            'b': {0: 0.3, 1: 0.4, 2: 0.3}})
+        pdt.assert_frame_equal(res, exp)
+
+    def test_normalize_table_z_score_row(self):
+        res = _normalize_table(self.tab, 'z_score_row')
+        exp = pd.DataFrame({'a': {0: -0.7071067811865475,
+                                  1: -0.7071067811865475, 2: 0.0},
+                            'b': {0: 0.7071067811865475, 1: 0.7071067811865475,
+                                  2: 0.0}})
+        pdt.assert_frame_equal(res, exp)
+
+    def test_normalize_table_rel_row(self):
+        res = _normalize_table(self.tab, 'rel_row')
+        exp = pd.DataFrame({'a': {0: 0.25, 1: 0.3333333333333333, 2: 0.5},
+                            'b': {0: 0.75, 1: 0.6666666666666666, 2: 0.5}})
+        pdt.assert_frame_equal(res, exp)

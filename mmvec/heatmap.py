@@ -1,5 +1,7 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import warnings
 
 
@@ -105,6 +107,132 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
     return hotmap
 
 
+def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
+                    features=None, top_k_microbes=2, top_k_metabolites=50,
+                    keep_top_samples=True, level=-1, normalize='log10',
+                    color_palette='magma'):
+    '''
+    Creates paired heatmaps of microbe abundances and metabolite abundances.
+
+    Parameters
+    ----------
+    ranks: pd.DataFrame of conditional probabilities.
+        Microbes (rows) X metabolites (columns).
+    microbes_table: biom.Table
+        Microbe feature abundances per sample.
+    metabolites_table: biom.Table
+        Metabolite feature abundances per sample.
+    microbe_metadata: pd.Series
+        Microbe metadata for annotating plots
+    features: list
+        Select microbial feature IDs to display on paired heatmap.
+    top_k_microbes: int
+        Select top k microbes with highest abundances to display on heatmap.
+    top_k_metabolites: int
+        Select top k metabolites associated with each of the chosen features to
+        display on heatmap.
+    keep_top_samples: bool
+        Toggle whether to display only samples in which selected microbes are
+        the most abundant ASV.
+    level: int
+        taxonomic level for annotating clustermap.
+        Set to -1 if not parsing semicolon-delimited taxonomies.
+    normalize: str
+        Column normalization strategy to use for heatmaps. Must
+        be "log10", "z_score", or None
+    color_palette: str
+        Color palette for heatmaps.
+    '''
+    if top_k_microbes is features is None:
+        raise ValueError('Must select features by name and/or use the '
+                         'top_k_microbes parameter to select features to '
+                         'include in the heatmap.')
+
+    # validate microbes
+    if features is not None:
+        microbe_ids = set(microbes_table.ids('observation'))
+        missing_microbes = set(features) - microbe_ids
+        if len(missing_microbes) > 0:
+            raise ValueError('features must represent feature IDs in '
+                             'microbes_table. Missing microbe(s): {0}'.format(
+                                missing_microbes))
+    else:
+        features = []
+
+    microbes_table = microbes_table.to_dataframe().T
+    metabolites_table = metabolites_table.to_dataframe().T
+
+    # optionally normalize tables
+    if normalize != 'None':
+        microbes_table = _normalize_table(microbes_table, normalize)
+        metabolites_table = _normalize_table(metabolites_table, normalize)
+        cbar_label = normalize + ' Frequency'
+    else:
+        cbar_label = 'Frequency'
+
+    # find top k microbes (highest relative abundances)
+    if top_k_microbes is not None:
+        # select top relative abundances
+        top_microbes = microbes_table.apply(
+            lambda x: x / x.sum(), axis=1).sum().sort_values(ascending=False)
+        # TODO: add option for selecting top_k_microbes by rank
+        # top_microbes = ranks.max(axis=1).sort_values(ascending=False)
+        top_microbes = top_microbes[:top_k_microbes].index
+        # merge top k microbes with selected features
+        # use list comprehension instead of casting as set to preserve order.
+        features = features + [f for f in top_microbes if f not in features]
+
+    # select samples in which microbes are most abundant feature
+    if keep_top_samples:
+        select_microbes = microbes_table[microbes_table.apply(
+            pd.Series.idxmax, axis=1).isin(features)]
+
+    # filter select microbes from microbe table and sort by abundance
+    sort_orders = [False] + [True] * (len(features) - 1)
+    select_microbes = select_microbes[features]
+    select_microbes = select_microbes.sort_values(
+        features, ascending=sort_orders)
+
+    # find top K metabolites (highest positive ranks) for each microbe
+    if top_k_metabolites != 'all':
+        top_metabolites = dict.fromkeys(m for x in [ranks.loc[f].sort_values(
+            ascending=False)[:top_k_metabolites].index
+            for f in features] for m in x).keys()
+        select_metabolites = metabolites_table[top_metabolites]
+    else:
+        select_metabolites = metabolites_table
+
+    # align sample IDs across tables
+    select_microbes, select_metabolites = select_microbes.align(
+        select_metabolites, join='inner', axis=0)
+
+    # optionally annotate microbe data with taxonomy
+    if microbe_metadata is not None:
+        annotations = microbe_metadata.reindex(select_microbes.columns)
+        # parse semicolon-delimited taxonomy
+        if level > -1:
+            annotations = _parse_taxonomy_strings(annotations, level)
+    else:
+        annotations = select_microbes.columns
+
+    # generate heatmaps
+    heatmaps, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+
+    sns.heatmap(select_microbes.values, cmap=color_palette,
+                cbar_kws={'label': cbar_label}, ax=axes[0],
+                xticklabels=annotations, yticklabels=False, robust=True)
+    sns.heatmap(select_metabolites.values, cmap=color_palette,
+                cbar_kws={'label': cbar_label}, ax=axes[1],
+                xticklabels=False, yticklabels=False, robust=True)
+    axes[0].set_title('Microbe abundances')
+    axes[0].set_ylabel('Samples')
+    axes[0].set_xlabel('Microbes')
+    axes[1].set_title('Metabolite abundances')
+    axes[1].set_xlabel('Metabolites')
+
+    return select_microbes, select_metabolites, heatmaps
+
+
 def _parse_heatmap_metadata_annotations(metadata_column, margin_palette):
     '''
     Transform feature or sample metadata into color vector for annotating
@@ -184,3 +312,27 @@ def _warn_metadata_filtering(metadata_type):
                'present in both the table and the metadata '
                'file'.format(metadata_type))
     warnings.warn(warning, UserWarning)
+
+
+def _normalize_table(table, method):
+    '''
+    Normalize column data in a dataframe for plotting in clustermap.
+
+    table: pd.DataFrame
+        Input data.
+    method: str
+        Normalization method to use.
+
+    Returns normalized table as pd.DataFrame
+    '''
+    if 'col' in method:
+        axis = 0
+    elif 'row' in method:
+        axis = 1
+    if 'z_score' in method:
+        res = table.apply(lambda x: (x - x.mean()) / x.std(), axis=axis)
+    elif 'rel' in method:
+        res = table.apply(lambda x: x / x.sum(), axis=axis)
+    elif method == 'log10':
+        res = table.apply(lambda x: np.log10(x + 1))
+    return res.fillna(0)
