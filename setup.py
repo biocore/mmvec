@@ -66,5 +66,5 @@ setup(name='mmvec',
       entry_points={
           'qiime2.plugins': ['q2-mmvec=mmvec.q2.plugin_setup:plugin']
       },
-      package_data={},
+      package_data={'mmvec': ['q2/assets/*.html']},
       zip_safe=False)
