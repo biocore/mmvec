@@ -75,7 +75,9 @@ def paired_omics(microbes: biom.Table,
         ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
         ranks = ranks - ranks.mean(axis=0)
         u, s, v = svds(ranks, k=latent_dim)
-
+        s = s[::-1]
+        u = u[:, ::-1]
+        v = v[::-1, :]
         microbe_embed = u @ np.diag(s)
         metabolite_embed = v.T
 
