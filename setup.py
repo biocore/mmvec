@@ -13,7 +13,7 @@ from glob import glob
 from setuptools import find_packages, setup
 
 classes = """
-    Development Status :: 5 - Production / Stable
+    Development Status :: 5 - Production/Stable
     License :: OSI Approved :: BSD License
     Topic :: Software Development :: Libraries
     Topic :: Scientific/Engineering
