@@ -1,5 +1,14 @@
 # mmvec changelog
 
+## Version 1.0.0 (2019-09-30)
+# Enhancements
+ - Paired heatmaps are available [#89](https://github.com/biocore/mmvec/pull/89)
+ - Heatmap tutorials are available [#90](https://github.com/biocore/mmvec/pull/90)
+
+# Bug fixes
+ - The ordering of the eigenvalues are now reversed [#92](https://github.com/biocore/mmvec/pull/92)
+ - The qiime2 assets setup is corrected [#91](https://github.com/biocore/mmvec/pull/91)
+
 ## Version 0.6.0 (2019-09-05)
 
 # Enhancements
