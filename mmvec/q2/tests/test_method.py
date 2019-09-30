@@ -59,6 +59,12 @@ class TestMMvec(unittest.TestCase):
             res_biplot.features.shape,
             np.array([self.metabolites.shape[0], latent_dim]))
 
+        # make sure that the biplot has the correct ordering
+        self.assertGreater(res_biplot.proportion_explained[0],
+                           res_biplot.proportion_explained[1])
+        self.assertGreater(res_biplot.eigvals[0],
+                           res_biplot.eigvals[1])
+
 
 if __name__ == "__main__":
     unittest.main()
