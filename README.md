@@ -125,8 +125,8 @@ qiime mmvec heatmap \
   --i-ranks ranks.qza \
   --m-microbe-metadata-file taxonomy.tsv \
   --m-microbe-metadata-column Taxon \
-	--m-metabolite-metadata-file metabolite-metadata.txt \
-	--m-metabolite-metadata-column Compound_Source \
+  --m-metabolite-metadata-file metabolite-metadata.txt \
+  --m-metabolite-metadata-column Compound_Source \
   --p-level 5 \
   --o-visualization ranks-heatmap.qzv
 ```
@@ -155,12 +155,12 @@ qiime mmvec paired-heatmap \
   --i-ranks ranks.qza \
   --i-microbes-table otus_nt.qza \
   --i-metabolites-table lcms_nt.qza \
-	--m-microbe-metadata-file taxonomy.tsv \
+  --m-microbe-metadata-file taxonomy.tsv \
   --m-microbe-metadata-column Taxon \
-	--p-features TACGAAGGGTGCAAGCGTTAATCGGAATTACTGGGCGTAAAGCGCGCGTAGGTGGTTCAGCAAGTTGGATGTGAAATCCCCGGGCTCAACCTGGGAACTGCATCCAAAACTACTGAGCTAGAGTACGGTAGAGGGTGGTGGAATTTCCTG \
+  --p-features TACGAAGGGTGCAAGCGTTAATCGGAATTACTGGGCGTAAAGCGCGCGTAGGTGGTTCAGCAAGTTGGATGTGAAATCCCCGGGCTCAACCTGGGAACTGCATCCAAAACTACTGAGCTAGAGTACGGTAGAGGGTGGTGGAATTTCCTG \
   --p-features TACGTAGGTCCCGAGCGTTGTCCGGATTTATTGGGCGTAAAGCGAGCGCAGGCGGTTAGATAAGTCTGAAGTTAAAGGCTGTGGCTTAACCATAGTAGGCTTTGGAAACTGTTTAACTTGAGTGCAAGAGGGGAGAGTGGAATTCCATGT \
   --p-top-k-microbes 0 \
-	--p-normalize rel_row \
+  --p-normalize rel_row \
   --p-top-k-metabolites 100 \
   --p-level 6 \
   --o-visualization paired-heatmap-top2.qzv
