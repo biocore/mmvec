@@ -1,6 +1,6 @@
 # mmvec changelog
 
-## Version 1.0.1 (2019-10-176)
+## Version 1.0.1 (2019-10-17)
 # Enhancements
  - Ranks are transposed and viewable in qiime metadata tabulate [#99](https://github.com/biocore/mmvec/pull/99)
 
