@@ -1,5 +1,12 @@
 # mmvec changelog
 
+## Version 1.0.1 (2019-10-176)
+# Enhancements
+ - Ranks are transposed and viewable in qiime metadata tabulate [#99](https://github.com/biocore/mmvec/pull/99)
+
+# Bug fixes
+ - Ranks are now calculated consistently between q2 and standalone cli [#99](https://github.com/biocore/mmvec/pull/99)
+
 ## Version 1.0.0 (2019-09-30)
 # Enhancements
  - Paired heatmaps are available [#89](https://github.com/biocore/mmvec/pull/89)
