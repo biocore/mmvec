@@ -113,12 +113,10 @@ class TestMMvecSoilsBenchmark(unittest.TestCase):
                 (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
             modelV = np.vstack(
                 (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
-
-            ranks = pd.DataFrame(
-                np.hstack((np.zeros((d1, 1)), modelU @ modelV)),
+            ranks = pd.DataFrame(model.ranks(),
                 index=self.microbes.ids(axis='observation'),
                 columns=self.metabolites.ids(axis='observation'))
-            ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
+
             microcoleus_metabolites = [
                 '(3-methyladenine)', '7-methyladenine', '4-guanidinobutanoate',
                 'uracil', 'xanthine', 'hypoxanthine', '(N6-acetyl-lysine)',
