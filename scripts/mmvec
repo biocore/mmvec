@@ -192,12 +192,12 @@ def paired_omics(microbe_file, metabolite_file,
         ranks = pd.DataFrame(model.U @ V.T, index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
         ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
+        u, s, v = svds(ranks - ranks.mean(axis=0), k=latent_dim)
+        ranks = ranks.T
         ranks.index.name = 'featureid'
-        ranks.T.to_csv(ranks_file, sep='\t')
+        ranks.to_csv(ranks_file, sep='\t')
 
         # Save to an ordination file
-        ranks = ranks - ranks.mean(axis=0)
-        u, s, v = svds(ranks, k=latent_dim)
         s = s[::-1]
         u = u[:, ::-1]
         v = v[::-1, :]
