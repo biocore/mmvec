@@ -50,11 +50,6 @@ class TestMMvec(unittest.TestCase):
                   coo_matrix(self.testX.values), self.testY.values)
             model.fit(epoch=1000)
 
-            modelU = np.hstack(
-                (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
-            modelV = np.vstack(
-                (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
-
             U_ = np.hstack(
                 (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))
             V_ = np.vstack(
@@ -109,11 +104,8 @@ class TestMMvecSoilsBenchmark(unittest.TestCase):
                   coo_matrix(self.testX.values), self.testY.values)
             model.fit(epoch=1000)
 
-            modelU = np.hstack(
-                (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
-            modelV = np.vstack(
-                (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
-            ranks = pd.DataFrame(model.ranks(),
+            ranks = pd.DataFrame(
+                model.ranks(),
                 index=self.microbes.ids(axis='observation'),
                 columns=self.metabolites.ids(axis='observation'))
 
