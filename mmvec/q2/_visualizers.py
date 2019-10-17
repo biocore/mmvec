@@ -26,7 +26,7 @@ def heatmap(output_dir: str,
     if metabolite_metadata is not None:
         metabolite_metadata = metabolite_metadata.to_series()
 
-    hotmap = ranks_heatmap(ranks, microbe_metadata, metabolite_metadata,
+    hotmap = ranks_heatmap(ranks.T, microbe_metadata, metabolite_metadata,
                            method, metric, color_palette, margin_palette,
                            x_labels, y_labels, level)
 
@@ -55,7 +55,7 @@ def paired_heatmap(output_dir: str,
     if microbe_metadata is not None:
         microbe_metadata = microbe_metadata.to_series()
     select_microbes, select_metabolites, hotmaps = paired_heatmaps(
-        ranks, microbes_table, metabolites_table, microbe_metadata, features,
+        ranks.T, microbes_table, metabolites_table, microbe_metadata, features,
         top_k_microbes, top_k_metabolites, keep_top_samples, level, normalize,
         color_palette)
 

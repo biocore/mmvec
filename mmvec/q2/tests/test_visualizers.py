@@ -14,7 +14,7 @@ class TestHeatmap(unittest.TestCase):
         _ranks = pd.DataFrame([[4.1, 1.3, 2.1], [0.1, 0.3, 0.2],
                                [2.2, 4.3, 3.2], [-6.3, -4.4, 2.1]],
                               index=pd.Index([c for c in 'ABCD'], name='id'),
-                              columns=['m1', 'm2', 'm3'])
+                              columns=['m1', 'm2', 'm3']).T
         self.ranks = Artifact.import_data('FeatureData[Conditional]', _ranks)
         self.taxa = CategoricalMetadataColumn(pd.Series([
             'k__Bacteria; p__Proteobacteria; c__Deltaproteobacteria; '
@@ -53,7 +53,7 @@ class TestPairedHeatmap(unittest.TestCase):
         _ranks = pd.DataFrame([[4.1, 1.3, 2.1], [0.1, 0.3, 0.2],
                                [2.2, 4.3, 3.2], [-6.3, -4.4, 2.1]],
                               index=pd.Index([c for c in 'ABCD'], name='id'),
-                              columns=['m1', 'm2', 'm3'])
+                              columns=['m1', 'm2', 'm3']).T
         self.ranks = Artifact.import_data('FeatureData[Conditional]', _ranks)
         self.taxa = CategoricalMetadataColumn(pd.Series([
             'k__Bacteria; p__Proteobacteria; c__Deltaproteobacteria; '

@@ -1,5 +1,9 @@
 # mmvec changelog
 
+## Version 1.0.2 (2019-10-18)
+# Bug fixes
+ - Inputs are now expected to be metabolites x microbes in heatmaps [#100](https://github.com/biocore/mmvec/pull/100)
+
 ## Version 1.0.1 (2019-10-17)
 # Enhancements
  - Ranks are transposed and viewable in qiime metadata tabulate [#99](https://github.com/biocore/mmvec/pull/99)
