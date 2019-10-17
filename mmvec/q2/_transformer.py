@@ -16,3 +16,14 @@ def _2(df: pd.DataFrame) -> ConditionalFormat:
     ff = ConditionalFormat()
     df.to_csv(str(ff), sep='\t', header=True, index=True)
     return ff
+
+@plugin.register_transformer
+def _3(ff: ConditionalFormat) -> qiime2.Metadata:
+    return qiime2.Metadata.load(str(ff))
+
+
+@plugin.register_transformer
+def _4(obj: qiime2.Metadata) -> ConditionalFormat:
+    ff = ConditionalFormat()
+    obj.save(str(ff))
+    return ff
