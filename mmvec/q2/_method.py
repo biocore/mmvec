@@ -56,23 +56,9 @@ def paired_omics(microbes: biom.Table,
 
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval)
 
-        U, V = model.U, model.V
+        ranks = pd.DataFrame(model.ranks(), index=train_microbes_df.columns,
+                             columns=train_metabolites_df.columns)
 
-        U_ = np.hstack(
-            (np.ones((model.U.shape[0], 1)),
-             model.Ubias.reshape(-1, 1), U)
-        )
-        V_ = np.vstack(
-            (model.Vbias.reshape(1, -1),
-             np.ones((1, model.V.shape[1])), V)
-        )
-
-        ranks = pd.DataFrame(
-            np.hstack((np.zeros((model.U.shape[0], 1)), U_ @ V_)),
-            index=train_microbes_df.columns,
-            columns=train_metabolites_df.columns)
-
-        ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
         u, s, v = svds(ranks - ranks.mean(axis=0), k=latent_dim)
         ranks = ranks.T
         ranks.index.name = 'featureid'

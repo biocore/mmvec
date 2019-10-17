@@ -12,6 +12,7 @@ import numpy.testing as npt
 class TestMMvec(unittest.TestCase):
 
     def setUp(self):
+        np.random.seed(1)
         res = random_multimodal(
             num_microbes=8, num_metabolites=8, num_samples=150,
             latent_dim=2, sigmaQ=2,
@@ -40,12 +41,14 @@ class TestMMvec(unittest.TestCase):
     def test_fit(self):
         np.random.seed(1)
         tf.reset_default_graph()
-        latent_dim = 2
         tf.set_random_seed(0)
+        latent_dim = 2
         res_ranks, res_biplot = paired_omics(
             self.microbes, self.metabolites,
-            epochs=1000, latent_dim=latent_dim
+            epochs=1000, latent_dim=latent_dim,
+            min_feature_count=1, learning_rate=0.1
         )
+        res_ranks = clr_inv(res_ranks.T)
         s_r, s_p = spearmanr(np.ravel(res_ranks), np.ravel(self.exp_ranks))
 
         self.assertGreater(s_r, 0.5)

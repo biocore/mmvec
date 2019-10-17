@@ -18,6 +18,7 @@ import tensorflow as tf
 class TestMMvec(unittest.TestCase):
     def setUp(self):
         # build small simulation
+        np.random.seed(1)
         res = random_multimodal(
             num_microbes=8, num_metabolites=8, num_samples=150,
             latent_dim=2, sigmaQ=2,
@@ -62,7 +63,7 @@ class TestMMvec(unittest.TestCase):
             u_r, u_p = spearmanr(pdist(model.U), pdist(self.U))
             v_r, v_p = spearmanr(pdist(model.V.T), pdist(self.V.T))
 
-            res = softmax(np.hstack((np.zeros((d1, 1)), modelU @ modelV)))
+            res = softmax(model.ranks())
             exp = softmax(np.hstack((np.zeros((d1, 1)), U_ @ V_)))
             s_r, s_p = spearmanr(np.ravel(res), np.ravel(exp))
 
