@@ -3,6 +3,8 @@
 # mmvec
 Neural networks for estimating microbe-metabolite interactions through their co-occurence probabilities.
 
+![](https://github.com/biocore/mmvec/raw/master/img/mmvec.png "mmvec")
+
 # Installation
 
 MMvec can be installed via pypi as follows
