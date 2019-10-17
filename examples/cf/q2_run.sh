@@ -8,6 +8,7 @@ qiime mmvec paired-omics \
       --p-learning-rate 1e-3 \
       --o-conditionals ranks.qza \
       --o-conditional-biplot biplot.qza \
+      --p-summary-interval 1 \
       --verbose
 
 qiime emperor biplot \
@@ -27,6 +28,5 @@ mmvec paired-omics \
       --metabolite-file lcms_nt.biom  \
       --epochs 100 \
       --learning-rate 1e-3 \
-      --summary-dir testing
-
-qiime tools import --input-path testing/latent_dim_3_input_prior_1.00_output_prior_1.00_beta1_0.90_beta2_0.95_ranks.txt --output-path ranks.qza --type FeatureData[Conditional]
+      --summary-interval 1 \
+      --summary-dir summary

@@ -11,7 +11,7 @@ class MMvec(object):
 
     def __init__(self, u_mean=0, u_scale=1, v_mean=0, v_scale=1,
                  batch_size=50, latent_dim=3,
-                 learning_rate=0.1, beta_1=0.9, beta_2=0.95,
+                 learning_rate=0.1, beta_1=0.8, beta_2=0.9,
                  clipnorm=10., device_name='/cpu:0', save_path=None):
         """ Build a tensorflow model for microbe-metabolite vectors
 
@@ -204,6 +204,16 @@ class MMvec(object):
                     zip(self.gradients, self.variables))
 
         tf.global_variables_initializer().run()
+
+    def ranks(self):
+        modelU = np.hstack(
+            (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))
+        modelV = np.vstack(
+            (self.Vbias, np.ones((1, self.V.shape[1])), self.V))
+
+        res = np.hstack((np.zeros((self.U.shape[0], 1)), modelU @ modelV))
+        res = res - res.mean(axis=1).reshape(-1, 1)
+        return res
 
     def fit(self, epoch=10, summary_interval=1000, checkpoint_interval=3600,
             testX=None, testY=None):

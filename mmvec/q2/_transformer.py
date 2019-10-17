@@ -1,3 +1,4 @@
+import qiime2
 import pandas as pd
 
 from mmvec.q2 import ConditionalFormat
@@ -16,3 +17,8 @@ def _2(df: pd.DataFrame) -> ConditionalFormat:
     ff = ConditionalFormat()
     df.to_csv(str(ff), sep='\t', header=True, index=True)
     return ff
+
+
+@plugin.register_transformer
+def _3(ff: ConditionalFormat) -> qiime2.Metadata:
+    return qiime2.Metadata.load(str(ff))

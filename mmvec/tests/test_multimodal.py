@@ -18,6 +18,7 @@ import tensorflow as tf
 class TestMMvec(unittest.TestCase):
     def setUp(self):
         # build small simulation
+        np.random.seed(1)
         res = random_multimodal(
             num_microbes=8, num_metabolites=8, num_samples=150,
             latent_dim=2, sigmaQ=2,
@@ -49,11 +50,6 @@ class TestMMvec(unittest.TestCase):
                   coo_matrix(self.testX.values), self.testY.values)
             model.fit(epoch=1000)
 
-            modelU = np.hstack(
-                (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
-            modelV = np.vstack(
-                (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
-
             U_ = np.hstack(
                 (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))
             V_ = np.vstack(
@@ -62,7 +58,7 @@ class TestMMvec(unittest.TestCase):
             u_r, u_p = spearmanr(pdist(model.U), pdist(self.U))
             v_r, v_p = spearmanr(pdist(model.V.T), pdist(self.V.T))
 
-            res = softmax(np.hstack((np.zeros((d1, 1)), modelU @ modelV)))
+            res = softmax(model.ranks())
             exp = softmax(np.hstack((np.zeros((d1, 1)), U_ @ V_)))
             s_r, s_p = spearmanr(np.ravel(res), np.ravel(exp))
 
@@ -108,16 +104,11 @@ class TestMMvecSoilsBenchmark(unittest.TestCase):
                   coo_matrix(self.testX.values), self.testY.values)
             model.fit(epoch=1000)
 
-            modelU = np.hstack(
-                (np.ones((model.U.shape[0], 1)), model.Ubias, model.U))
-            modelV = np.vstack(
-                (model.Vbias, np.ones((1, model.V.shape[1])), model.V))
-
             ranks = pd.DataFrame(
-                np.hstack((np.zeros((d1, 1)), modelU @ modelV)),
+                model.ranks(),
                 index=self.microbes.ids(axis='observation'),
                 columns=self.metabolites.ids(axis='observation'))
-            ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
+
             microcoleus_metabolites = [
                 '(3-methyladenine)', '7-methyladenine', '4-guanidinobutanoate',
                 'uracil', 'xanthine', 'hypoxanthine', '(N6-acetyl-lysine)',

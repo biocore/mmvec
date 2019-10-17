@@ -3,6 +3,8 @@
 # mmvec
 Neural networks for estimating microbe-metabolite interactions through their co-occurence probabilities.
 
+![](https://github.com/biocore/mmvec/raw/master/img/mmvec.png "mmvec")
+
 # Installation
 
 MMvec can be installed via pypi as follows
@@ -45,7 +47,7 @@ More information can found under `mmvec --help`
 
 # Qiime2 plugin
 
-If you want to make this qiime2 compatible, install this in your
+If you want to run this in a qiime environment, install this in your
 qiime2 conda environment (see qiime2 installation instructions [here](https://qiime2.org/)) and run the following
 
 ```
@@ -76,25 +78,21 @@ qiime mmvec paired-omics \
 	--o-conditionals ranks.qza \
 	--o-conditional-biplot biplot.qza
 ```
+
 In the results, there are two files, namely `results/conditional_biplot.qza` and `results/conditionals.qza`. The conditional biplot is a biplot representation the
 conditional probability matrix so that you can visualize these microbe-metabolite interactions in an exploratory manner.  This can be directly visualized in
 Emperor as shown below.  We also have the estimated conditional probability matrix given in `results/conditionals.qza`,
 which an be unzip to yield a tab-delimited table via `unzip results/conditionals`. Each row can be ranked,
 so the top most occurring metabolites for a given microbe can be obtained by identifying the highest co-occurrence probabilities for each microbe.
 
-It is worth your time to investigate the logs (labeled under `logdir**`) that are deposited using Tensorboard.
-The actual logfiles within this directory are labeled `events.out.tfevents.*` : more discussion on this later.
+These log conditional probabilities can also be viewed directly with `qiime metadata tabulate`.  This can be
+created as follows
 
-
-Tensorboard can be run via
 ```
-tensorboard --logdir .
+qiime metadata tabulate \
+	--m-input-file results/conditionals.qza \
+	--o-visualization conditionals-viz.qzv
 ```
-
-You may need to tinker with the parameters to get readable tensorflow results, namely `--p-summary-interval`,
-`--epochs` and `--batch-size`.
-
-A description of these two graphs is outlined in the FAQs below.
 
 
 Then you can run the following to generate a emperor biplot.
@@ -197,6 +195,14 @@ More information behind the actions and parameters can found under `qiime mmvec 
 
 3. More model parameters : The standalone script will return the bias parameters learned for each dataset (i.e. microbe and metabolite abundances).  These are stored under the summary directory (specified by `--summary`) under the names `embeddings.csv`. This file will hold the coordinates for the microbes and metabolites, along with biases.  There are 4 columns in this file, namely `feature_id`, `axis`, `embed_type` and `values`.  `feature_id` is the name of the feature, whether it be a microbe name or a metabolite feature id.  `axis` corresponds to the name of the axis, which either corresponds to a PC axis or bias.  `embed_type` denotes if the coordinate corresponds to a microbe or metabolite.  `values` is the coordinate value for the given `axis`, `embed_type` and `feature_id`.  This can be useful for accessing the raw parameters and building custom biplots / ranks visualizations - this also has the advantage of requiring much less memory to manipulate.
 
+It is also important to note that you don't have to explicitly chose - it is very doable to run the standalone version first, then import those output files into qiime2.  Importing can be done as follows
+
+```
+qiime tools import --input-path <your ranks file> --output-path conditionals.qza --type FeatureData[Conditional]
+
+qiime tools import --input-path <your ordination file> --output-path ordination.qza --type 'PCoAResults % ("biplot")'
+```
+
 **Q** : You mentioned that you can use GPUs.  How can you do that??
 
 **A** : This can be done by running `pip install tensorflow-gpu` in your environment.  See details [here](https://www.tensorflow.org/install/gpu).
@@ -209,7 +215,7 @@ At the moment, these capabilities are only available for the standalone CLI due 
 
 **Q** : I'm confused, what is Tensorboard?
 
-**A** : Tensorboard is a diagnostic tool that runs in a web browser. To open tensorboard, make sure you’re in the mmvec environment and cd into the folder you are running the script above from. Then run:
+**A** : Tensorboard is a diagnostic tool that runs in a web browser - note that this is only explicitly supported in the standalone version of mmvec. To open tensorboard, make sure you’re in the mmvec environment and cd into the folder you are running the script above from. Then run:
 
 ```
 tensorboard --logdir .
@@ -237,7 +243,8 @@ The x-axis is the number of iterations (meaning times the model is training acro
 
 The y-axis is the average number of counts off for each feature. The model is predicting the sequence counts for each feature in the samples that were set aside for testing. So in the graph above it means that, on average, the model is off by ~0.75 intensity units, which is low. However, this is ABSOLUTE error not relative error (unfortunately we don't know how to compute relative errors because of the sparsity in these datasets).
 
-You can also compare multiple runs with different parameters to see which run performed the best.  If you are doing this, be sure to look at the `training-column` example make the testing samples consistent across runs.
+You can also compare multiple runs with different parameters to see which run performed the best. Useful parameters to note are `--epochs` and `--batch-size`.  If you are committed to fine-tuning parameters, be sure to look at the `training-column` example make the testing samples consistent across runs.
+
 
 **Q** : What's up with the `--training-column` argument?
 
