@@ -97,4 +97,4 @@ def paired_omics(microbes: biom.Table,
             samples=samples, features=features,
             proportion_explained=proportion_explained)
 
-        return ranks, biplot
+        return ranks.T, biplot

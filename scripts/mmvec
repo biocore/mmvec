@@ -193,7 +193,7 @@ def paired_omics(microbe_file, metabolite_file,
                              columns=train_metabolites_df.columns)
         ranks = ranks - ranks.mean(axis=1).values.reshape(-1, 1)
         ranks.index.name = 'featureid'
-        ranks.to_csv(ranks_file, sep='\t')
+        ranks.T.to_csv(ranks_file, sep='\t')
 
         # Save to an ordination file
         ranks = ranks - ranks.mean(axis=0)
