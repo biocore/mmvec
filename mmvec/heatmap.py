@@ -95,7 +95,7 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
             hotmap.ax_row_dendrogram.bar(
                 0, 0, color=row_class_colors[label], label=label, linewidth=0)
         hotmap.ax_row_dendrogram.legend(
-            title=microbe_metadata.name, ncol=1, bbox_to_anchor=(0.1, 0.7),
+            title=microbe_metadata.name, ncol=1, bbox_to_anchor=(0.2, 0.7),
             bbox_transform=plt.gcf().transFigure)
 
     # toggle axis labels
@@ -104,6 +104,7 @@ def ranks_heatmap(ranks, microbe_metadata=None, metabolite_metadata=None,
     if not y_labels:
         hotmap.ax_heatmap.set_yticklabels('')
 
+    plt.subplots_adjust(left=0.2)
     return hotmap
 
 
@@ -229,7 +230,6 @@ def paired_heatmaps(ranks, microbes_table, metabolites_table, microbe_metadata,
     axes[0].set_xlabel('Microbes')
     axes[1].set_title('Metabolite abundances')
     axes[1].set_xlabel('Metabolites')
-
     return select_microbes, select_metabolites, heatmaps
 
 

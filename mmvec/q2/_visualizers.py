@@ -25,8 +25,9 @@ def heatmap(output_dir: str,
         microbe_metadata = microbe_metadata.to_series()
     if metabolite_metadata is not None:
         metabolite_metadata = metabolite_metadata.to_series()
-
-    hotmap = ranks_heatmap(ranks.T, microbe_metadata, metabolite_metadata,
+    ranks = ranks.T
+    ranks = ranks - ranks.mean(axis=0)
+    hotmap = ranks_heatmap(ranks, microbe_metadata, metabolite_metadata,
                            method, metric, color_palette, margin_palette,
                            x_labels, y_labels, level)
 
