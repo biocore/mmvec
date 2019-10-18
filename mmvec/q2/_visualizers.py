@@ -20,13 +20,16 @@ def heatmap(output_dir: str,
             margin_palette: str = 'cubehelix',
             x_labels: bool = False,
             y_labels: bool = False,
-            level: int = -1) -> None:
+            level: int = -1, row_center: bool=True) -> None:
     if microbe_metadata is not None:
         microbe_metadata = microbe_metadata.to_series()
     if metabolite_metadata is not None:
         metabolite_metadata = metabolite_metadata.to_series()
     ranks = ranks.T
-    ranks = ranks - ranks.mean(axis=0)
+
+    if row_center:
+        ranks = ranks - ranks.mean(axis=0)
+
     hotmap = ranks_heatmap(ranks, microbe_metadata, metabolite_metadata,
                            method, metric, color_palette, margin_palette,
                            x_labels, y_labels, level)
@@ -52,11 +55,17 @@ def paired_heatmap(output_dir: str,
                    normalize: str = 'log10',
                    color_palette: str = 'magma',
                    top_k_metabolites: int = 50,
-                   level: int = -1) -> None:
+                   level: int = -1, row_center: bool=True) -> None:
     if microbe_metadata is not None:
         microbe_metadata = microbe_metadata.to_series()
+
+    ranks = ranks.T
+
+    if row_center:
+        ranks = ranks - ranks.mean(axis=0)
+
     select_microbes, select_metabolites, hotmaps = paired_heatmaps(
-        ranks.T, microbes_table, metabolites_table, microbe_metadata, features,
+        ranks, microbes_table, metabolites_table, microbe_metadata, features,
         top_k_microbes, top_k_metabolites, keep_top_samples, level, normalize,
         color_palette)
 
