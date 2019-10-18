@@ -117,8 +117,8 @@ plugin.visualizers.register_function(
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '
                  'entire annotation.',
-        'row_center' : 'Center conditional probability table '
-                       'around average row.'
+        'row_center': 'Center conditional probability table '
+                      'around average row.'
     },
     name='Conditional probability heatmap',
     description="Generate heatmap depicting mmvec conditional probabilities.",
@@ -166,8 +166,8 @@ plugin.visualizers.register_function(
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '
                  'entire annotation.',
-        'row_center' : 'Center conditional probability table '
-                       'around average row.'
+        'row_center': 'Center conditional probability table '
+                      'around average row.'
     },
     name='Paired feature abundance heatmaps',
     description="Generate paired heatmaps that depict microbial and "

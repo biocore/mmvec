@@ -20,7 +20,8 @@ def heatmap(output_dir: str,
             margin_palette: str = 'cubehelix',
             x_labels: bool = False,
             y_labels: bool = False,
-            level: int = -1, row_center: bool=True) -> None:
+            level: int = -1,
+            row_center: bool = True) -> None:
     if microbe_metadata is not None:
         microbe_metadata = microbe_metadata.to_series()
     if metabolite_metadata is not None:
@@ -55,7 +56,8 @@ def paired_heatmap(output_dir: str,
                    normalize: str = 'log10',
                    color_palette: str = 'magma',
                    top_k_metabolites: int = 50,
-                   level: int = -1, row_center: bool=True) -> None:
+                   level: int = -1,
+                   row_center: bool = True) -> None:
     if microbe_metadata is not None:
         microbe_metadata = microbe_metadata.to_series()
 
