@@ -100,6 +100,7 @@ plugin.visualizers.register_function(
         'x_labels': Bool,
         'y_labels': Bool,
         'level': Int % Range(-1, None),
+        'row_center': Bool,
     },
     input_descriptions={'ranks': 'Conditional probabilities.'},
     parameter_descriptions={
@@ -116,6 +117,8 @@ plugin.visualizers.register_function(
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '
                  'entire annotation.',
+        'row_center': 'Center conditional probability table '
+                      'around average row.'
     },
     name='Conditional probability heatmap',
     description="Generate heatmap depicting mmvec conditional probabilities.",
@@ -137,6 +140,7 @@ plugin.visualizers.register_function(
         'top_k_metabolites': Int % Range(1, None) | Str % Choices(['all']),
         'keep_top_samples': Bool,
         'level': Int % Range(-1, None),
+        'row_center': Bool,
     },
     input_descriptions={'ranks': 'Conditional probabilities.',
                         'microbes_table': 'Microbial feature abundances.',
@@ -162,6 +166,8 @@ plugin.visualizers.register_function(
         'level': 'taxonomic level for annotating clustermap. Set to -1 if not '
                  'parsing semicolon-delimited taxonomies or wish to print '
                  'entire annotation.',
+        'row_center': 'Center conditional probability table '
+                      'around average row.'
     },
     name='Paired feature abundance heatmaps',
     description="Generate paired heatmaps that depict microbial and "
