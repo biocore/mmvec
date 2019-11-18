@@ -30,8 +30,8 @@ which can be used to estimate microbe-metabolite conditional probabilities that 
 
 ```
 mmvec paired-omics \
-	--otu-file data/otus.biom \
-	--metabolite-file data/ms.biom \
+	--microbe-file examples/cf/otus_nt.biom \
+	--metabolite-file examples/cf/lcms_nt.biom \
 	--summary-dir summary
 ```
 
