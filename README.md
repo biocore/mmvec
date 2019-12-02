@@ -75,7 +75,7 @@ Then you can run mmvec
 qiime mmvec paired-omics \
 	--i-microbes otus_nt.qza \
 	--i-metabolites lcms_nt.qza \
-	--p-learning-rate 1e-1 \
+	--p-learning-rate 1e-3 \
 	--o-conditionals ranks.qza \
 	--o-conditional-biplot biplot.qza
 ```
