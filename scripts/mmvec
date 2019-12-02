@@ -66,7 +66,7 @@ def mmvec():
               default=False)
 @click.option('--learning-rate',
               help=('Gradient descent decay rate.'),
-              default=1e-1)
+              default=1e-5)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
               default=0.9)

@@ -75,6 +75,7 @@ Then you can run mmvec
 qiime mmvec paired-omics \
 	--i-microbes otus_nt.qza \
 	--i-metabolites lcms_nt.qza \
+	--p-learning-rate 1e-3 \
 	--o-conditionals ranks.qza \
 	--o-conditional-biplot biplot.qza
 ```
@@ -271,10 +272,7 @@ Another parameter worth thinking about is `--latent-dim`, which controls the num
 
 **Number of iterations = `epoch #` multiplied by the ( Total # of microbial reads / `batch-size` parameter)**
 
-This also depends on if your program will converge. The `learning-rate` specifies the resolution (smaller step size = smaller resolution, but may take longer to converge). You will need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
-
-The default learning rate is **1e-1**, however note that the learning rates used in the paper were ***1e-5***.
-If you want accurate results, make sure to have a small learning rate.
+This also depends on if your program will converge. The `learning-rate` specifies the resolution, smaller step size = smaller resolution, which will increase the accuracy, but may take longer to converge. You will need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
 
 If you are running this on a CPU, 16 cores, a run that reaches convergence should take about 1 day.
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch-size` parameter maybe required -- instead of having a small `batch-size` < 100, you'll want to bump up the `batch-size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.

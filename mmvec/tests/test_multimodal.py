@@ -98,7 +98,8 @@ class TestMMvecSoilsBenchmark(unittest.TestCase):
 
         with tf.Graph().as_default(), tf.Session() as session:
             set_random_seed(0)
-            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=1)
+            model = MMvec(beta_1=0.8, beta_2=0.9, latent_dim=1,
+                          learning_rate=1e-3)
             model(session,
                   coo_matrix(self.trainX.values), self.trainY.values,
                   coo_matrix(self.testX.values), self.testY.values)
