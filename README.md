@@ -13,7 +13,7 @@ MMvec can be installed via pypi as follows
 pip install mmvec
 ```
 
-If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
+If you are planning on using GPUs, be sure to `pip install tensorflow-gpu <= 1.14.0`.
 
 MMvec can also be installed via conda as follows
 
