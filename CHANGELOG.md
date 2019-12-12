@@ -1,5 +1,13 @@
 # mmvec changelog
 
+## Version 1.0.3 (2019-12-12)
+# Enhancements
+ - Tensorflow is now pinned to any version below 2.0 in [#112](https://github.com/biocore/mmvec/pull/112)
+ - Learning rate defaults have been fixed to `1e-5` in [#110](https://github.com/biocore/mmvec/pull/110)
+
+# Bug fixes
+ - Inputs are now expected to be metabolites x microbes in heatmaps [#100](https://github.com/biocore/mmvec/pull/100)
+
 ## Version 1.0.2 (2019-10-18)
 # Bug fixes
  - Inputs are now expected to be metabolites x microbes in heatmaps [#100](https://github.com/biocore/mmvec/pull/100)
