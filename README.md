@@ -278,3 +278,18 @@ If you are running this on a CPU, 16 cores, a run that reaches convergence shoul
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch-size` parameter maybe required -- instead of having a small `batch-size` < 100, you'll want to bump up the `batch-size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
 
 Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)), Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) and Nickolas Bokulich ([@nbokulich](https://github.com/nbokulich)) for their README contributions.
+
+# Citation
+If you found this tool useful please cite us at
+```
+@article{morton2019learning,
+  title={Learning representations of microbe--metabolite interactions},
+  author={Morton, James T and Aksenov, Alexander A and Nothias, Louis Felix and Foulds, James R and Quinn, Robert A and Badri, Michelle H and Swenson, Tami L and Van Goethem, Marc W and Northen, Trent R and Vazquez-Baeza, Yoshiki and others},
+  journal={Nature methods},
+  volume={16},
+  number={12},
+  pages={1306--1314},
+  year={2019},
+  publisher={Nature Publishing Group}
+}
+```
