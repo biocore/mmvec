@@ -23,6 +23,13 @@ conda install mmvec -c conda-forge
 
 Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
+# Input data
+
+The two basic tables required to run mmvec are:
+
+- Metabolite counts (.biom): A table with metabolites in rows and samples in columns.
+- Microbe abundance (.biom): A relative abundance table with microbial species in rows and samples in columns.
+
 # Getting started
 
 To get started you can run a quick example as follows.  This will learn microbe-metabolite vectors (mmvec)
