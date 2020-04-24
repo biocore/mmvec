@@ -21,7 +21,7 @@ def paired_omics(microbes: biom.Table,
                  latent_dim: int = 3,
                  input_prior: float = 1,
                  output_prior: float = 1,
-                 learning_rate: float = 0.001,
+                 learning_rate: float = 1e-5,
                  summary_interval: int = 60) -> (
                      pd.DataFrame, OrdinationResults
                  ):

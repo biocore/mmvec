@@ -66,7 +66,7 @@ def mmvec():
               default=False)
 @click.option('--learning-rate',
               help=('Gradient descent decay rate.'),
-              default=1e-1)
+              default=1e-5)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
               default=0.9)
@@ -96,6 +96,9 @@ def mmvec():
               help=('Path to save the ordination learned from the model. '
                     'If this is not specified, then this will be saved under '
                     '`--summary-dir`.'))
+@click.option("--equalize-biplot", default=False, required=False,
+              help=('Equalize the norms of the singular'
+                    'vectors of the conditional probability matrix.'))
 def paired_omics(microbe_file, metabolite_file,
                  metadata_file, training_column,
                  num_testing_examples, min_feature_count,
@@ -103,7 +106,8 @@ def paired_omics(microbe_file, metabolite_file,
                  input_prior, output_prior, arm_the_gpu,
                  learning_rate, beta1, beta2, clipnorm,
                  checkpoint_interval, summary_interval,
-                 summary_dir, embeddings_file, ranks_file, ordination_file):
+                 summary_dir, embeddings_file, ranks_file, ordination_file,
+                 equalize_biplot):
 
     microbes = load_table(microbe_file)
     metabolites = load_table(metabolite_file)
@@ -200,8 +204,12 @@ def paired_omics(microbe_file, metabolite_file,
         s = s[::-1]
         u = u[:, ::-1]
         v = v[::-1, :]
-        microbe_embed = u @ np.diag(s)
-        metabolite_embed = v.T
+        if equalize_biplot is not None:
+            microbe_embed = u @ np.sqrt(np.diag(s))
+            metabolite_embed = v.T @ np.sqrt(np.diag(s))
+        else:
+            microbe_embed = u @ np.diag(s)
+            metabolite_embed = v.T
         pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
         features = pd.DataFrame(
             microbe_embed, columns=pc_ids,

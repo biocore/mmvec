@@ -13,7 +13,7 @@ MMvec can be installed via pypi as follows
 pip install mmvec
 ```
 
-If you are planning on using GPUs, be sure to `pip install tensorflow-gpu`.
+If you are planning on using GPUs, be sure to `pip install tensorflow-gpu <= 1.14.0`.
 
 MMvec can also be installed via conda as follows
 
@@ -30,8 +30,8 @@ which can be used to estimate microbe-metabolite conditional probabilities that 
 
 ```
 mmvec paired-omics \
-	--otu-file data/otus.biom \
-	--metabolite-file data/ms.biom \
+	--microbe-file examples/cf/otus_nt.biom \
+	--metabolite-file examples/cf/lcms_nt.biom \
 	--summary-dir summary
 ```
 
@@ -75,6 +75,7 @@ Then you can run mmvec
 qiime mmvec paired-omics \
 	--i-microbes otus_nt.qza \
 	--i-metabolites lcms_nt.qza \
+	--p-learning-rate 1e-3 \
 	--o-conditionals ranks.qza \
 	--o-conditional-biplot biplot.qza
 ```
@@ -123,8 +124,8 @@ qiime mmvec heatmap \
   --i-ranks ranks.qza \
   --m-microbe-metadata-file taxonomy.tsv \
   --m-microbe-metadata-column Taxon \
-	--m-metabolite-metadata-file metabolite-metadata.txt \
-	--m-metabolite-metadata-column Compound_Source \
+  --m-metabolite-metadata-file metabolite-metadata.txt \
+  --m-metabolite-metadata-column Compound_Source \
   --p-level 5 \
   --o-visualization ranks-heatmap.qzv
 ```
@@ -153,12 +154,12 @@ qiime mmvec paired-heatmap \
   --i-ranks ranks.qza \
   --i-microbes-table otus_nt.qza \
   --i-metabolites-table lcms_nt.qza \
-	--m-microbe-metadata-file taxonomy.tsv \
+  --m-microbe-metadata-file taxonomy.tsv \
   --m-microbe-metadata-column Taxon \
-	--p-features TACGAAGGGTGCAAGCGTTAATCGGAATTACTGGGCGTAAAGCGCGCGTAGGTGGTTCAGCAAGTTGGATGTGAAATCCCCGGGCTCAACCTGGGAACTGCATCCAAAACTACTGAGCTAGAGTACGGTAGAGGGTGGTGGAATTTCCTG \
+  --p-features TACGAAGGGTGCAAGCGTTAATCGGAATTACTGGGCGTAAAGCGCGCGTAGGTGGTTCAGCAAGTTGGATGTGAAATCCCCGGGCTCAACCTGGGAACTGCATCCAAAACTACTGAGCTAGAGTACGGTAGAGGGTGGTGGAATTTCCTG \
   --p-features TACGTAGGTCCCGAGCGTTGTCCGGATTTATTGGGCGTAAAGCGAGCGCAGGCGGTTAGATAAGTCTGAAGTTAAAGGCTGTGGCTTAACCATAGTAGGCTTTGGAAACTGTTTAACTTGAGTGCAAGAGGGGAGAGTGGAATTCCATGT \
   --p-top-k-microbes 0 \
-	--p-normalize rel_row \
+  --p-normalize rel_row \
   --p-top-k-metabolites 100 \
   --p-level 6 \
   --o-visualization paired-heatmap-top2.qzv
@@ -271,9 +272,9 @@ Another parameter worth thinking about is `--latent-dim`, which controls the num
 
 **Number of iterations = `epoch #` multiplied by the ( Total # of microbial reads / `batch-size` parameter)**
 
-This also depends on if your program will converge. The `learning-rate` specifies the resolution (smaller step size = smaller resolution, but may take longer to converge). You will need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
+This also depends on if your program will converge. The `learning-rate` specifies the resolution, smaller step size = smaller resolution, which will increase the accuracy, but may take longer to converge. You will need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
 
 If you are running this on a CPU, 16 cores, a run that reaches convergence should take about 1 day.
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch-size` parameter maybe required -- instead of having a small `batch-size` < 100, you'll want to bump up the `batch-size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
 
-Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)) and Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) for their README contributions.
+Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)), Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) and Nickolas Bokulich ([@nbokulich](https://github.com/nbokulich)) for their README contributions.
