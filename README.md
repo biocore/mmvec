@@ -23,6 +23,13 @@ conda install mmvec -c conda-forge
 
 Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
+# Input data
+
+The two basic tables required to run mmvec are:
+
+- Metabolite counts (.biom): A table with metabolites in rows and samples in columns.
+- Microbe abundance (.biom): A relative abundance table with microbial species in rows and samples in columns.
+
 # Getting started
 
 To get started you can run a quick example as follows.  This will learn microbe-metabolite vectors (mmvec)
@@ -278,3 +285,18 @@ If you are running this on a CPU, 16 cores, a run that reaches convergence shoul
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch-size` parameter maybe required -- instead of having a small `batch-size` < 100, you'll want to bump up the `batch-size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
 
 Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)), Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) and Nickolas Bokulich ([@nbokulich](https://github.com/nbokulich)) for their README contributions.
+
+# Citation
+If you found this tool useful please cite us at
+```
+@article{morton2019learning,
+  title={Learning representations of microbe--metabolite interactions},
+  author={Morton, James T and Aksenov, Alexander A and Nothias, Louis Felix and Foulds, James R and Quinn, Robert A and Badri, Michelle H and Swenson, Tami L and Van Goethem, Marc W and Northen, Trent R and Vazquez-Baeza, Yoshiki and others},
+  journal={Nature methods},
+  volume={16},
+  number={12},
+  pages={1306--1314},
+  year={2019},
+  publisher={Nature Publishing Group}
+}
+```

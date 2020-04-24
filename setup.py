@@ -54,7 +54,7 @@ setup(name='mmvec',
       install_requires=[
           'biom-format',
           'numpy >= 1.9.2',
-          'pandas >= 0.18.0',
+          'pandas <= 0.25.3',
           'scipy >= 0.15.1',
           'nose >= 1.3.7',
           'scikit-bio >= 0.5.1',
