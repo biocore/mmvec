@@ -96,8 +96,8 @@ def mmvec():
               help=('Path to save the ordination learned from the model. '
                     'If this is not specified, then this will be saved under '
                     '`--summary-dir`.'))
-@click.option("--equalize-biplot", default=False, required=False,
-              help=('Equalize the norms of the singular'
+@click.option("--equalize-biplot", default=False, required=False, is_flag=True,
+              help=('Equalize the norms of the singular '
                     'vectors of the conditional probability matrix.'))
 def paired_omics(microbe_file, metabolite_file,
                  metadata_file, training_column,
@@ -204,7 +204,7 @@ def paired_omics(microbe_file, metabolite_file,
         s = s[::-1]
         u = u[:, ::-1]
         v = v[::-1, :]
-        if equalize_biplot is not None:
+        if equalize_biplot:
             microbe_embed = u @ np.sqrt(np.diag(s))
             metabolite_embed = v.T @ np.sqrt(np.diag(s))
         else:

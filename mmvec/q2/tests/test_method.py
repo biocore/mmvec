@@ -68,6 +68,31 @@ class TestMMvec(unittest.TestCase):
         self.assertGreater(res_biplot.eigvals[0],
                            res_biplot.eigvals[1])
 
+    def test_equalize_sv(self):
+        np.random.seed(1)
+        tf.reset_default_graph()
+        tf.set_random_seed(0)
+        latent_dim = 2
+        res_ranks, res_biplot = paired_omics(
+            self.microbes, self.metabolites,
+            epochs=1000, latent_dim=latent_dim,
+            min_feature_count=1, learning_rate=0.1,
+            equalize_biplot=True
+        )
+        # make sure the biplot is of the correct dimensions
+        npt.assert_allclose(
+            res_biplot.samples.shape,
+            np.array([self.microbes.shape[0], latent_dim]))
+        npt.assert_allclose(
+            res_biplot.features.shape,
+            np.array([self.metabolites.shape[0], latent_dim]))
+
+        # make sure that the biplot has the correct ordering
+        self.assertGreater(res_biplot.proportion_explained[0],
+                           res_biplot.proportion_explained[1])
+        self.assertGreater(res_biplot.eigvals[0],
+                           res_biplot.eigvals[1])
+
 
 if __name__ == "__main__":
     unittest.main()
