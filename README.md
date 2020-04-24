@@ -284,6 +284,15 @@ This also depends on if your program will converge. The `learning-rate` specifie
 If you are running this on a CPU, 16 cores, a run that reaches convergence should take about 1 day.
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch-size` parameter maybe required -- instead of having a small `batch-size` < 100, you'll want to bump up the `batch-size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
 
+**Q** : Can I run the standalone version of mmvec and import those outputs to visualize in qiime2?n
+
+**A** : Yes you can! If you ran the standalone `mmvec paired-omics` command and you specified your ranks and ordination to be stored under `conditionals.tsv` and `ordination.txt`, you can import those as qiime2 Artifacts as follows.
+
+```
+qiime tools import --input-path conditionals.tsv --output-path ranks.qza --type "FeatureData[Conditional]"
+qiime tools import --input-path ordination.txt --output-path biplot.qza --type "PCoAResults % Properties('biplot')"
+```
+
 Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)), Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) and Nickolas Bokulich ([@nbokulich](https://github.com/nbokulich)) for their README contributions.
 
 # Citation
