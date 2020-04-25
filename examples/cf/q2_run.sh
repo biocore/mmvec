@@ -9,6 +9,7 @@ qiime mmvec paired-omics \
       --o-conditionals ranks.qza \
       --o-conditional-biplot biplot.qza \
       --p-summary-interval 1 \
+      --p-equalize-biplot \
       --verbose
 
 qiime emperor biplot \
@@ -22,11 +23,3 @@ qiime emperor biplot \
 qiime mmvec heatmap \
       --i-ranks ranks.qza \
       --o-visualization heatmap.qzv
-
-mmvec paired-omics \
-      --microbe-file otus_nt.biom \
-      --metabolite-file lcms_nt.biom  \
-      --epochs 100 \
-      --learning-rate 1e-3 \
-      --summary-interval 1 \
-      --summary-dir summary

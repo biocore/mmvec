@@ -45,6 +45,7 @@ plugin.methods.register_function(
         'input_prior': Float,
         'output_prior': Float,
         'learning_rate': Float,
+        'equalize_biplot': Bool,
         'summary_interval': Int
     },
     outputs=[
@@ -68,6 +69,7 @@ plugin.methods.register_function(
         'num_testing_examples': "The number of random examples to select "
                                 "if `training_column` isn't specified.",
         'epochs': 'The total number of iterations over the entire dataset.',
+        'equalize_biplot': 'Biplot arrows and points are on the same scale.',
         'batch_size': 'The number of samples to be evaluated per '
                       'training iteration.',
         'input_prior': 'Width of normal prior for the microbial '

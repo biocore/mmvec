@@ -1,5 +1,9 @@
 # mmvec changelog
 
+## Version 1.0.4 (2020-04-24)
+# Enhancements
+ - `equalize_biplot` option has been able to visualize microbes and metabolites on the same scale. [#131](https://github.com/biocore/mmvec/pull/131)
+
 ## Version 1.0.3 (2019-12-12)
 # Enhancements
  - Tensorflow is now pinned to any version below 2.0 in [#112](https://github.com/biocore/mmvec/pull/112)
@@ -12,7 +16,6 @@
 # Bug fixes
  - Inputs are now expected to be metabolites x microbes in heatmaps [#100](https://github.com/biocore/mmvec/pull/100)
 
-## Version 1.0.1 (2019-10-17)
 # Enhancements
  - Ranks are transposed and viewable in qiime metadata tabulate [#99](https://github.com/biocore/mmvec/pull/99)
 

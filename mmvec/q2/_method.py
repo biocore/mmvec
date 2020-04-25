@@ -22,6 +22,7 @@ def paired_omics(microbes: biom.Table,
                  input_prior: float = 1,
                  output_prior: float = 1,
                  learning_rate: float = 1e-5,
+                 equalize_biplot: float = False,
                  summary_interval: int = 60) -> (
                      pd.DataFrame, OrdinationResults
                  ):
@@ -65,8 +66,12 @@ def paired_omics(microbes: biom.Table,
         s = s[::-1]
         u = u[:, ::-1]
         v = v[::-1, :]
-        microbe_embed = u @ np.diag(s)
-        metabolite_embed = v.T
+        if equalize_biplot:
+            microbe_embed = u @ np.sqrt(np.diag(s))
+            metabolite_embed = v.T @ np.sqrt(np.diag(s))
+        else:
+            microbe_embed = u @ np.diag(s)
+            metabolite_embed = v.T
 
         pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
         features = pd.DataFrame(
