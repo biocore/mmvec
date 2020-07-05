@@ -294,6 +294,7 @@ qiime tools import --input-path ordination.txt --output-path biplot.qza --type "
 ```
 
 **Q** : Can MMvec handle small sample studies?
+
 **A** : We have ran MMvec with studies as few as 19 samples.  However running MMvec in these small sample regimes requires careful tuning of `--latent-dimension` in addition to the `--input-prior` and `--output-prior` commands.  The [desert biocrust experiment](https://github.com/biocore/mmvec/tree/master/examples/soils) maybe a good dataset to refer to when analyzing these sorts of datasets.
 
 Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)), Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) and Nickolas Bokulich ([@nbokulich](https://github.com/nbokulich)) for their README contributions.
