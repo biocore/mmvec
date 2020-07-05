@@ -37,9 +37,9 @@ which can be used to estimate microbe-metabolite conditional probabilities that 
 
 ```
 mmvec paired-omics \
-	--microbe-file examples/cf/otus_nt.biom \
-	--metabolite-file examples/cf/lcms_nt.biom \
-	--summary-dir summary
+        --microbe-file examples/cf/otus_nt.biom \
+        --metabolite-file examples/cf/lcms_nt.biom \
+        --summary-dir summary
 ```
 
 While this is running, you can open up another session and run `tensorboard --logdir .` for diagnosis, see FAQs below for more details.
@@ -67,24 +67,24 @@ the qiime2 plugin, run the following commands to import an example dataset
 
 ```
 qiime tools import \
-	--input-path data/otus_nt.biom \
-	--output-path otus_nt.qza \
-	--type FeatureTable[Frequency]
+        --input-path data/otus_nt.biom \
+        --output-path otus_nt.qza \
+        --type FeatureTable[Frequency]
 
 qiime tools import \
-	--input-path data/lcms_nt.biom \
-	--output-path lcms_nt.qza \
-	--type FeatureTable[Frequency]
+        --input-path data/lcms_nt.biom \
+        --output-path lcms_nt.qza \
+        --type FeatureTable[Frequency]
 ```
 
 Then you can run mmvec
 ```
 qiime mmvec paired-omics \
-	--i-microbes otus_nt.qza \
-	--i-metabolites lcms_nt.qza \
-	--p-learning-rate 1e-3 \
-	--o-conditionals ranks.qza \
-	--o-conditional-biplot biplot.qza
+        --i-microbes otus_nt.qza \
+        --i-metabolites lcms_nt.qza \
+        --p-learning-rate 1e-3 \
+        --o-conditionals ranks.qza \
+        --o-conditional-biplot biplot.qza
 ```
 
 In the results, there are two files, namely `results/conditional_biplot.qza` and `results/conditionals.qza`. The conditional biplot is a biplot representation the
@@ -98,8 +98,8 @@ created as follows
 
 ```
 qiime metadata tabulate \
-	--m-input-file results/conditionals.qza \
-	--o-visualization conditionals-viz.qzv
+        --m-input-file results/conditionals.qza \
+        --o-visualization conditionals-viz.qzv
 ```
 
 
@@ -107,10 +107,10 @@ Then you can run the following to generate a emperor biplot.
 
 ```
 qiime emperor biplot \
-	--i-biplot conditional_biplot.qza \
-	--m-sample-metadata-file data/metabolite-metadata.txt \
-	--m-feature-metadata-file data/microbe-metadata.txt \
-	--o-visualization emperor.qzv
+        --i-biplot conditional_biplot.qza \
+        --m-sample-metadata-file data/metabolite-metadata.txt \
+        --m-feature-metadata-file data/microbe-metadata.txt \
+        --o-visualization emperor.qzv
 
 ```
 
@@ -292,6 +292,9 @@ If you have a GPU - you maybe able to get this down to a few hours.  However, so
 qiime tools import --input-path conditionals.tsv --output-path ranks.qza --type "FeatureData[Conditional]"
 qiime tools import --input-path ordination.txt --output-path biplot.qza --type "PCoAResults % Properties('biplot')"
 ```
+
+**Q** : Can MMvec handle small sample studies?
+**A** : We have ran MMvec with studies as few as 19 samples.  However running MMvec in these small sample regimes requires careful tuning of `--latent-dimension` in addition to the `--input-prior` and `--output-prior` commands.  The [desert biocrust experiment](https://github.com/biocore/mmvec/tree/master/examples/soils) maybe a good dataset to refer to when analyzing these sorts of datasets.
 
 Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)), Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) and Nickolas Bokulich ([@nbokulich](https://github.com/nbokulich)) for their README contributions.
 

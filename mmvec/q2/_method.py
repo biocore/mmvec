@@ -50,6 +50,7 @@ def paired_omics(microbes: biom.Table,
         model = MMvec(
             latent_dim=latent_dim,
             u_scale=input_prior, v_scale=output_prior,
+            batch_size=batch_size,
             learning_rate=learning_rate)
         model(session,
               train_microbes_coo, train_metabolites_df.values,
