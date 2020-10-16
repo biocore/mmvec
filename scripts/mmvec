@@ -81,7 +81,7 @@ def mmvec():
               default=1000)
 @click.option('--summary-interval',
               help=('Number of seconds before a storing a summary.'),
-              default=1000)
+              default=100)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
 @click.option('--embeddings-file', default=None,
