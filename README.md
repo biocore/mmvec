@@ -273,6 +273,10 @@ Another parameter worth thinking about is `--latent-dim`, which controls the num
 
 **A** : Again the numbers vary greatly by dataset. But you want to see the both the `logloss` and `cv_rmse` curves decaying, and plateau as close to zero as possible.
 
+**Q** : Should we filter low abundance microbes and metabolites?
+
+**A** : A rule of thumb that we recommend is to filter out microbes and metabolites that appear in less than 10 samples.  The rationale here is that it isn't practical to fit a line with less than 10 samples.  By default we filter out microbes that appear in less than 10 samples; this can be controlled by the `--min-feature-count` option.
+
 **Q** : How long should I expect this program to run?
 
 **A** : Both `epochs` and `batch-size` contribute to determining how long the algorithm will run, namely
