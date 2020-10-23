@@ -46,7 +46,7 @@ def mmvec():
 @click.option('--epochs',
               help='Number of epochs to train', default=10)
 @click.option('--batch-size',
-              help='Size of mini-batch', default=32)
+              help='Size of mini-batch', default=100)
 @click.option('--latent-dim',
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
@@ -55,18 +55,18 @@ def mmvec():
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
-              default=1.)
+              default=5.)
 @click.option('--output-prior',
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
-              default=1.)
+              default=5.)
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
               default=False)
 @click.option('--learning-rate',
               help=('Gradient descent decay rate.'),
-              default=1e-5)
+              default=1e-3)
 @click.option('--beta1',
               help=('Gradient decay rate for first Adam momentum estimates'),
               default=0.9)

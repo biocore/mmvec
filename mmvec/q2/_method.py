@@ -24,7 +24,7 @@ def paired_omics(microbes: biom.Table,
                  learning_rate: float = 1e-5,
                  equalize_biplot: float = False,
                  summary_interval: int = 60) -> (
-                     pd.DataFrame, OrdinationResults
+                     pd.DataFrame, OrdinationResults, pd.DataFrame
                  ):
 
     if metadata is not None:
@@ -57,7 +57,6 @@ def paired_omics(microbes: biom.Table,
               test_microbes_coo, test_metabolites_df.values)
 
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval)
-
         ranks = pd.DataFrame(model.ranks(), index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
 
@@ -90,4 +89,25 @@ def paired_omics(microbes: biom.Table,
             samples=samples, features=features,
             proportion_explained=proportion_explained)
 
-        return ranks, biplot
+        its = np.arange(loss)
+        convergence_stats = pd.DataFrame(
+            {
+                'loss': loss,
+                'cross-validation': cv,
+                'iteration': its
+            }
+        )
+
+        convergence_stats.index.name = 'id'
+        convergence_stats.index = convergence_stats.index.astype(np.str)
+
+        c = convergence_stats['loss'].astype(np.float)
+        convergence_stats['loss'] = c
+
+        c = convergence_stats['cross-validation'].astype(np.float)
+        convergence_stats['cross-validation'] = c
+
+        c = convergence_stats['iteration'].astype(np.int)
+        convergence_stats['iteration'] = c
+
+        return ranks, biplot, convergence_stats

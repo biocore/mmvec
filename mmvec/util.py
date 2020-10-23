@@ -111,6 +111,7 @@ def split_tables(otu_table, metabolite_table,
                  metadata=None, training_column=None, num_test=10,
                  min_samples=10):
     """ Splits otu and metabolite tables into training and testing datasets.
+
     Parameters
     ----------
     otu_table : biom.Table
@@ -154,7 +155,7 @@ def split_tables(otu_table, metabolite_table,
     )
 
     # filter out microbes that don't appear in many samples
-    idx = (microbes_df > 0).sum(axis=0) > min_samples
+    idx = (microbes_df > 0).sum(axis=0) >= min_samples
     microbes_df = microbes_df.loc[:, idx]
     if metadata is None or training_column is None:
         sample_ids = set(np.random.choice(microbes_df.index, size=num_test))
@@ -172,7 +173,9 @@ def split_tables(otu_table, metabolite_table,
     test_microbes = microbes_df.loc[sample_ids]
     train_metabolites = metabolites_df.loc[~sample_ids]
     test_metabolites = metabolites_df.loc[sample_ids]
-
+    if len(train_microbes) == 0 or len(train_microbes.columns) == 0:
+        raise ValueError('All of the training data has been filtered out. '
+                         'Adjust the `--min-feature-count` accordingly.')
     return train_microbes, test_microbes, train_metabolites, test_metabolites
 
 

@@ -23,6 +23,8 @@ conda install mmvec -c conda-forge
 
 Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
+Finally, MMvec is **only** compatible with qiime2 environments before 2020.5. Stay tuned for future updates.
+
 # Input data
 
 The two basic tables required to run mmvec are:
@@ -190,6 +192,50 @@ taxonomic `level` to display. The output looks something like this:
 
 
 More information behind the actions and parameters can found under `qiime mmvec --help`
+
+# Model diagnostics
+
+## QIIME2 Convergence Summaries
+
+If you are using the qiime2 interface, there won't be a tensorboard interface.
+But there will still be training loss curves and cross-validation statistics reported.
+To run this with a single model, run the following
+
+```
+qiime mmvec summarize-paired \
+        --i-regression-stats summary/regression-stats.qza \
+        --o-visualization paired-summary.qzv
+
+```
+
+## Null models and QIIME 2 + MMvec
+
+If you're running Songbird through QIIME 2, the
+`qiime mmvec summarize-paired` command allows you to view two sets of
+diagnostic plots at once as follows:
+
+```
+# Null model with only biases
+mmvec paired-omics \
+        --microbe-file examples/cf/otus_nt.biom \
+        --metabolite-file examples/cf/lcms_nt.biom \
+        --latent-dim 0 \
+        --summary-dir null_summary
+
+qiime mmvec summarize-paired \
+        --i-regression-stats summary/regression-stats.qza \
+        --i-baseline-stats null_summary/regression-stats.qza \
+        --o-visualization paired-summary.qzv
+```
+
+These summaries can also be extended to analyze any two models of interest.  This can help with picking optimal hyper-parameters.
+
+## Interpreting _Q<sup>2</sup>_ values <span id="explaining-q2"></span>
+The _Q<sup>2</sup>_ score is adapted from the Partial least squares literature.  Here it is given by `Q^2 = 1 - m1/m2`, where `m1` indicates the average absolute model error and `m2` indicates the average absolute null or baseline model error.  If _Q<sup>2</sup>_ is close to 1, that indicates a high predictive accuracy on the cross validation samples. If _Q<sup>2</sup>_ is low or below zero, that indicates poor predictive accuracy, suggesting possible overfitting. This statistic behaves similarly to the _R<sup>2</sup>_ classically used in a ordinary linear regression if `--p-formula` is `"1"` in the `m2` model.
+
+If the _Q<sup>2</sup>_ score is extremely close to 0 (or negative), this indicates that the model is overfit or that the metadata supplied to the model are not predictive of microbial composition across samples. You can think about this in terms of "how does using the metadata columns in my formula *improve* a model?" If there isn't really an improvement, then you may want to reconsider your formula.
+
+... [But as long as your _Q<sup>2</sup>_ score is above zero, your model is learning something useful](https://forum.qiime2.org/t/songbird-optimizing-the-loss-function/13479/8).
 
 # FAQs
 
