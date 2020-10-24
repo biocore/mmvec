@@ -110,8 +110,8 @@ class TestSplitTables(unittest.TestCase):
 
         (train_microbes, test_microbes,
          train_metabolites, test_metabolites) = res
-        npt.assert_allclose(train_microbes.shape, np.array([3, 6]))
-        npt.assert_allclose(test_microbes.shape, np.array([2, 6]))
+        npt.assert_allclose(train_microbes.shape, np.array([3, 7]))
+        npt.assert_allclose(test_microbes.shape, np.array([2, 7]))
         npt.assert_allclose(train_metabolites.shape, np.array([3, 9]))
         npt.assert_allclose(test_metabolites.shape, np.array([2, 9]))
 

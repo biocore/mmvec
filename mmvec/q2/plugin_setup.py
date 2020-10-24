@@ -13,11 +13,12 @@ from qiime2.plugin import (Str, Properties, Int, Float, Metadata, Bool,
                            MetadataColumn, Categorical, Range, Choices, List)
 from q2_types.feature_table import FeatureTable, Frequency
 from q2_types.feature_data import FeatureData
+from q2_types.sample_data import SampleData
 from q2_types.ordination import PCoAResults
-
 from mmvec.q2 import (
     Conditional, ConditionalFormat, ConditionalDirFmt,
-    paired_omics, heatmap, paired_heatmap
+    MMvecStats, MMvecStatsFormat, MMvecStatsDirFmt,
+    paired_omics, heatmap, paired_heatmap, summarize_single, summarize_paired
 )
 
 plugin = qiime2.plugin.Plugin(
@@ -41,6 +42,7 @@ plugin.methods.register_function(
         'min_feature_count': Int,
         'epochs': Int,
         'batch_size': Int,
+        'arm_the_gpu': Bool,
         'latent_dim': Int,
         'input_prior': Float,
         'output_prior': Float,
@@ -50,7 +52,8 @@ plugin.methods.register_function(
     },
     outputs=[
         ('conditionals', FeatureData[Conditional]),
-        ('conditional_biplot', PCoAResults % Properties('biplot'))
+        ('conditional_biplot', PCoAResults % Properties('biplot')),
+        ('model_stats', SampleData[MMvecStats]),
     ],
     input_descriptions={
         'microbes': 'Input table of microbial counts.',
@@ -72,6 +75,7 @@ plugin.methods.register_function(
         'equalize_biplot': 'Biplot arrows and points are on the same scale.',
         'batch_size': 'The number of samples to be evaluated per '
                       'training iteration.',
+        'arm_the_gpu': 'Specifies whether or not to use the GPU.',
         'input_prior': 'Width of normal prior for the microbial '
                        'coefficients. Smaller values will regularize '
                        'parameters towards zero. Values must be greater '
@@ -182,6 +186,63 @@ plugin.visualizers.register_function(
     citations=[]
 )
 
+
+plugin.visualizers.register_function(
+    function=summarize_single,
+    inputs={
+        'model_stats': SampleData[MMvecStats]
+    },
+    parameters={},
+    input_descriptions={
+        'model_stats': (
+            "Summary information produced by running "
+            "`qiime mmvec paired-omics`."
+        )
+    },
+    parameter_descriptions={
+    },
+    name='MMvec summary statistics',
+    description=(
+        "Visualize the convergence statistics from running "
+        "`qiime mmvec paired-omics`, giving insight "
+        "into how the model fit to your data."
+    )
+)
+
+plugin.visualizers.register_function(
+    function=summarize_paired,
+    inputs={
+        'model_stats': SampleData[MMvecStats],
+        'baseline_stats': SampleData[MMvecStats]
+    },
+    parameters={},
+    input_descriptions={
+
+        'model_stats': (
+            "Summary information for the reference model, produced by running "
+            "`qiime mmvec paired-omics`."
+        ),
+        'baseline_stats': (
+            "Summary information for the baseline model, produced by running "
+            "`qiime mmvec paired-omics`."
+        )
+
+    },
+    parameter_descriptions={
+    },
+    name='Paired MMvec summary statistics',
+    description=(
+        "Visualize the convergence statistics from two MMvec models, "
+        "giving insight into how the models fit to your data. "
+        "The produced visualization includes a 'pseudo-Q-squared' value."
+    )
+)
+
+# Register types
+plugin.register_formats(MMvecStatsFormat, MMvecStatsDirFmt)
+plugin.register_semantic_types(MMvecStats)
+plugin.register_semantic_type_to_format(
+    SampleData[MMvecStats], MMvecStatsDirFmt)
 
 plugin.register_formats(ConditionalFormat, ConditionalDirFmt)
 plugin.register_semantic_types(Conditional)

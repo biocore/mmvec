@@ -43,7 +43,7 @@ class TestMMvec(unittest.TestCase):
         tf.reset_default_graph()
         tf.set_random_seed(0)
         latent_dim = 2
-        res_ranks, res_biplot = paired_omics(
+        res_ranks, res_biplot, _ = paired_omics(
             self.microbes, self.metabolites,
             epochs=1000, latent_dim=latent_dim,
             min_feature_count=1, learning_rate=0.1
@@ -73,7 +73,7 @@ class TestMMvec(unittest.TestCase):
         tf.reset_default_graph()
         tf.set_random_seed(0)
         latent_dim = 2
-        res_ranks, res_biplot = paired_omics(
+        res_ranks, res_biplot, _ = paired_omics(
             self.microbes, self.metabolites,
             epochs=1000, latent_dim=latent_dim,
             min_feature_count=1, learning_rate=0.1,

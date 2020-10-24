@@ -23,6 +23,8 @@ conda install mmvec -c conda-forge
 
 Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
+Finally, MMvec is **only** compatible with qiime2 environments before 2020.5. Stay tuned for future updates.
+
 # Input data
 
 The two basic tables required to run mmvec are:
@@ -63,16 +65,16 @@ qiime dev refresh-cache
 ```
 
 This should allow your q2 environment to recognize mmvec. Before we test
-the qiime2 plugin, run the following commands to import an example dataset
+the qiime2 plugin, go to the `examples/cf` folder and run the following commands to import an example dataset
 
 ```
 qiime tools import \
-        --input-path data/otus_nt.biom \
+        --input-path otus_nt.biom \
         --output-path otus_nt.qza \
         --type FeatureTable[Frequency]
 
 qiime tools import \
-        --input-path data/lcms_nt.biom \
+        --input-path lcms_nt.biom \
         --output-path lcms_nt.qza \
         --type FeatureTable[Frequency]
 ```
@@ -82,12 +84,12 @@ Then you can run mmvec
 qiime mmvec paired-omics \
         --i-microbes otus_nt.qza \
         --i-metabolites lcms_nt.qza \
-        --p-learning-rate 1e-3 \
-        --o-conditionals ranks.qza \
-        --o-conditional-biplot biplot.qza
+        --p-summary-interval 1 \
+        --output-dir model_summary
 ```
 
-In the results, there are two files, namely `results/conditional_biplot.qza` and `results/conditionals.qza`. The conditional biplot is a biplot representation the
+In the results, there are three files, namely `model_summary/conditional_biplot.qza`, `model_summary/conditionals.qza` and `model_summary/model_stats.qza`.
+The conditional biplot is a biplot representation the
 conditional probability matrix so that you can visualize these microbe-metabolite interactions in an exploratory manner.  This can be directly visualized in
 Emperor as shown below.  We also have the estimated conditional probability matrix given in `results/conditionals.qza`,
 which an be unzip to yield a tab-delimited table via `unzip results/conditionals`. Each row can be ranked,
@@ -108,8 +110,8 @@ Then you can run the following to generate a emperor biplot.
 ```
 qiime emperor biplot \
         --i-biplot conditional_biplot.qza \
-        --m-sample-metadata-file data/metabolite-metadata.txt \
-        --m-feature-metadata-file data/microbe-metadata.txt \
+        --m-sample-metadata-file metabolite-metadata.txt \
+        --m-feature-metadata-file taxonomy.tsv \
         --o-visualization emperor.qzv
 
 ```
@@ -190,6 +192,50 @@ taxonomic `level` to display. The output looks something like this:
 
 
 More information behind the actions and parameters can found under `qiime mmvec --help`
+
+# Model diagnostics
+
+## QIIME2 Convergence Summaries
+
+If you are using the qiime2 interface, there won't be a tensorboard interface.
+But there will still be training loss curves and cross-validation statistics reported.
+To run this with a single model, run the following
+
+```
+qiime mmvec summarize-single \
+        --i-model-stats model_summary/model_stats.qza \
+        --o-visualization model-summary.qzv
+```
+
+## Null models and QIIME 2 + MMvec
+
+If you're running Songbird through QIIME 2, the
+`qiime mmvec summarize-paired` command allows you to view two sets of
+diagnostic plots at once as follows:
+
+```
+# Null model with only biases
+qiime mmvec paired-omics \
+        --i-microbes otus_nt.qza \
+        --i-metabolites lcms_nt.qza \
+        --p-latent-dim 0 \
+        --p-summary-interval 1 \
+        --output-dir null_summary
+
+qiime mmvec summarize-paired \
+        --i-model-stats model_summary/model_stats.qza \
+        --i-baseline-stats null_summary/model_stats.qza \
+        --o-visualization paired-summary.qzv
+```
+
+These summaries can also be extended to analyze any two models of interest.  This can help with picking optimal hyper-parameters.
+
+## Interpreting _Q<sup>2</sup>_ values <span id="explaining-q2"></span>
+The _Q<sup>2</sup>_ score is adapted from the Partial least squares literature.  Here it is given by `Q^2 = 1 - m1/m2`, where `m1` indicates the average absolute model error and `m2` indicates the average absolute null or baseline model error.  If _Q<sup>2</sup>_ is close to 1, that indicates a high predictive accuracy on the cross validation samples. If _Q<sup>2</sup>_ is low or below zero, that indicates poor predictive accuracy, suggesting possible overfitting. This statistic behaves similarly to the _R<sup>2</sup>_ classically used in a ordinary linear regression if `--p-formula` is `"1"` in the `m2` model.
+
+If the _Q<sup>2</sup>_ score is extremely close to 0 (or negative), this indicates that the model is overfit or that the metadata supplied to the model are not predictive of microbial composition across samples. You can think about this in terms of "how does using the metadata columns in my formula *improve* a model?" If there isn't really an improvement, then you may want to reconsider your formula.
+
+... [But as long as your _Q<sup>2</sup>_ score is above zero, your model is learning something useful](https://forum.qiime2.org/t/songbird-optimizing-the-loss-function/13479/8).
 
 # FAQs
 

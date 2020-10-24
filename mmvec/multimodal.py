@@ -236,23 +236,21 @@ class MMvec(object):
             cross validation loss
         """
         iterations = epoch * self.nnz // self.batch_size
-
+        losses, cvs = [], []
         cv = None
         last_checkpoint_time = 0
         last_summary_time = 0
         saver = tf.train.Saver()
         now = time.time()
         for i in tqdm(range(0, iterations)):
-
             if now - last_summary_time > summary_interval:
-                if testX is not None and testY is not None:
-                    cv = self.cross_validate(testX, testY)
+
                 res = self.session.run(
-                    [self.train, self.merged, self.log_loss,
+                    [self.train, self.merged, self.log_loss, self.cv,
                      self.qUmain, self.qUbias,
                      self.qVmain, self.qVbias]
                 )
-                train_, summary, loss, rU, rUb, rV, rVb = res
+                train_, summary, loss, cv, rU, rUb, rV, rVb = res
                 self.writer.add_summary(summary, i)
                 last_summary_time = now
             else:
@@ -262,6 +260,9 @@ class MMvec(object):
                      self.qVmain, self.qVbias]
                 )
                 train_, loss, rU, rUb, rV, rVb = res
+                losses.append(loss)
+                cvs.append(cv)
+                cv = None
 
             # checkpoint model
             now = time.time()
@@ -276,4 +277,4 @@ class MMvec(object):
         self.Ubias = rUb
         self.Vbias = rVb
 
-        return loss, cv
+        return losses, cvs
