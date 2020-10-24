@@ -42,6 +42,7 @@ plugin.methods.register_function(
         'min_feature_count': Int,
         'epochs': Int,
         'batch_size': Int,
+        'arm_the_gpu': Bool,
         'latent_dim': Int,
         'input_prior': Float,
         'output_prior': Float,
@@ -74,6 +75,7 @@ plugin.methods.register_function(
         'equalize_biplot': 'Biplot arrows and points are on the same scale.',
         'batch_size': 'The number of samples to be evaluated per '
                       'training iteration.',
+        'arm_the_gpu': 'Specifies whether or not to use the GPU.',
         'input_prior': 'Width of normal prior for the microbial '
                        'coefficients. Smaller values will regularize '
                        'parameters towards zero. Values must be greater '
@@ -202,7 +204,7 @@ plugin.visualizers.register_function(
     name='MMvec summary statistics',
     description=(
         "Visualize the convergence statistics from running "
-        "`qiime mmvec paired-omics`regression, giving insight "
+        "`qiime mmvec paired-omics`, giving insight "
         "into how the model fit to your data."
     )
 )
@@ -228,7 +230,7 @@ plugin.visualizers.register_function(
     },
     parameter_descriptions={
     },
-    name='Paired regression summary statistics',
+    name='Paired MMvec summary statistics',
     description=(
         "Visualize the convergence statistics from two MMvec models, "
         "giving insight into how the models fit to your data. "

@@ -1,7 +1,7 @@
 import qiime2
 import pandas as pd
 
-from mmvec.q2 import ConditionalFormat
+from mmvec.q2 import ConditionalFormat, MMvecStatsFormat
 from mmvec.q2.plugin_setup import plugin
 
 
@@ -21,4 +21,16 @@ def _2(df: pd.DataFrame) -> ConditionalFormat:
 
 @plugin.register_transformer
 def _3(ff: ConditionalFormat) -> qiime2.Metadata:
+    return qiime2.Metadata.load(str(ff))
+
+
+@plugin.register_transformer
+def _4(obj: qiime2.Metadata) -> MMvecStatsFormat:
+    ff = MMvecStatsFormat()
+    obj.save(str(ff))
+    return ff
+
+
+@plugin.register_transformer
+def _5(ff: MMvecStatsFormat) -> qiime2.Metadata:
     return qiime2.Metadata.load(str(ff))

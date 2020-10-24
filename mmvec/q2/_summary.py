@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 
 def _convergence_plot(model, baseline, ax0, ax1):
     iterations = np.array(model['iteration'])
-
-    ax0.plot(iterations[1:],
-             np.array(model['cross-validation'].values)[1:],
+    cv_model = model.dropna()
+    ax0.plot(cv_model['iteration'][1:],
+             np.array(cv_model['cross-validation'].values)[1:],
              label='model')
     ax0.set_ylabel('Cross validation score', fontsize=14)
     ax0.set_xlabel('# Iterations', fontsize=14)
@@ -21,9 +21,9 @@ def _convergence_plot(model, baseline, ax0, ax1):
 
     if baseline is not None:
         iterations = baseline['iteration']
-
-        ax0.plot(iterations[1:],
-                 np.array(baseline['cross-validation'].values)[1:],
+        cv_baseline = baseline.dropna()
+        ax0.plot(cv_baseline['iteration'][1:],
+                 np.array(cv_baseline['cross-validation'].values)[1:],
                  label='baseline')
         ax0.set_ylabel('Cross validation score', fontsize=14)
         ax0.set_xlabel('# Iterations', fontsize=14)
@@ -73,8 +73,11 @@ def _summarize(output_dir: str, model: pd.DataFrame,
 
         # compute a q2 score, which is commonly used in
         # partial least squares for cross validation
-        l0 = np.mean(baseline['cross-validation'][-end:])
-        lm = np.mean(model['cross-validation'][-end:])
+        cv_model = model.dropna()
+        cv_baseline = baseline.dropna()
+
+        l0 = np.mean(cv_baseline['cross-validation'][-end:])
+        lm = np.mean(cv_model['cross-validation'][-end:])
         q2 = 1 - lm / l0
 
     plt.tight_layout()

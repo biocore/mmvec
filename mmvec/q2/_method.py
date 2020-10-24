@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from skbio import OrdinationResults
+import qiime2
 from qiime2.plugin import Metadata
 from mmvec.multimodal import MMvec
 from mmvec.util import split_tables
@@ -21,14 +22,22 @@ def paired_omics(microbes: biom.Table,
                  latent_dim: int = 3,
                  input_prior: float = 1,
                  output_prior: float = 1,
-                 learning_rate: float = 1e-5,
+                 learning_rate: float = 1e-3,
                  equalize_biplot: float = False,
+                 arm_the_gpu: bool = False,
                  summary_interval: int = 60) -> (
-                     pd.DataFrame, OrdinationResults, pd.DataFrame
+                     pd.DataFrame, OrdinationResults, qiime2.Metadata
                  ):
 
     if metadata is not None:
         metadata = metadata.to_dataframe()
+
+    if arm_the_gpu:
+        # pick out the first GPU
+        device_name='/device:GPU:0'
+    else:
+        device_name='/cpu:0'
+
 
     # Note: there are a couple of biom -> pandas conversions taking
     # place here.  This is currently done on purpose, since we
@@ -51,6 +60,7 @@ def paired_omics(microbes: biom.Table,
             latent_dim=latent_dim,
             u_scale=input_prior, v_scale=output_prior,
             batch_size=batch_size,
+            device_name=device_name,
             learning_rate=learning_rate)
         model(session,
               train_microbes_coo, train_metabolites_df.values,
@@ -59,8 +69,12 @@ def paired_omics(microbes: biom.Table,
         loss, cv = model.fit(epoch=epochs, summary_interval=summary_interval)
         ranks = pd.DataFrame(model.ranks(), index=train_microbes_df.columns,
                              columns=train_metabolites_df.columns)
+        if latent_dim > 0:
+            u, s, v = svds(ranks - ranks.mean(axis=0), k=latent_dim)
+        else:
+            # fake it until you make it
+            u, s, v = svds(ranks - ranks.mean(axis=0), k=1)
 
-        u, s, v = svds(ranks - ranks.mean(axis=0), k=latent_dim)
         ranks = ranks.T
         ranks.index.name = 'featureid'
         s = s[::-1]
@@ -89,7 +103,7 @@ def paired_omics(microbes: biom.Table,
             samples=samples, features=features,
             proportion_explained=proportion_explained)
 
-        its = np.arange(loss)
+        its = np.arange(len(loss))
         convergence_stats = pd.DataFrame(
             {
                 'loss': loss,
@@ -110,4 +124,4 @@ def paired_omics(microbes: biom.Table,
         c = convergence_stats['iteration'].astype(np.int)
         convergence_stats['iteration'] = c
 
-        return ranks, biplot, convergence_stats
+        return ranks, biplot, qiime2.Metadata(convergence_stats)

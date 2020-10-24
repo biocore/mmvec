@@ -38,7 +38,7 @@ def mmvec():
               default=None)
 @click.option('--num-testing-examples',
               help=('Number of samples to randomly select for testing'),
-              default=10)
+              default=5)
 @click.option('--min-feature-count',
               help=('Minimum number of samples a microbe needs to be observed '
                     'in order to not filter out'),
@@ -46,7 +46,7 @@ def mmvec():
 @click.option('--epochs',
               help='Number of epochs to train', default=10)
 @click.option('--batch-size',
-              help='Size of mini-batch', default=100)
+              help='Size of mini-batch', default=50)
 @click.option('--latent-dim',
               help=('Dimensionality of shared latent space. '
                     'This is analogous to the number of PC axes.'),
@@ -55,12 +55,12 @@ def mmvec():
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
-              default=5.)
+              default=1.)
 @click.option('--output-prior',
               help=('Width of normal prior for input embedding.  '
                     'Smaller values will regularize parameters towards zero. '
                     'Values must be greater than 0.'),
-              default=5.)
+              default=1.)
 @click.option('--arm-the-gpu', is_flag=True,
               help=('Enables GPU support'),
               default=False)
@@ -81,7 +81,7 @@ def mmvec():
               default=1000)
 @click.option('--summary-interval',
               help=('Number of seconds before a storing a summary.'),
-              default=100)
+              default=60)
 @click.option('--summary-dir', default='summarydir',
               help='Summary directory to save cross validation results.')
 @click.option('--embeddings-file', default=None,

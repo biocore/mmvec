@@ -18,7 +18,7 @@ ConditionalDirFmt = model.SingleFileDirectoryFormat(
 
 # songbird stats summarizing loss and cv error
 MMvecStats = SemanticType('MMvecStats',
-                             variant_of=SampleData.field['type'])
+                          variant_of=SampleData.field['type'])
 
 
 class MMvecStatsFormat(model.TextFileFormat):

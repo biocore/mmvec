@@ -65,16 +65,16 @@ qiime dev refresh-cache
 ```
 
 This should allow your q2 environment to recognize mmvec. Before we test
-the qiime2 plugin, run the following commands to import an example dataset
+the qiime2 plugin, go to the `examples/cf` folder and run the following commands to import an example dataset
 
 ```
 qiime tools import \
-        --input-path data/otus_nt.biom \
+        --input-path otus_nt.biom \
         --output-path otus_nt.qza \
         --type FeatureTable[Frequency]
 
 qiime tools import \
-        --input-path data/lcms_nt.biom \
+        --input-path lcms_nt.biom \
         --output-path lcms_nt.qza \
         --type FeatureTable[Frequency]
 ```
@@ -84,12 +84,12 @@ Then you can run mmvec
 qiime mmvec paired-omics \
         --i-microbes otus_nt.qza \
         --i-metabolites lcms_nt.qza \
-        --p-learning-rate 1e-3 \
-        --o-conditionals ranks.qza \
-        --o-conditional-biplot biplot.qza
+        --p-summary-interval 1 \
+        --output-dir model_summary
 ```
 
-In the results, there are two files, namely `results/conditional_biplot.qza` and `results/conditionals.qza`. The conditional biplot is a biplot representation the
+In the results, there are three files, namely `model_summary/conditional_biplot.qza`, `model_summary/conditionals.qza` and `model_summary/model_stats.qza`.
+The conditional biplot is a biplot representation the
 conditional probability matrix so that you can visualize these microbe-metabolite interactions in an exploratory manner.  This can be directly visualized in
 Emperor as shown below.  We also have the estimated conditional probability matrix given in `results/conditionals.qza`,
 which an be unzip to yield a tab-delimited table via `unzip results/conditionals`. Each row can be ranked,
@@ -110,8 +110,8 @@ Then you can run the following to generate a emperor biplot.
 ```
 qiime emperor biplot \
         --i-biplot conditional_biplot.qza \
-        --m-sample-metadata-file data/metabolite-metadata.txt \
-        --m-feature-metadata-file data/microbe-metadata.txt \
+        --m-sample-metadata-file metabolite-metadata.txt \
+        --m-feature-metadata-file taxonomy.tsv \
         --o-visualization emperor.qzv
 
 ```
@@ -202,10 +202,9 @@ But there will still be training loss curves and cross-validation statistics rep
 To run this with a single model, run the following
 
 ```
-qiime mmvec summarize-paired \
-        --i-regression-stats summary/regression-stats.qza \
-        --o-visualization paired-summary.qzv
-
+qiime mmvec summarize-single \
+        --i-model-stats model_summary/model_stats.qza \
+        --o-visualization model-summary.qzv
 ```
 
 ## Null models and QIIME 2 + MMvec
@@ -216,15 +215,16 @@ diagnostic plots at once as follows:
 
 ```
 # Null model with only biases
-mmvec paired-omics \
-        --microbe-file examples/cf/otus_nt.biom \
-        --metabolite-file examples/cf/lcms_nt.biom \
-        --latent-dim 0 \
-        --summary-dir null_summary
+qiime mmvec paired-omics \
+        --i-microbes otus_nt.qza \
+        --i-metabolites lcms_nt.qza \
+        --p-latent-dim 0 \
+        --p-summary-interval 1 \
+        --output-dir null_summary
 
 qiime mmvec summarize-paired \
-        --i-regression-stats summary/regression-stats.qza \
-        --i-baseline-stats null_summary/regression-stats.qza \
+        --i-model-stats model_summary/model_stats.qza \
+        --i-baseline-stats null_summary/model_stats.qza \
         --o-visualization paired-summary.qzv
 ```
 

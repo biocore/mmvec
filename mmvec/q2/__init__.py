@@ -5,6 +5,8 @@ from ._visualizers import heatmap, paired_heatmap
 from ._summary import summarize_single, summarize_paired
 
 
-__all__ = ['paired_omics', 'Conditional', 'ConditionalFormat',
-           'ConditionalDirFmt', 'heatmap', 'paired_heatmap',
+__all__ = ['paired_omics',
+           'Conditional', 'ConditionalFormat', 'ConditionalDirFmt',
+           'MMvecStats', 'MMvecStatsFormat', 'MMvecStatsDirFmt',
+           'heatmap', 'paired_heatmap',
            'summarize_single', 'summarize_paired']
