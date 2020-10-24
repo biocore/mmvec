@@ -34,10 +34,9 @@ def paired_omics(microbes: biom.Table,
 
     if arm_the_gpu:
         # pick out the first GPU
-        device_name='/device:GPU:0'
+        device_name = '/device:GPU:0'
     else:
-        device_name='/cpu:0'
-
+        device_name = '/cpu:0'
 
     # Note: there are a couple of biom -> pandas conversions taking
     # place here.  This is currently done on purpose, since we

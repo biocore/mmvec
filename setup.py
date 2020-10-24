@@ -60,7 +60,7 @@ setup(name='mmvec',
           'scikit-bio >= 0.5.1',
           'seaborn',
           'tqdm',
-          #'tensorflow>=1.15,<2'
+          'tensorflow>=1.15,<2'
       ],
       classifiers=classifiers,
       entry_points={
