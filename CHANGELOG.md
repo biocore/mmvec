@@ -1,5 +1,8 @@
 # mmvec changelog
 
+## Version 1.0.5
+- Adding summary commands to diagnose MMvec in the qiime2 interface [#151](https://github.com/biocore/mmvec/pull/151)
+
 ## Version 1.0.4 (2020-04-24)
 # Enhancements
  - `equalize_biplot` option has been able to visualize microbes and metabolites on the same scale. [#131](https://github.com/biocore/mmvec/pull/131)
