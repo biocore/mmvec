@@ -23,7 +23,7 @@ conda install mmvec -c conda-forge
 
 Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
 
-Finally, MMvec is **only** compatible with qiime2 environments before 2020.5. Stay tuned for future updates.
+Finally, MMvec is **only** compatible with qiime2 environments 2020.6 or before. Stay tuned for future updates.
 
 # Input data
 
@@ -198,14 +198,16 @@ More information behind the actions and parameters can found under `qiime mmvec 
 ## QIIME2 Convergence Summaries
 
 If you are using the qiime2 interface, there won't be a tensorboard interface.
-But there will still be training loss curves and cross-validation statistics reported.
-To run this with a single model, run the following
+But there will still be training loss curves and cross-validation statistics reported, which are currently not available in the tensorboard interface. To run this with a single model, run the following
 
 ```
 qiime mmvec summarize-single \
         --i-model-stats model_summary/model_stats.qza \
         --o-visualization model-summary.qzv
 ```
+
+An example of what this will look like is given as follows
+![single_summary](https://github.com/biocore/mmvec/raw/master/img/single-summary.png "Single Summary")
 
 ## Null models and QIIME 2 + MMvec
 
@@ -227,6 +229,11 @@ qiime mmvec summarize-paired \
         --i-baseline-stats null_summary/model_stats.qza \
         --o-visualization paired-summary.qzv
 ```
+
+An example of what this will look like is given as follows
+![paired_summary](https://github.com/biocore/mmvec/raw/master/img/paired-summary.png "Paired Summary")
+
+It is important to note here that the null model has a worst cross-validation error than the first MMvec model we trained. However to make the models exactly comparable, the same samples must be used for training and cross-validation.  See the `--p-training-column` option to manually specify samples for training and testing.
 
 These summaries can also be extended to analyze any two models of interest.  This can help with picking optimal hyper-parameters.
 
@@ -310,9 +317,10 @@ You can also compare multiple runs with different parameters to see which run pe
 **A** : There are 3 different parameters to focus on, `input-prior`, `output-prior` and `latent-dim`
 
 The `--input-prior`  and `--output-prior` options specifies the width of the prior distribution of the coefficients, where the `--input-prior` is typically specific to microbes and the `--output-prior` is specific to metabolites.
-For a prior of 1, this means 99% of entries in the embeddings (typically given in the `U.txt` and `V.txt` files are within -3 and +3 (log fold change). The higher differential-prior is, the more parameters can have bigger changes, so you want to keep this relatively small. If you see overfitting (accuracy and fit increasing over iterations in tensorboard) you may consider reducing the `--input-prior` and `--output-prior` in order to reduce the parameter space.
+For a prior of 1, this means 99% of entries in the embeddings are within -3 and +3 log fold change. A prior of 0.1 would impose the constraint that 99% of the embeddings are within -0.3 and +0.3 log fold change.   The higher `--input-prior` and `--output-prior` is, the more parameters can have bigger changes, so you want to keep this relatively small for small experimental studies, particularly if there are less than 20 samples (we have not been able to run MMvec on a study with fewer than 12 samples without overfitting).
+If you see overfitting (accuracy and fit increasing over iterations in tensorboard) you may consider reducing the `--input-prior` and `--output-prior` in order to reduce the parameter space.
 
-Another parameter worth thinking about is `--latent-dim`, which controls the number of dimensions used to approximate the conditional probability matrix.  This also specifies the dimensions of the microbe/metabolite embeddings `U.txt` and `V.txt`.  The more dimensions this has, the more accurate the embeddings can be -- but the higher the chance of overfitting there is.  The rule of thumb to follow is in order to fit these models, you need at least 10 times as many samples as there are latent dimensions (this is following a similar rule of thumb for fitting straight lines).  So if you have 100 samples, you should definitely not have a latent dimension of more than 10.  Furthermore, you can still overfit certain microbes and metabolites.  For example, you are fitting a model with those 100 samples and just 1 latent dimension, you can still easily overfit microbes and metabolites that appear in less than 10 samples -- so even fitting models with just 1 latent dimension will require some microbes and metabolites that appear in less than 10 samples to be filtered out.
+Another parameter worth thinking about is `--latent-dim`, which controls the number of dimensions used to approximate the conditional probability matrix.  This also specifies the dimensions of the microbe/metabolite embeddings that are stored in the biplot file.  The more dimensions this has, the more accurate the embeddings can be -- but the higher the chance of overfitting there is.  The rule of thumb to follow is in order to fit these models, you need at least 10 times as many samples as there are latent dimensions (this is following a similar rule of thumb for fitting straight lines).  So if you have 100 samples, you should definitely not have a latent dimension of more than 10.  Furthermore, you can still overfit certain microbes and metabolites.  For example, you are fitting a model with those 100 samples and just 1 latent dimension, you can still easily overfit microbes and metabolites that appear in less than 10 samples -- so even fitting models with just 1 latent dimension will require some microbes and metabolites that appear in less than 10 samples to be filtered out.
 
 
 **Q** : What does a good model fit look like??
@@ -329,12 +337,15 @@ Another parameter worth thinking about is `--latent-dim`, which controls the num
 
 **Number of iterations = `epoch #` multiplied by the ( Total # of microbial reads / `batch-size` parameter)**
 
-This also depends on if your program will converge. The `learning-rate` specifies the resolution, smaller step size = smaller resolution, which will increase the accuracy, but may take longer to converge. You will need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
+This also depends on if your program will converge. The `learning-rate` specifies the resolution, smaller step size = smaller resolution, which will increase the accuracy, but may take longer to converge. You may need to consult with Tensorboard to make sure that your model fit is sane. See this paper for more details on gradient descent: https://arxiv.org/abs/1609.04747
+
 
 If you are running this on a CPU, 16 cores, a run that reaches convergence should take about 1 day.
 If you have a GPU - you maybe able to get this down to a few hours.  However, some finetuning of the `batch-size` parameter maybe required -- instead of having a small `batch-size` < 100, you'll want to bump up the `batch-size` to between 1000 and 10000 to fully leverage the speedups available on the GPU.
 
-**Q** : Can I run the standalone version of mmvec and import those outputs to visualize in qiime2?n
+As a good reference, the cystic fibrosis dataset can be processed within 10 minutes on a single CPU and within 1 minute on a GPU.
+
+**Q** : Can I run the standalone version of mmvec and import those outputs to visualize in qiime2?
 
 **A** : Yes you can! If you ran the standalone `mmvec paired-omics` command and you specified your ranks and ordination to be stored under `conditionals.tsv` and `ordination.txt`, you can import those as qiime2 Artifacts as follows.
 
@@ -345,9 +356,20 @@ qiime tools import --input-path ordination.txt --output-path biplot.qza --type "
 
 **Q** : Can MMvec handle small sample studies?
 
-**A** : We have ran MMvec with studies as few as 19 samples.  However running MMvec in these small sample regimes requires careful tuning of `--latent-dimension` in addition to the `--input-prior` and `--output-prior` commands.  The [desert biocrust experiment](https://github.com/biocore/mmvec/tree/master/examples/soils) maybe a good dataset to refer to when analyzing these sorts of datasets.
+**A** : We have ran MMvec with published studies as few as 19 samples.  However running MMvec in these small sample regimes requires careful tuning of `--latent-dimension` in addition to the `--input-prior` and `--output-prior` commands.  The [desert biocrust experiment](https://github.com/biocore/mmvec/tree/master/examples/soils) maybe a good dataset to refer to when analyzing these sorts of datasets. It is important to note that we have not been able to run MMvec on fewer than 12 samples.
 
 Credits to Lisa Marotz ([@lisa55asil](https://github.com/lisa55asil)),  Yoshiki Vazquez-Baeza ([@ElDeveloper](https://github.com/ElDeveloper)), Julia Gauglitz ([@jgauglitz](https://github.com/jgauglitz)) and Nickolas Bokulich ([@nbokulich](https://github.com/nbokulich)) for their README contributions.
+
+**Q** You mentioned that MMvec learns co-occurrence probabilities. How can I extract these probabilities?
+
+**A** MMvec will output a file of co-occurrence probabilities, where the rows are metabolites and columns are microbes.  You can extract the co-occurrence probabilities by applying a softmax transform along the columns.  In python, this done as follows
+```python
+import pandas as pd
+from skbio.stats.composition import clr_inv as softmax
+ranks = pd.read_table('ranks.txt', index_col=0)
+probs = ranks.apply(softmax)
+probs.to_csv('conditional_probs.txt', sep='\t')
+```
 
 # Citation
 If you found this tool useful please cite us at
