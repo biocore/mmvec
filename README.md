@@ -256,12 +256,12 @@ If the _Q<sup>2</sup>_ score is extremely close to 0 (or negative), this indicat
 
 3. More model parameters : The standalone script will return the bias parameters learned for each dataset (i.e. microbe and metabolite abundances).  These are stored under the summary directory (specified by `--summary`) under the names `embeddings.csv`. This file will hold the coordinates for the microbes and metabolites, along with biases.  There are 4 columns in this file, namely `feature_id`, `axis`, `embed_type` and `values`.  `feature_id` is the name of the feature, whether it be a microbe name or a metabolite feature id.  `axis` corresponds to the name of the axis, which either corresponds to a PC axis or bias.  `embed_type` denotes if the coordinate corresponds to a microbe or metabolite.  `values` is the coordinate value for the given `axis`, `embed_type` and `feature_id`.  This can be useful for accessing the raw parameters and building custom biplots / ranks visualizations - this also has the advantage of requiring much less memory to manipulate.
 
-It is also important to note that you don't have to explicitly chose - it is very doable to run the standalone version first, then import those output files into qiime2.  Importing can be done as follows
+It is also important to note that you don't have to explicitly choose - it is very doable to run the standalone version first, then import those output files into qiime2.  Importing can be done as follows
 
 ```
 qiime tools import --input-path <your ranks file> --output-path conditionals.qza --type FeatureData[Conditional]
 
-qiime tools import --input-path <your ordination file> --output-path ordination.qza --type 'PCoAResults % ("biplot")'
+qiime tools import --input-path <your ordination file> --output-path ordination.qza --type 'PCoAResults % Properties("biplot")'
 ```
 
 **Q** : You mentioned that you can use GPUs.  How can you do that??
