@@ -211,7 +211,7 @@ An example of what this will look like is given as follows
 
 ## Null models and QIIME 2 + MMvec
 
-If you're running Songbird through QIIME 2, the
+If you're running mmvec through QIIME 2, the
 `qiime mmvec summarize-paired` command allows you to view two sets of
 diagnostic plots at once as follows:
 
