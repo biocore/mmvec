@@ -7,6 +7,7 @@ qiime mmvec paired-omics \
       --p-epochs 100 \
       --p-learning-rate 1e-3 \
       --o-conditionals ranks.qza \
+      --o-model-stats stats.qza \
       --o-conditional-biplot biplot.qza \
       --p-summary-interval 1 \
       --p-equalize-biplot \
