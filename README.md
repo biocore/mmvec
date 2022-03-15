@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/biocore/mmvec.svg?branch=master)](https://travis-ci.org/biocore/mmvec)
 
-# mmvec
+# MMvec
 Neural networks for estimating microbe-metabolite interactions through their co-occurence probabilities.
 
 ![](https://github.com/biocore/mmvec/raw/master/img/mmvec.png "mmvec")
@@ -21,7 +21,14 @@ MMvec can also be installed via conda as follows
 conda install mmvec -c conda-forge
 ```
 
-Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
+**Warning** : Note that this option may not work in cluster environments, it maybe workwhile to pip install within a virtual environment.  It is possible to pip install mmvec within a conda environment, including qiime2 conda environments.  However, pip and conda are known to have compatibility issues, so proceed with caution.
+
+**Update** : conda has not aged very well since this package was released.  Below is are updated install instructions using mamba install (without qiime2)
+```
+conda create -n mmvec_env mamba python=3.7 -c conda-forge
+conda activate mmvec_env
+mamba install mmvec -c conda-forge
+```
 
 Finally, MMvec is **only** compatible with qiime2 environments 2020.6 or before. Stay tuned for future updates.
 
