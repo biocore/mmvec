@@ -47,7 +47,7 @@ class MMvec(nn.Module):
         return likelihood_sum
 
 
-def train_loop(microbes, metabolites, model, optimizer, batch_size, epochs):
+def mmvec_training_loop(microbes, metabolites, model, optimizer, batch_size, epochs):
 
     for epoch in range(epochs):
 
