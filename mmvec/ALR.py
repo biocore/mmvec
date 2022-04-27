@@ -1,4 +1,5 @@
 import torch
+import pandas as pd
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Multinomial, Normal
@@ -57,35 +58,36 @@ class MMvecALR(nn.Module):
 
         l_y = forward_dist.mean(0).mean()
 
-        # LU
         u_weights = self.encoder.weight
         l_u = Normal(0, self.sigma_u).log_prob(u_weights).sum()
-        #l_u = torch.normal(0, self.sigma_u).log_prob(z
+        l_ubias = Normal(0, self.sigma_u).log_prob(self.u_bias).sum()
 
-        # LV
-        # index zero currently holds "linear", may need to be changed later
         v_weights = self.decoder.linear.weight
         l_v = Normal(0, self.sigma_v).log_prob(v_weights).sum()
+        l_vbias = Normal(0, self.sigma_v).log_prob(self.decoder.linear.bias).sum()
 
-        likelihood_sum = l_y + l_u + l_v
+        likelihood_sum = l_y + l_u + l_v + l_ubias + l_vbias
         return likelihood_sum
+
+   # def get_ordination(self):
+   #     ranks_df = pd.DataFrame(self.ranks(),
+
+   #     pass
+
 
     def ranks(self):
         U = torch.cat(
             (torch.ones((self.num_microbes, 1)),
             self.u_bias.detach(),
             self.encoder.weight.detach()),
-            dim=-1)
+            dim=1)
 
         V = torch.cat(
             (self.decoder.linear.bias.detach().unsqueeze(dim=0),
-             torch.from_numpy(np.ones((1, self.num_metabolites - 1))),
+             torch.ones((1, self.num_metabolites - 1)),
              self.decoder.linear.weight.detach().T),
             dim=0)
-        #res = np.hstack((np.zeros((self.num_microbes - 1, 1)), modelU @ modelV))
-        res = torch.cat((torch.zeros((self.num_microbes -1, 1)), U @ V),
-                        dim=-1)
-        res = res - res.mean(axis=1).reshape(-1, 1)
-        # perform SVD here?.....
-        return res
 
+        res = torch.cat((torch.zeros((self.num_microbes, 1)), U @ V), dim=1)
+        res = res - res.mean(axis=1).reshape(-1, 1)
+        return res
