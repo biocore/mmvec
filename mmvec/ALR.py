@@ -1,10 +1,10 @@
-import torch
 import pandas as pd
+
+import torch
 import torch.nn as nn
+import torch.linalg as linalg
 import torch.nn.functional as F
 from torch.distributions import Multinomial, Normal
-
-import numpy as np
 
 
 class LinearALR(nn.Module):
@@ -32,10 +32,6 @@ class MMvecALR(nn.Module):
         self.u_bias = nn.parameter.Parameter(torch.randn((num_microbes, 1)))
 
         self.encoder = nn.Embedding(num_microbes, latent_dim)
-        #self.decoder =  nn.Sequential(
-        #        nn.Linear(latent_dim, num_metabolites),
-        #        nn.Softmax(dim=2)
-        #        )
         self.decoder = LinearALR(latent_dim, num_metabolites)
 
         self.sigma_u = sigma_u
@@ -69,13 +65,14 @@ class MMvecALR(nn.Module):
         likelihood_sum = l_y + l_u + l_v + l_ubias + l_vbias
         return likelihood_sum
 
-   # def get_ordination(self):
-   #     ranks_df = pd.DataFrame(self.ranks(),
+    def get_ordination(self, equalize_biplot=False):
+        ranks = self.ranks_matrix - self.ranks_matrix.mean(dim=0)
+        u, s, v = linalg.svd(ranks, full_matrices=False)
+        print(u)
+        print(s)
+        print(v)
 
-   #     pass
-
-
-    def ranks(self):
+    def ranks(self, microbe_ids, metabolite_ids):
         U = torch.cat(
             (torch.ones((self.num_microbes, 1)),
             self.u_bias.detach(),
@@ -90,4 +87,7 @@ class MMvecALR(nn.Module):
 
         res = torch.cat((torch.zeros((self.num_microbes, 1)), U @ V), dim=1)
         res = res - res.mean(axis=1).reshape(-1, 1)
-        return res
+
+        self.ranks_matrix = res
+        self.ranks_df = pd.DataFrame(res, index=microbe_ids,
+                columns=metabolite_ids)
