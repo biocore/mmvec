@@ -6,6 +6,28 @@ import torch.linalg as linalg
 import torch.nn.functional as F
 from torch.distributions import Multinomial, Normal
 
+from skbio import OrdinationResults
+
+
+def structure_data(microbes, metabolites):
+    microbes = microbes.to_dataframe().T
+    metabolites = metabolites.to_dataframe().T
+    microbes = microbes.loc[metabolites.index]
+
+    microbe_idx = microbes.columns
+    metabolite_idx = metabolites.columns
+
+    microbe_count = microbes.shape[1]
+    metabolite_count = metabolites.shape[1]
+
+    microbes = torch.tensor(microbes.values, dtype=torch.int)
+    metabolites = torch.tensor(metabolites.values, dtype=torch.int64)
+
+    microbe_relative_frequency = (microbes.T/microbes.sum(1)).T
+
+    return (microbes, metabolites, microbe_idx, metabolite_idx, microbe_count,
+           metabolite_count, microbe_relative_frequency)
+
 
 class LinearALR(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -21,24 +43,25 @@ class LinearALR(nn.Module):
 
 
 class MMvecALR(nn.Module):
-    def __init__(self, num_microbes, num_metabolites, latent_dim, sigma_u,
+    def __init__(self, microbes, metabolites, latent_dim, sigma_u,
             sigma_v):
         super().__init__()
 
-        self.latent_dim = latent_dim
-        self.num_microbes = num_microbes
-        self.num_metabolites = num_metabolites
-
-        self.u_bias = nn.parameter.Parameter(torch.randn((num_microbes, 1)))
-
-        self.encoder = nn.Embedding(num_microbes, latent_dim)
-        self.decoder = LinearALR(latent_dim, num_metabolites)
-
+        # Data setup
+        self.microbes, self.metabolites, \
+        self.microbe_idx, self. metabolite_idx, \
+        self.num_microbes, self.num_metabolites, \
+        self.microbe_relative_freq = structure_data(microbes,
+                metabolites)
         self.sigma_u = sigma_u
         self.sigma_v = sigma_v
+        self.latent_dim = latent_dim
+        self.u_bias = nn.parameter.Parameter(torch.randn((self.num_microbes, 1)))
 
+        self.encoder = nn.Embedding(self.num_microbes, self.latent_dim)
+        self.decoder = LinearALR(self.latent_dim, self.num_metabolites)
 
-    def forward(self, X, Y):
+    def forward(self, X):
         # Three likelihoods, the likelihood of each weight and the likelihood
         # of the data fitting in the way that we thought
         # LYs
@@ -50,7 +73,7 @@ class MMvecALR(nn.Module):
                                    validate_args=False,
                                    probs=y_pred)
 
-        forward_dist = forward_dist.log_prob(Y)
+        forward_dist = forward_dist.log_prob(self.metabolites)
 
         l_y = forward_dist.mean(0).mean()
 
@@ -66,13 +89,44 @@ class MMvecALR(nn.Module):
         return likelihood_sum
 
     def get_ordination(self, equalize_biplot=False):
-        ranks = self.ranks_matrix - self.ranks_matrix.mean(dim=0)
-        u, s, v = linalg.svd(ranks, full_matrices=False)
-        print(u)
-        print(s)
-        print(v)
 
-    def ranks(self, microbe_ids, metabolite_ids):
+        ranks = self.ranks_matrix - self.ranks_matrix.mean(dim=0)
+
+        u, s_diag, v = linalg.svd(ranks, full_matrices=False)
+
+
+        # us torch.diag to go from vector to matrix with the vector on dia
+        if equalize_biplot:
+            microbe_embed = u @ torch.sqrt(torch.diag(s_diag))
+            metabolite_embed = v.T @ torch.sqrt(s_diag)
+        else:
+            microbe_embed = u @ torch.diag(s_diag)
+            metabolite_embed = v.T
+
+        pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
+
+
+        features = pd.DataFrame(
+                microbe_embed, columns=pc_ids, index=self.microbe_idx)
+
+        samples = pd.DataFrame(metabolite_embed, columns=pc_ids,
+                index=self.metabolite_idx)
+
+        short_method_name = 'mmvec biplot'
+        long_method_name = 'Multiomics mmvec biplot'
+        eigvals = pd.Series(s_diag, index=pc_ids)
+        proportion_explained = pd.Series(torch.square(s_diag) /
+                torch.sum(torch.square(s_diag)), index=pc_ids)
+
+        biplot = OrdinationResults(
+            short_method_name, long_method_name, eigvals,
+            samples=samples, features=features,
+            proportion_explained=proportion_explained)
+
+        return biplot
+
+
+    def ranks(self):
         U = torch.cat(
             (torch.ones((self.num_microbes, 1)),
             self.u_bias.detach(),
@@ -89,5 +143,5 @@ class MMvecALR(nn.Module):
         res = res - res.mean(axis=1).reshape(-1, 1)
 
         self.ranks_matrix = res
-        self.ranks_df = pd.DataFrame(res, index=microbe_ids,
-                columns=metabolite_ids)
+        self.ranks_df = pd.DataFrame(res, index=self.microbe_idx,
+                columns=self.metabolite_idx)

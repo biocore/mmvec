@@ -1,15 +1,15 @@
 import torch
 
 
-def mmvec_training_loop(microbes, metabolites, model, optimizer,
+def mmvec_training_loop(model, optimizer,
     batch_size, epochs):
     for epoch in range(epochs):
 
-        draws = torch.multinomial(microbes,
+        draws = torch.multinomial(model.microbe_relative_freq,
                                   batch_size,
                                   replacement=True).T
 
-        mmvec_model = model(draws, metabolites)
+        mmvec_model = model(draws)
 
         optimizer.zero_grad()
         mmvec_model.backward()
