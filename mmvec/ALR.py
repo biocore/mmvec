@@ -56,7 +56,7 @@ class MMvecALR(nn.Module):
         self.sigma_u = sigma_u
         self.sigma_v = sigma_v
         self.latent_dim = latent_dim
-        self.u_bias = nn.parameter.Parameter(torch.randn((self.num_microbes, 1)))
+        self.encoder_bias = nn.parameter.Parameter(torch.randn((self.num_microbes, 1)))
 
         self.encoder = nn.Embedding(self.num_microbes, self.latent_dim)
         self.decoder = LinearALR(self.latent_dim, self.num_metabolites)
@@ -126,6 +126,18 @@ class MMvecALR(nn.Module):
         return biplot
 
 
+
+    @property
+    def u_bias(self):
+        #ensure consistent access
+        return self.encoder_bias
+
+    @property
+    def v_bias(self):
+        #ensure consistent access
+        return self.decoder.linear.bias
+
+    @property
     def ranks(self):
         U = torch.cat(
             (torch.ones((self.num_microbes, 1)),
@@ -142,6 +154,7 @@ class MMvecALR(nn.Module):
         res = torch.cat((torch.zeros((self.num_microbes, 1)), U @ V), dim=1)
         res = res - res.mean(axis=1).reshape(-1, 1)
 
-        self.ranks_matrix = res
         self.ranks_df = pd.DataFrame(res, index=self.microbe_idx,
                 columns=self.metabolite_idx)
+
+        return res
