@@ -1,8 +1,8 @@
 import pandas as pd
 
 import torch
+from torch import linalg
 import torch.nn as nn
-import torch.linalg as linalg
 import torch.nn.functional as F
 from torch.distributions import Multinomial, Normal
 
@@ -10,8 +10,8 @@ from skbio import OrdinationResults
 
 
 def structure_data(microbes, metabolites):
-    microbes = microbes.to_dataframe().T
-    metabolites = metabolites.to_dataframe().T
+    #microbes = microbes.to_dataframe().T
+    #metabolites = metabolites.to_dataframe().T
     microbes = microbes.loc[metabolites.index]
 
     microbe_idx = microbes.columns
@@ -43,30 +43,33 @@ class LinearALR(nn.Module):
 
 
 class MMvecALR(nn.Module):
-    def __init__(self, microbes, metabolites, latent_dim, sigma_u,
-            sigma_v):
+    def __init__(self, microbes, metabolites, latent_dim, sigma_u=1,
+                 sigma_v=1):
         super().__init__()
 
         # Data setup
-        self.microbes, self.metabolites, \
-        self.microbe_idx, self. metabolite_idx, \
-        self.num_microbes, self.num_metabolites, \
-        self.microbe_relative_freq = structure_data(microbes,
+        (self.microbes, self.metabolites,
+         self.microbe_idx, self. metabolite_idx,
+         self.num_microbes, self.num_metabolites,
+         self.microbe_relative_freq) = structure_data(microbes,
                 metabolites)
         self.sigma_u = sigma_u
         self.sigma_v = sigma_v
         self.latent_dim = latent_dim
-        self.encoder_bias = nn.parameter.Parameter(torch.randn((self.num_microbes, 1)))
+        # TODO: intialize same way as linear bias
+        self.encoder_bias = nn.parameter.Parameter(
+                torch.randn((self.num_microbes, 1)))
 
         self.encoder = nn.Embedding(self.num_microbes, self.latent_dim)
         self.decoder = LinearALR(self.latent_dim, self.num_metabolites)
+        
 
     def forward(self, X):
         # Three likelihoods, the likelihood of each weight and the likelihood
         # of the data fitting in the way that we thought
         # LYs
         z = self.encoder(X)
-        z = z + self.u_bias[X].reshape((*X.shape, 1))
+        z = z + self.encoder_bias[X].reshape((*X.shape, 1))
         y_pred = self.decoder(z)
 
         forward_dist = Multinomial(total_count=0,
@@ -75,11 +78,11 @@ class MMvecALR(nn.Module):
 
         forward_dist = forward_dist.log_prob(self.metabolites)
 
-        l_y = forward_dist.mean(0).mean()
+        l_y = forward_dist.sum(0).sum()
 
         u_weights = self.encoder.weight
         l_u = Normal(0, self.sigma_u).log_prob(u_weights).sum()
-        l_ubias = Normal(0, self.sigma_u).log_prob(self.u_bias).sum()
+        l_ubias = Normal(0, self.sigma_u).log_prob(self.encoder_bias).sum()
 
         v_weights = self.decoder.linear.weight
         l_v = Normal(0, self.sigma_v).log_prob(v_weights).sum()
@@ -90,7 +93,8 @@ class MMvecALR(nn.Module):
 
     def get_ordination(self, equalize_biplot=False):
 
-        ranks = self.ranks_matrix - self.ranks_matrix.mean(dim=0)
+        ranks = self.ranks()
+        ranks = ranks - ranks.mean(dim=0)
 
         u, s_diag, v = linalg.svd(ranks, full_matrices=False)
 
@@ -130,31 +134,40 @@ class MMvecALR(nn.Module):
     @property
     def u_bias(self):
         #ensure consistent access
-        return self.encoder_bias
+        return self.encoder_bias.detach()
 
     @property
     def v_bias(self):
         #ensure consistent access
-        return self.decoder.linear.bias
-
+        return self.decoder.linear.bias.detach()
+    
     @property
-    def ranks(self):
+    def U(self):
         U = torch.cat(
             (torch.ones((self.num_microbes, 1)),
-            self.u_bias.detach(),
+            self.u_bias,
             self.encoder.weight.detach()),
             dim=1)
+        return U
 
+    @property
+    def V(self):
         V = torch.cat(
-            (self.decoder.linear.bias.detach().unsqueeze(dim=0),
+            (self.v_bias.unsqueeze(dim=0),
              torch.ones((1, self.num_metabolites - 1)),
              self.decoder.linear.weight.detach().T),
             dim=0)
+        return V 
 
-        res = torch.cat((torch.zeros((self.num_microbes, 1)), U @ V), dim=1)
+    def ranks_dataframe(self):
+        return pd.DataFrame(self.ranks(), index=self.microbe_idx,
+                            columns=self.metabolite_idx)
+
+    def ranks(self):
+        # Adding the zeros is part of the inverse ALR.
+        res = torch.cat((
+                torch.zeros((self.num_microbes, 1)),
+                self.U @ self.V
+            ), dim=1)
         res = res - res.mean(axis=1).reshape(-1, 1)
-
-        self.ranks_df = pd.DataFrame(res, index=self.microbe_idx,
-                columns=self.metabolite_idx)
-
         return res

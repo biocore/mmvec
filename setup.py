@@ -60,6 +60,7 @@ setup(name='mmvec',
           'scikit-bio',
           'seaborn',
           'tqdm',
+          'pytorch'
       ],
       classifiers=classifiers,
       entry_points={

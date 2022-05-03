@@ -1,8 +1,8 @@
 import torch
 
-
-def mmvec_training_loop(model, optimizer,
-    batch_size, epochs):
+def mmvec_training_loop(model, learning_rate, batch_size, epochs):
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, 
+                                 betas=(0.8, 0.9), maximize=True)
     for epoch in range(epochs):
 
         draws = torch.multinomial(model.microbe_relative_freq,
