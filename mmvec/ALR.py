@@ -62,7 +62,7 @@ class MMvecALR(nn.Module):
 
         self.encoder = nn.Embedding(self.num_microbes, self.latent_dim)
         self.decoder = LinearALR(self.latent_dim, self.num_metabolites)
-        
+
 
     def forward(self, X):
         # Three likelihoods, the likelihood of each weight and the likelihood
@@ -140,7 +140,7 @@ class MMvecALR(nn.Module):
     def v_bias(self):
         #ensure consistent access
         return self.decoder.linear.bias.detach()
-    
+
     @property
     def U(self):
         U = torch.cat(
@@ -157,7 +157,7 @@ class MMvecALR(nn.Module):
              torch.ones((1, self.num_metabolites - 1)),
              self.decoder.linear.weight.detach().T),
             dim=0)
-        return V 
+        return V
 
     def ranks_dataframe(self):
         return pd.DataFrame(self.ranks(), index=self.microbe_idx,
