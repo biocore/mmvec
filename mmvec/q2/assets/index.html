@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}rhapsody : {{ title }}{% endblock %}
+
+{% block fixed %}{% endblock %}
+
+{% block content %}
+
+<div class="row">
+  <h1>{{ title }}</h1>
+  <div class="text-center">
+    <a href= {{ pdf_fp }}>
+      <img src={{ png_fp }}>
+      <br>
+      <p>Download as PDF</p>
+    </a>
+    {% if table1_fp %}
+    <a href={{ table1_fp }}>
+      <p>{{ download1_text }}</p>
+    </a>
+    <a href={{ table2_fp }}>
+      <p>{{ download2_text }}</p>
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
