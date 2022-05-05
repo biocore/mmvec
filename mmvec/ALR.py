@@ -72,13 +72,13 @@ class MMvecALR(nn.Module):
         z = z + self.encoder_bias[X].reshape((*X.shape, 1))
         y_pred = self.decoder(z)
 
-        forward_dist = Multinomial(total_count=0,
-                                   validate_args=False,
-                                   probs=y_pred)
+        result_dist = Multinomial(total_count=0,
+                                  validate_args=False,
+                                  probs=y_pred)
 
-        forward_dist = forward_dist.log_prob(self.metabolites)
+        prior = result_dist.log_prob(self.metabolites)
 
-        l_y = forward_dist.sum(0).sum()
+        l_y = prior.sum(0).sum()
 
         u_weights = self.encoder.weight
         l_u = Normal(0, self.sigma_u).log_prob(u_weights).sum()
