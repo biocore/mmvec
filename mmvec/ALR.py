@@ -24,9 +24,10 @@ def structure_data(microbes, metabolites):
     metabolites = torch.tensor(metabolites.values, dtype=torch.int64)
 
     microbe_relative_frequency = (microbes.T/microbes.sum(1)).T
+    nnz = torch.count_nonzero(microbes).item()
 
     return (microbes, metabolites, microbe_idx, metabolite_idx, microbe_count,
-           metabolite_count, microbe_relative_frequency)
+           metabolite_count, microbe_relative_frequency, nnz)
 
 
 class LinearALR(nn.Module):
@@ -51,7 +52,7 @@ class MMvecALR(nn.Module):
         (self.microbes, self.metabolites,
          self.microbe_idx, self. metabolite_idx,
          self.num_microbes, self.num_metabolites,
-         self.microbe_relative_freq) = structure_data(microbes,
+         self.microbe_relative_freq, self.nnz) = structure_data(microbes,
                 metabolites)
         self.sigma_u = sigma_u
         self.sigma_v = sigma_v
@@ -72,13 +73,13 @@ class MMvecALR(nn.Module):
         z = z + self.encoder_bias[X].reshape((*X.shape, 1))
         y_pred = self.decoder(z)
 
-        result_dist = Multinomial(total_count=0,
+        predicted = torch.distributions.multinomial.Multinomial(total_count=0,
                                   validate_args=False,
                                   probs=y_pred)
 
-        prior = result_dist.log_prob(self.metabolites)
+        data_likelihood = predicted.log_prob(self.metabolites)
 
-        l_y = prior.sum(0).sum()
+        l_y = data_likelihood.sum(0).sum()
 
         u_weights = self.encoder.weight
         l_u = Normal(0, self.sigma_u).log_prob(u_weights).sum()

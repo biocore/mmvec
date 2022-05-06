@@ -42,8 +42,8 @@ class TestMMvec(unittest.TestCase):
         n, d1 = self.trainX.shape
         n, d2 = self.trainY.shape
         model = MMvecALR(self.trainX, self.trainY, latent_dim=2)
-        mmvec_training_loop(model=model, learning_rate=0.1, batch_size=1000,
-                            epochs=1000)
+        mmvec_training_loop(model=model, learning_rate=0.01, batch_size=50,
+                            epochs=10000)
 
         U_ = np.hstack(
             (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))
@@ -79,8 +79,7 @@ class TestMMvec(unittest.TestCase):
 #
 #            # sanity check cross validation
 #            self.assertLess(model.cv.eval(), 500)
-#           
-        
+
 
 #class TestMMvecSoilsBenchmark(unittest.TestCase):
 #    def setUp(self):
