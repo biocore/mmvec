@@ -10,8 +10,8 @@ from skbio import OrdinationResults
 
 
 def structure_data(microbes, metabolites):
-    #microbes = microbes.to_dataframe().T
-    #metabolites = metabolites.to_dataframe().T
+    microbes = microbes.to_dataframe().T
+    metabolites = metabolites.to_dataframe().T
     microbes = microbes.loc[metabolites.index]
 
     microbe_idx = microbes.columns
@@ -79,7 +79,7 @@ class MMvecALR(nn.Module):
 
         data_likelihood = predicted.log_prob(self.metabolites)
 
-        l_y = data_likelihood.sum(0).sum()
+        l_y = data_likelihood.sum(0).mean()
 
         u_weights = self.encoder.weight
         l_u = Normal(0, self.sigma_u).log_prob(u_weights).sum()

@@ -1,7 +1,6 @@
 import biom
 import unittest
 import numpy as np
-import tensorflow as tf
 from mmvec.q2._method import paired_omics
 from mmvec.util import random_multimodal
 from skbio.stats.composition import clr_inv
@@ -11,6 +10,21 @@ import numpy.testing as npt
 
 class TestMMvec(unittest.TestCase):
 
+    def setUp(self):
+        # build small simulation
+        np.random.seed(1)
+        res = random_multimodal(
+            num_microbes=8, num_metabolites=8, num_samples=150,
+            latent_dim=2, sigmaQ=2,
+            microbe_total=1000, metabolite_total=10000, seed=1
+        )
+        (self.microbes, self.metabolites, self.X, self.B,
+         self.U, self.Ubias, self.V, self.Vbias) = res
+        num_train = 10
+        self.trainX = self.microbes.iloc[:-num_train]
+        self.testX = self.microbes.iloc[-num_train:]
+        self.trainY = self.metabolites.iloc[:-num_train]
+        self.testY = self.metabolites.iloc[-num_train:]
     def setUp(self):
         np.random.seed(1)
         res = random_multimodal(
@@ -40,8 +54,8 @@ class TestMMvec(unittest.TestCase):
 
     def test_fit(self):
         np.random.seed(1)
-        tf.reset_default_graph()
-        tf.set_random_seed(0)
+        #tf.reset_default_graph()
+        #tf.set_random_seed(0)
         latent_dim = 2
         res_ranks, res_biplot, _ = paired_omics(
             self.microbes, self.metabolites,
@@ -70,8 +84,8 @@ class TestMMvec(unittest.TestCase):
 
     def test_equalize_sv(self):
         np.random.seed(1)
-        tf.reset_default_graph()
-        tf.set_random_seed(0)
+        #tf.reset_default_graph()
+        #tf.set_random_seed(0)
         latent_dim = 2
         res_ranks, res_biplot, _ = paired_omics(
             self.microbes, self.metabolites,

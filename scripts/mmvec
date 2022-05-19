@@ -14,8 +14,6 @@ from skbio.stats.composition import clr_inv as softmax
 from scipy.stats import entropy, spearmanr
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import svds
-import tensorflow as tf
-from tensorflow.contrib.distributions import Multinomial, Normal
 from mmvec.multimodal import MMvec
 from mmvec.util import split_tables, format_params
 import matplotlib.pyplot as plt

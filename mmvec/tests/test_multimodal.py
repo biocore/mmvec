@@ -14,7 +14,7 @@ from mmvec.train import mmvec_training_loop
 from mmvec.util import random_multimodal
 
 
-class TestMMvec(unittest.TestCase):
+class TestALR(unittest.TestCase):
     def setUp(self):
         # build small simulation
         np.random.seed(1)
@@ -44,6 +44,7 @@ class TestMMvec(unittest.TestCase):
         model = MMvecALR(self.trainX, self.trainY, latent_dim=2)
         mmvec_training_loop(model=model, learning_rate=0.01, batch_size=50,
                             epochs=10000)
+        assert False 
 
         U_ = np.hstack(
             (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))

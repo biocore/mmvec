@@ -1,6 +1,7 @@
 import torch
 
-def mmvec_training_loop(model, learning_rate, batch_size, epochs):
+def mmvec_training_loop(model, learning_rate, batch_size, epochs,
+        summary_interval):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,
                                  betas=(0.8, 0.9), maximize=True)
     for epoch in range(epochs):
@@ -18,5 +19,5 @@ def mmvec_training_loop(model, learning_rate, batch_size, epochs):
             mmvec_model.backward()
             optimizer.step()
 
-        if epoch % 500 == 0:
+        if epoch % summary_interval == 0:
             print(f"loss: {mmvec_model.item()}\nBatch #: {epoch}")
