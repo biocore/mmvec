@@ -10,8 +10,10 @@ from skbio import OrdinationResults
 
 
 def structure_data(microbes, metabolites):
-    microbes = microbes.to_dataframe().T
-    metabolites = metabolites.to_dataframe().T
+    if type(microbes) is not pd.core.frame.DataFrame:
+        microbes = microbes.to_dataframe().T
+    if type(metabolites) is not pd.core.frame.DataFrame:
+        metabolites = metabolites.to_dataframe().T
     microbes = microbes.loc[metabolites.index]
 
     microbe_idx = microbes.columns

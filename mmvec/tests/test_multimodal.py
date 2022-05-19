@@ -43,9 +43,7 @@ class TestALR(unittest.TestCase):
         n, d2 = self.trainY.shape
         model = MMvecALR(self.trainX, self.trainY, latent_dim=2)
         mmvec_training_loop(model=model, learning_rate=0.01, batch_size=50,
-                            epochs=10000)
-        assert False 
-
+                            epochs=500, summary_interval=100)
         U_ = np.hstack(
             (np.ones((self.U.shape[0], 1)), self.Ubias, self.U))
         V_ = np.vstack(
