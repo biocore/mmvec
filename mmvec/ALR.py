@@ -1,3 +1,4 @@
+from numpy import float64
 import pandas as pd
 
 import torch
@@ -9,27 +10,38 @@ from torch.distributions import Multinomial, Normal
 from skbio import OrdinationResults
 
 
-def structure_data(microbes, metabolites):
+def structure_data(microbes, metabolites, holdout_num):
     if type(microbes) is not pd.core.frame.DataFrame:
         microbes = microbes.to_dataframe().T
     if type(metabolites) is not pd.core.frame.DataFrame:
         metabolites = metabolites.to_dataframe().T
-    microbes = microbes.loc[metabolites.index]
+    idx = microbes.index.intersection(metabolites.index)
+    microbes = microbes.loc[idx]
+    metabolites = metabolites.loc[idx]
 
     microbe_idx = microbes.columns
     metabolite_idx = metabolites.columns
 
-    microbe_count = microbes.shape[1]
-    metabolite_count = metabolites.shape[1]
+    microbes_train = torch.tensor(microbes[:-holdout_num].values,
+                                  dtype=torch.float64)
+    metabolites_train = torch.tensor(metabolites[:-holdout_num].values,
+                                     dtype=torch.float64)
+
+    microbes_test = torch.tensor(microbes[-holdout_num:].values,
+                                 dtype=torch.float64)
+    metabolites_test = torch.tensor(metabolites[-holdout_num:].values,
+                                    dtype=torch.float64)
+    microbe_count = microbes_train.shape[1]
+    metabolite_count = metabolites_train.shape[1]
 
     microbes = torch.tensor(microbes.values, dtype=torch.int)
     metabolites = torch.tensor(metabolites.values, dtype=torch.int64)
 
-    microbe_relative_frequency = (microbes.T/microbes.sum(1)).T
     nnz = torch.count_nonzero(microbes).item()
 
-    return (microbes, metabolites, microbe_idx, metabolite_idx, microbe_count,
-           metabolite_count, microbe_relative_frequency, nnz)
+    return (microbes_train, microbes_test, metabolites_train,
+            metabolites_test, microbe_idx, metabolite_idx, microbe_count,
+            metabolite_count,  nnz)
 
 
 class LinearALR(nn.Module):
@@ -47,15 +59,16 @@ class LinearALR(nn.Module):
 
 class MMvecALR(nn.Module):
     def __init__(self, microbes, metabolites, latent_dim, sigma_u=1,
-                 sigma_v=1):
+                 sigma_v=1, holdout_num=4):
         super().__init__()
 
         # Data setup
-        (self.microbes, self.metabolites,
-         self.microbe_idx, self. metabolite_idx,
-         self.num_microbes, self.num_metabolites,
-         self.microbe_relative_freq, self.nnz) = structure_data(microbes,
-                metabolites)
+        (self.microbes_train, self.microbes_test, self.metabolites_train,
+                self.metabolites_test, self.microbe_idx, self. metabolite_idx,
+                self.num_microbes, self.num_metabolites,
+                 self.nnz) = structure_data(
+                    microbes, metabolites, holdout_num)
+
         self.sigma_u = sigma_u
         self.sigma_v = sigma_v
         self.latent_dim = latent_dim
@@ -67,7 +80,7 @@ class MMvecALR(nn.Module):
         self.decoder = LinearALR(self.latent_dim, self.num_metabolites)
 
 
-    def forward(self, X):
+    def forward(self, X, Y):
         # Three likelihoods, the likelihood of each weight and the likelihood
         # of the data fitting in the way that we thought
         # LYs
@@ -79,7 +92,7 @@ class MMvecALR(nn.Module):
                                   validate_args=False,
                                   probs=y_pred)
 
-        data_likelihood = predicted.log_prob(self.metabolites)
+        data_likelihood = predicted.log_prob(Y)
 
         l_y = data_likelihood.sum(0).mean()
 
@@ -146,8 +159,9 @@ class MMvecALR(nn.Module):
 
     @property
     def U(self):
+        print (self.encoder.weight.shape)
         U = torch.cat(
-            (torch.ones((self.num_microbes, 1)),
+            (torch.ones((self.encoder.weight.shape[0], 1)),
             self.u_bias,
             self.encoder.weight.detach()),
             dim=1)
@@ -157,7 +171,7 @@ class MMvecALR(nn.Module):
     def V(self):
         V = torch.cat(
             (self.v_bias.unsqueeze(dim=0),
-             torch.ones((1, self.num_metabolites - 1)),
+             torch.ones((1, self.decoder.linear.weight.shape[0] )),
              self.decoder.linear.weight.detach().T),
             dim=0)
         return V
@@ -174,3 +188,14 @@ class MMvecALR(nn.Module):
             ), dim=1)
         res = res - res.mean(axis=1).reshape(-1, 1)
         return res
+    def microbe_relative_freq(self,microbes):
+        return (microbes.T / microbes.sum(1)).T
+
+    #def loss_fn(self, y_pred, observed):
+
+    #    predicted = torch.distributions.multinomial.Multinomial(total_count=0,
+    #                              validate_args=False,
+    #                              probs=y_pred)
+    #
+    #    data_likelihood = predicted.log_prob(observed)
+    #    l_y = data_likelihood.sum(1).mean()

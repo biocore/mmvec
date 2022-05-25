@@ -32,6 +32,7 @@ def paired_omics(microbes: biom.Table,
     if metadata is not None:
         metadata = metadata.to_dataframe()
 
+    #TODO refactor for pytorch!
     if arm_the_gpu:
         # pick out the first GPU
         device_name = '/device:GPU:0'
