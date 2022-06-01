@@ -15,9 +15,12 @@ def structure_data(microbes, metabolites, holdout_num):
         microbes = microbes.to_dataframe().T
     if type(metabolites) is not pd.core.frame.DataFrame:
         metabolites = metabolites.to_dataframe().T
-    idx = microbes.index.intersection(metabolites.index)
-    microbes = microbes.loc[idx]
-    metabolites = metabolites.loc[idx]
+   # idx = microbes.index.intersection(metabolites.index)
+   # microbes = microbes.loc[idx]
+   # metabolites = metabolites.loc[idx]
+   #make sure none sum to zero
+   #microbes = microbes.loc[:, microbes.sum(axis=0) > 0]
+   # microbes = microbes.loc[microbes.sum(axis=1) > 0]
 
     microbe_idx = microbes.columns
     metabolite_idx = metabolites.columns
@@ -64,7 +67,7 @@ class MMvecALR(nn.Module):
 
         # Data setup
         (self.microbes_train, self.microbes_test, self.metabolites_train,
-                self.metabolites_test, self.microbe_idx, self. metabolite_idx,
+                self.metabolites_test, self.microbe_idx, self.metabolite_idx,
                 self.num_microbes, self.num_metabolites,
                  self.nnz) = structure_data(
                     microbes, metabolites, holdout_num)
@@ -117,11 +120,19 @@ class MMvecALR(nn.Module):
 
         # us torch.diag to go from vector to matrix with the vector on dia
         if equalize_biplot:
-            microbe_embed = u @ torch.sqrt(torch.diag(s_diag))
+            #microbe_embed = u @ torch.sqrt(
+            #        torch.diag(s_diag)).detach().numpy()
+            microbe_embed = u @ torch.sqrt(
+                    torch.diag(s_diag))
+            microbe_embed = microbe_embed.detach().numpy()
+            #metabolite_embed = v.T @ torch.sqrt(s_diag).detach().numpy()
             metabolite_embed = v.T @ torch.sqrt(s_diag)
+            metabolite_embed = metabolite_embed.detach().numpy()
         else:
             microbe_embed = u @ torch.diag(s_diag)
+            microbe_embed = microbe_embed.detach().numpy()
             metabolite_embed = v.T
+            metabolite_embed = metabolite_embed.detach().numpy()
 
         pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
 
@@ -135,8 +146,10 @@ class MMvecALR(nn.Module):
         short_method_name = 'mmvec biplot'
         long_method_name = 'Multiomics mmvec biplot'
         eigvals = pd.Series(s_diag, index=pc_ids)
-        proportion_explained = pd.Series(torch.square(s_diag) /
-                torch.sum(torch.square(s_diag)), index=pc_ids)
+        proportion_explained = pd.Series(
+                torch.square(s_diag).detach().numpy() / torch.sum(
+                    torch.square(s_diag)).detach().numpy(),
+                index=pc_ids, dtype=float64)
 
         biplot = OrdinationResults(
             short_method_name, long_method_name, eigvals,
@@ -159,7 +172,6 @@ class MMvecALR(nn.Module):
 
     @property
     def U(self):
-        print (self.encoder.weight.shape)
         U = torch.cat(
             (torch.ones((self.encoder.weight.shape[0], 1)),
             self.u_bias,
