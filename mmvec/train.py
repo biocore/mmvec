@@ -36,7 +36,3 @@ def mmvec_training_loop(model, learning_rate, batch_size, epochs,
                         replacement=True).T
                 cv_loss = model(cv_draw, model.metabolites_test)
                 yield (str(iteration), loss.item(), cv_loss.item())
-
-        else:
-            yield (str(iteration), loss.item(), None)
-

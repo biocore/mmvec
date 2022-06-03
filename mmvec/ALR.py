@@ -111,53 +111,56 @@ class MMvecALR(nn.Module):
         return likelihood_sum
 
     def get_ordination(self, equalize_biplot=False):
-
-        ranks = self.ranks()
-        ranks = ranks - ranks.mean(dim=0)
-
-        u, s_diag, v = linalg.svd(ranks, full_matrices=False)
-
-
-        # us torch.diag to go from vector to matrix with the vector on dia
-        if equalize_biplot:
-            #microbe_embed = u @ torch.sqrt(
-            #        torch.diag(s_diag)).detach().numpy()
-            microbe_embed = u @ torch.sqrt(
-                    torch.diag(s_diag))
-            microbe_embed = microbe_embed.detach().numpy()
-            #metabolite_embed = v.T @ torch.sqrt(s_diag).detach().numpy()
-            metabolite_embed = v.T @ torch.sqrt(s_diag)
-            metabolite_embed = metabolite_embed.detach().numpy()
-        else:
-            microbe_embed = u @ torch.diag(s_diag)
-            microbe_embed = microbe_embed.detach().numpy()
-            metabolite_embed = v.T
-            metabolite_embed = metabolite_embed.detach().numpy()
-
-        pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
-
-
-        features = pd.DataFrame(
-                microbe_embed, columns=pc_ids, index=self.microbe_idx)
-
-        samples = pd.DataFrame(metabolite_embed, columns=pc_ids,
-                index=self.metabolite_idx)
-
-        short_method_name = 'mmvec biplot'
-        long_method_name = 'Multiomics mmvec biplot'
-        eigvals = pd.Series(s_diag, index=pc_ids)
-        proportion_explained = pd.Series(
-                torch.square(s_diag).detach().numpy() / torch.sum(
-                    torch.square(s_diag)).detach().numpy(),
-                index=pc_ids, dtype=float64)
-
-        biplot = OrdinationResults(
-            short_method_name, long_method_name, eigvals,
-            samples=samples, features=features,
-            proportion_explained=proportion_explained)
-
+        biplot = get_ordination_bare(self.ranks(), self.microbe_idx,
+                self.metabolite_idx, equalize_biplot=False)
         return biplot
 
+#        ranks = self.ranks()
+#        ranks = ranks - ranks.mean(dim=0)
+#
+#        u, s_diag, v = linalg.svd(ranks, full_matrices=False)
+#
+#
+#        # us torch.diag to go from vector to matrix with the vector on dia
+#        if equalize_biplot:
+#            #microbe_embed = u @ torch.sqrt(
+#            #        torch.diag(s_diag)).detach().numpy()
+#            microbe_embed = u @ torch.sqrt(
+#                    torch.diag(s_diag))
+#            microbe_embed = microbe_embed.detach().numpy()
+#            #metabolite_embed = v.T @ torch.sqrt(s_diag).detach().numpy()
+#            metabolite_embed = v.T @ torch.sqrt(s_diag)
+#            metabolite_embed = metabolite_embed.detach().numpy()
+#        else:
+#            microbe_embed = u @ torch.diag(s_diag)
+#            microbe_embed = microbe_embed.detach().numpy()
+#            metabolite_embed = v.T
+#            metabolite_embed = metabolite_embed.detach().numpy()
+#
+#        pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
+#
+#
+#        features = pd.DataFrame(
+#                microbe_embed, columns=pc_ids, index=self.microbe_idx)
+#
+#        samples = pd.DataFrame(metabolite_embed, columns=pc_ids,
+#                index=self.metabolite_idx)
+#
+#        short_method_name = 'mmvec biplot'
+#        long_method_name = 'Multiomics mmvec biplot'
+#        eigvals = pd.Series(s_diag, index=pc_ids)
+#        proportion_explained = pd.Series(
+#                torch.square(s_diag).detach().numpy() / torch.sum(
+#                    torch.square(s_diag)).detach().numpy(),
+#                index=pc_ids, dtype=float64)
+#
+#        biplot = OrdinationResults(
+#            short_method_name, long_method_name, eigvals,
+#            samples=samples, features=features,
+#            proportion_explained=proportion_explained)
+#
+#        return biplot
+#
 
 
     @property
@@ -193,13 +196,16 @@ class MMvecALR(nn.Module):
                             columns=self.metabolite_idx)
 
     def ranks(self):
-        # Adding the zeros is part of the inverse ALR.
-        res = torch.cat((
-                torch.zeros((self.num_microbes, 1)),
-                self.U @ self.V
-            ), dim=1)
-        res = res - res.mean(axis=1).reshape(-1, 1)
-        return res
+        return ranks_bare(self.U, self.V)
+    #def ranks(self):
+    #    # Adding the zeros is part of the inverse ALR.
+    #    res = torch.cat((
+    #            torch.zeros((self.num_microbes, 1)),
+    #            self.U @ self.V
+    #        ), dim=1)
+    #    res = res - res.mean(axis=1).reshape(-1, 1)
+    #    return res
+
     def microbe_relative_freq(self,microbes):
         return (microbes.T / microbes.sum(1)).T
 
@@ -211,3 +217,59 @@ class MMvecALR(nn.Module):
     #
     #    data_likelihood = predicted.log_prob(observed)
     #    l_y = data_likelihood.sum(1).mean()
+### bare functions for testing/method creation
+
+def ranks_bare(u, v):
+    # Adding the zeros is part of the inverse ALR.
+    res = torch.cat((
+            torch.zeros((u.shape[0], 1)),
+            u @ v
+        ), dim=1)
+    res = res - res.mean(axis=1).reshape(-1, 1)
+    return res
+
+def get_ordination_bare(ranks, microbe_index, metabolite_index,
+                   equalize_biplot=False):
+
+    ranks = ranks - ranks.mean(dim=0)
+
+    u, s_diag, v = linalg.svd(ranks, full_matrices=False)
+
+
+    # us torch.diag to go from vector to matrix with the vector on dia
+    if equalize_biplot:
+        microbe_embed = u @ torch.sqrt(
+                torch.diag(s_diag))
+        microbe_embed = microbe_embed.detach().numpy()
+        metabolite_embed = v.T @ torch.sqrt(s_diag)
+        metabolite_embed = metabolite_embed.detach().numpy()
+    else:
+        microbe_embed = u @ torch.diag(s_diag)
+        microbe_embed = microbe_embed.detach().numpy()
+        metabolite_embed = v.T
+        metabolite_embed = metabolite_embed.detach().numpy()
+
+    pc_ids = ['PC%d' % i for i in range(microbe_embed.shape[1])]
+
+
+    features = pd.DataFrame(
+            microbe_embed, columns=pc_ids, index=microbe_index)
+
+    samples = pd.DataFrame(metabolite_embed, columns=pc_ids,
+            index=metabolite_index)
+
+    short_method_name = 'mmvec biplot'
+    long_method_name = 'Multiomics mmvec biplot'
+    eigvals = pd.Series(s_diag, index=pc_ids)
+    proportion_explained = pd.Series(
+            torch.square(s_diag).detach().numpy() / torch.sum(
+                torch.square(s_diag)).detach().numpy(),
+            index=pc_ids, dtype=float64)
+
+    biplot = OrdinationResults(
+        short_method_name, long_method_name, eigvals,
+        samples=samples, features=features,
+        proportion_explained=proportion_explained)
+
+    return biplot
+

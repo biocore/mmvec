@@ -10,21 +10,22 @@ import numpy.testing as npt
 
 class TestMMvec(unittest.TestCase):
 
-    def setUp(self):
-        # build small simulation
-        np.random.seed(1)
-        res = random_multimodal(
-            num_microbes=8, num_metabolites=8, num_samples=150,
-            latent_dim=2, sigmaQ=2,
-            microbe_total=1000, metabolite_total=10000, seed=1
-        )
-        (self.microbes, self.metabolites, self.X, self.B,
-         self.U, self.Ubias, self.V, self.Vbias) = res
-        num_train = 10
-        self.trainX = self.microbes.iloc[:-num_train]
-        self.testX = self.microbes.iloc[-num_train:]
-        self.trainY = self.metabolites.iloc[:-num_train]
-        self.testY = self.metabolites.iloc[-num_train:]
+    #def setUp(self):
+    #    # build small simulation
+    #    np.random.seed(1)
+    #    res = random_multimodal(
+    #        num_microbes=8, num_metabolites=8, num_samples=150,
+    #        latent_dim=2, sigmaQ=2,
+    #        microbe_total=1000, metabolite_total=10000, seed=1
+    #    )
+    #    (self.microbes, self.metabolites, self.X, self.B,
+    #     self.U, self.Ubias, self.V, self.Vbias) = res
+    #    num_train = 10
+    #    self.trainX = self.microbes.iloc[:-num_train]
+    #    self.testX = self.microbes.iloc[-num_train:]
+    #    self.trainY = self.metabolites.iloc[:-num_train]
+    #    self.testY = self.metabolites.iloc[-num_train:]
+
     def setUp(self):
         np.random.seed(1)
         res = random_multimodal(
