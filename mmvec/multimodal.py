@@ -4,6 +4,7 @@ from tqdm import tqdm
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.distributions import Multinomial, Normal
+from mmvec.ALR import MMvecALR
 import datetime
 
 

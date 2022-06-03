@@ -53,14 +53,14 @@ setup(name='mmvec',
       scripts=glob('scripts/mmvec'),
       install_requires=[
           'biom-format',
-          'numpy >= 1.9.2',
-          'pandas <= 0.25.3',
-          'scipy >= 0.15.1',
-          'nose >= 1.3.7',
-          'scikit-bio >= 0.5.1',
+          'numpy',
+          'pandas',
+          'scipy',
+          'nose',
+          'scikit-bio',
           'seaborn',
           'tqdm',
-          'tensorflow>=1.15,<2'
+          'torch>=1.9.0'
       ],
       classifiers=classifiers,
       entry_points={
