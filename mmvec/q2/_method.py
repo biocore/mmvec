@@ -25,7 +25,7 @@ def paired_omics(microbes: biom.Table,
                  learning_rate: float = 1e-3,
                  equalize_biplot: float = False,
                  arm_the_gpu: bool = False,
-                 summary_interval: int = 60) -> (
+                 summary_interval: int = 1) -> (
                      pd.DataFrame, OrdinationResults, qiime2.Metadata
                  ):
 
